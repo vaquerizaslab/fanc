@@ -1,0 +1,353 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>PCA analysis &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Hi-C domain analysis" href="domains.html" />
+    <link rel="prev" title="AB compartment analysis" href="ab_compartments.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../fanc_analyse_hic.html"> Analyse Hi-C matrices</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="oe.html"> Expected values and O/E matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ab_compartments.html"> AB compartments</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#"> PCA</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Positional Arguments">Positional Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Named Arguments">Named Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#example">Example</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#filters">Filters</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="domains.html"> TADs and TAD boundaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparisons.html"> Matrix and score comparisons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aggregate_hic.html"> Aggregate Hi-C matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="loops.html"> Loop calling</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../fanc.html">FAN-C command line tools</a> &raquo;</li>
+        
+          <li><a href="../fanc_analyse_hic.html">Analyse Hi-C matrices (API)</a> &raquo;</li>
+        
+      <li>PCA analysis</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/fanc-executable/fanc-analyse-hic/pca.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="pca-analysis">
+<span id="fanc-pca"></span><h1>PCA analysis<a class="headerlink" href="#pca-analysis" title="Permalink to this headline">¶</a></h1>
+<p>When working with multiple Hi-C libraries, it is often useful to assess the variability
+between replicates and samples from different conditions. This can provide valuable
+information about potential experimental biases and whether samples from different
+replicates can be safely merged.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">pca</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">PLOT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">SAMPLE_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">inter</span><span class="o">-</span><span class="n">chromosomal</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">REGION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">e</span> <span class="n">EXPECTED_FILTER</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BACKGROUND_FILTER</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="nb">min</span><span class="o">-</span><span class="n">distance</span> <span class="n">MIN_DISTANCE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="nb">max</span><span class="o">-</span><span class="n">distance</span> <span class="n">MAX_DISTANCE</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">n</span> <span class="n">NAMES</span> <span class="p">[</span><span class="n">NAMES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">--</span><span class="n">strategy</span> <span class="n">STRATEGY</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">COLORS</span> <span class="p">[</span><span class="n">COLORS</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span> <span class="n">MARKERS</span> <span class="p">[</span><span class="n">MARKERS</span> <span class="o">...</span><span class="p">]]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">v</span> <span class="n">EIGENVECTORS</span> <span class="n">EIGENVECTORS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">Z</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">S</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+                <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span> <span class="n">output</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h2>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h2>
+<dl class="option-list">
+<dt><kbd>input</kbd></dt>
+<dd><p>Input Hic files</p>
+</dd>
+<dt><kbd>output</kbd></dt>
+<dd><p>Output file with PCA results.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h2>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h2>
+<dl class="option-list">
+<dt><kbd>-p, --plot</kbd></dt>
+<dd><p>Output plot. Path to PDF file where the PCA plot will be saved.</p>
+</dd>
+<dt><kbd>-s, --sample-size</kbd></dt>
+<dd><p>Sample size for contacts to do the PCA on.Default: 50000</p>
+</dd>
+<dt><kbd>--inter-chromosomal</kbd></dt>
+<dd><p>Also include inter-chromosomal contacts in PCA. By default, only intra-schromosomal contacts are considered.</p>
+</dd>
+<dt><kbd>-r, --region</kbd></dt>
+<dd><p>Region to do PCA on. You could put a specific chromosome here, for example. By default, the whole genome is considered.</p>
+</dd>
+<dt><kbd>-e, --expected-filter</kbd></dt>
+<dd><p>Minimum fold-enrichment over expected value. Contacts with a strength lower than &lt;b&gt;*E(d), where d is the distance between two loci and E is the corresponding expected contact strength, are filtered out before PCA. Default: no filter.</p>
+</dd>
+<dt><kbd>-b, --background-filter</kbd></dt>
+<dd><p>Minimum fold-enrichment over average inter-chromosomal contacts. Default: no filter.</p>
+</dd>
+<dt><kbd>--min-distance</kbd></dt>
+<dd><p>Minimum distance of matrix bins in base pairs. You can use abbreviated formats such as 1mb, 10k, etc.</p>
+</dd>
+<dt><kbd>--max-distance</kbd></dt>
+<dd><p>Maximum distance of matrix bins in base pairs. You can use abbreviated formats such as 1mb, 10k, etc.</p>
+</dd>
+<dt><kbd>-n, --names</kbd></dt>
+<dd><p>Sample names for plot labelling.</p>
+</dd>
+<dt><kbd>--strategy</kbd></dt>
+<dd><p>Mechanism to select pairs from Hi-C matrix. Default: variance. Possible values are: variance (select contacts with the largest variance in strength across samples first), fold-change (select pairs with the largest fold-change across samples first), and passthrough (no preference on pairs).</p>
+</dd>
+<dt><kbd>-c, --colors</kbd></dt>
+<dd><p>Colors for plotting.</p>
+</dd>
+<dt><kbd>-m, --markers</kbd></dt>
+<dd><p>Markers for plotting. Follows Matplotlib marker definitions: <a class="reference external" href="http://matplotlib.org/api/markers_api.html">http://matplotlib.org/api/markers_api.html</a></p>
+</dd>
+<dt><kbd>-v, --eigenvectors</kbd></dt>
+<dd><p>Which eigenvectors to plot. Default: 1 2</p>
+</dd>
+<dt><kbd>-Z, --no-zeros</kbd></dt>
+<dd><p>Ignore pixels with no contacts in any sample.</p>
+</dd>
+<dt><kbd>-S, --no-scaling</kbd></dt>
+<dd><p>Do not scale input matrices to the same number of valid pairs. Use this only if you are sure matrices are directly comparable.</p>
+</dd>
+<dt><kbd>-f, --force-overwrite</kbd></dt>
+<dd><dl class="simple">
+<dt>If the specified output file exists, it will be</dt><dd><p>overwritten without warning.</p>
+</dd>
+</dl>
+</dd>
+<dt><kbd>-tmp, --work-in-tmp</kbd></dt>
+<dd><p>Work in temporary directory</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="example">
+<h2>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h2>
+<p>As an example, we ran a PCA analysis on the 1mb resolution mESC Hi-C matrices from our
+<a class="reference external" href="https://doi.org/10.1038/s41467-018-06961-0">Low-C paper</a> using different restriction
+enzymes (MboI and HindIII), as well as different input cell numbers.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">fanc</span> <span class="n">pca</span> <span class="o">-</span><span class="n">n</span> <span class="s2">&quot;HindIII 100k&quot;</span> <span class="s2">&quot;HindIII 5M&quot;</span> <span class="s2">&quot;MboI 100k&quot;</span> <span class="s2">&quot;MboI 1M&quot;</span> <span class="s2">&quot;MboI 50k&quot;</span> \
+         <span class="o">-</span><span class="n">Z</span> <span class="o">-</span><span class="n">s</span> <span class="mi">100000</span> <span class="o">-</span><span class="n">r</span> <span class="n">chr19</span> <span class="o">-</span><span class="n">p</span> <span class="n">architecture</span><span class="o">/</span><span class="n">pca</span><span class="o">/</span><span class="n">lowc</span><span class="o">.</span><span class="n">pca</span><span class="o">.</span><span class="n">png</span> \
+         <span class="n">lowc_hindiii_100k_1mb</span><span class="o">.</span><span class="n">hic</span> <span class="n">lowc_hindiii_5M_1mb</span><span class="o">.</span><span class="n">hic</span> \
+         <span class="n">lowc_mboi_100k_1mb</span><span class="o">.</span><span class="n">hic</span> <span class="n">lowc_mboi_1M_1mb</span><span class="o">.</span><span class="n">hic</span> \
+         <span class="n">lowc_mboi_50k_1mb</span><span class="o">.</span><span class="n">hic</span> \
+         <span class="n">architecture</span><span class="o">/</span><span class="n">pca</span><span class="o">/</span><span class="n">lowc</span><span class="o">.</span><span class="n">pca</span>
+</pre></div>
+</div>
+<p>The result looks like this, where you can clearly see the division between the different
+restriction enzymes:</p>
+<img alt="../../_images/lowc.pca.png" src="../../_images/lowc.pca.png" />
+</div>
+<div class="section" id="filters">
+<h2>Filters<a class="headerlink" href="#filters" title="Permalink to this headline">¶</a></h2>
+<p>By default, PCA is run on the whole genome. In the example above, we have restricted the
+analysis to chromosome 19 using the <code class="docutils literal notranslate"><span class="pre">-r</span> <span class="pre">chr19</span></code> argument. <code class="docutils literal notranslate"><span class="pre">-Z</span></code> instructs
+<code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pca</span></code> to use only non-zero matrix entries for the PCA - this can help mitigate
+the effect of very weak contacts on the variability.</p>
+<p>In the example, we are limiting the number of contacts used for the PCA to 100,000
+using <code class="docutils literal notranslate"><span class="pre">-s</span> <span class="pre">100000</span></code>. The type of contacts in the sample are chose according to the
+<code class="docutils literal notranslate"><span class="pre">--strategy</span></code> option. By default, the contacts with the largest variability across
+the genome are chosen, but you can also use <code class="docutils literal notranslate"><span class="pre">--strategy</span> <span class="pre">fold-change</span></code> to choose
+contacts with the largest fold-change or <code class="docutils literal notranslate"><span class="pre">--strategy</span> <span class="pre">passthrough</span></code> to make no
+prior selection of contacts.</p>
+<p>If you only want to include contacts up to (or above a) a certain distance, you can
+specify that distance using the <code class="docutils literal notranslate"><span class="pre">--max-distance</span></code> (or <code class="docutils literal notranslate"><span class="pre">min-distance</span></code>) option.</p>
+<p>Finally, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pca</span></code> offers two filters designed to remove uninformative contacts
+before PCA. The first, <code class="docutils literal notranslate"><span class="pre">--expected-filter</span> <span class="pre">&lt;f&gt;</span></code>, removes all contacts in which all
+samples have a signal below <em>f</em> x <em>E(d)</em>, where E is the expected value function depending
+on the distance d. The second, <code class="docutils literal notranslate"><span class="pre">--background-filter</span> <span class="pre">&lt;f&gt;</span></code> removes contacts in which
+all samples have an <em>f</em> -fold enrichment over the expected inter-chromosomal contacts.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="domains.html" class="btn btn-neutral float-right" title="Hi-C domain analysis" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="ab_compartments.html" class="btn btn-neutral float-left" title="AB compartment analysis" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,580 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Hi-C domain analysis &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Matrix and score comparisons" href="comparisons.html" />
+    <link rel="prev" title="PCA analysis" href="pca.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../fanc_analyse_hic.html"> Analyse Hi-C matrices</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="oe.html"> Expected values and O/E matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ab_compartments.html"> AB compartments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pca.html"> PCA</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#"> TADs and TAD boundaries</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#insulation-score">Insulation Score</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#insulating-boundaries-tad-boundaries">Insulating boundaries (TAD boundaries)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#directionality-index">Directionality Index</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#a-note-on-tad-calling">A note on TAD calling</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="comparisons.html"> Matrix and score comparisons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aggregate_hic.html"> Aggregate Hi-C matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="loops.html"> Loop calling</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../fanc.html">FAN-C command line tools</a> &raquo;</li>
+        
+          <li><a href="../fanc_analyse_hic.html">Analyse Hi-C matrices (API)</a> &raquo;</li>
+        
+      <li>Hi-C domain analysis</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/fanc-executable/fanc-analyse-hic/domains.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="hi-c-domain-analysis">
+<span id="fanc-domains"></span><h1>Hi-C domain analysis<a class="headerlink" href="#hi-c-domain-analysis" title="Permalink to this headline">¶</a></h1>
+<p>Like compartments, topologically associating domains, or TADs, for a fundamental level of
+genome organisation.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/domains/fanc_example_100kb_tads.png chr18:18mb-28mb <span class="se">\</span>
+     -p triangular output/hic/binned/fanc_example_100kb.hic -m <span class="m">4000000</span> <span class="se">\</span>
+     -vmin <span class="m">0</span> -vmax <span class="m">0</span>.05
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_100kb_tads.png" src="../../_images/fanc_example_100kb_tads.png" />
+<p>FAN-C provides multiple “scores” that are designed to find the boundaries between domains.</p>
+<div class="section" id="insulation-score">
+<h2>Insulation Score<a class="headerlink" href="#insulation-score" title="Permalink to this headline">¶</a></h2>
+<p>The insulation score (<a class="reference external" href="http://www.nature.com/doifinder/10.1038/nature14450">Crane et al. 2015</a>)
+adds up contacts in a sliding window align the Hi-C matrix diagonal.</p>
+<img alt="../../_images/fanc_example_100kb_tads_insulation_score_example.png" src="../../_images/fanc_example_100kb_tads_insulation_score_example.png" />
+<p>Regions with low score are “insulating”, i.e. regions between domains. Regions with high scores
+are most likely found inside domains.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code> to calculate the insulation score from the command line:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">insulation</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OUTPUT_FORMAT</span><span class="p">]</span>
+                       <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW_SIZES</span> <span class="p">[</span><span class="n">WINDOW_SIZES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">REGION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">]</span>
+                       <span class="p">[</span><span class="o">--</span><span class="n">offset</span> <span class="n">OFFSET</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">L</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">N</span><span class="p">]</span>
+                       <span class="p">[</span><span class="o">--</span><span class="n">normalisation</span><span class="o">-</span><span class="n">window</span> <span class="n">NORMALISATION_WINDOW</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span><span class="p">]</span>
+                       <span class="p">[</span><span class="o">--</span><span class="n">trim</span><span class="o">-</span><span class="n">mean</span> <span class="n">TRIM_MEAN</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+                       <span class="nb">input</span> <span class="p">[</span><span class="n">output</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>input</kbd></dt>
+<dd><p>Input matrix (Hi-C, fold-change map, …)</p>
+</dd>
+<dt><kbd>output</kbd></dt>
+<dd><p>Output file. Format will be determined by “-o”. By default, this is a FAN-C InsulationScores object, for maximum compatibility with other analyses. If you choose a text-based output format (BED, GFF, BigWig), this parameter will be the file prefix, and the window size will be appended.If not specified and output format is one of bed, gff, or bigwig, the input file name forms the output file prefix.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>-o, --output-format</kbd></dt>
+<dd><p>Format of the output file. By default, this is a FAN-C InsulationScore object, for maximum compatibility with other analyses. Other options are “bed”, “bigwig”, and “gff”</p>
+</dd>
+<dt><kbd>-w, --window-sizes</kbd></dt>
+<dd><p>Window sizes in base pairs. You can also use abbreviated number format (i.e. 1.5M, 250kb, etc). If not specified, will choose the window sizes based on the matrix resolution r when calculating scores. Specifically: r*3, r*5, r*7, r*10, and r*15</p>
+</dd>
+<dt><kbd>-r, --region</kbd></dt>
+<dd><p>Region selector (&lt;chr&gt;:&lt;start&gt;-&lt;end&gt;) to only calculate II for this region.</p>
+</dd>
+<dt><kbd>-i, --impute</kbd></dt>
+<dd><p>Impute missing values in matrix. If set, missing matrix values (where an entire Hi-C bin has 0 contacts) will be replaced by the expected value at the given distance.</p>
+</dd>
+<dt><kbd>--offset</kbd></dt>
+<dd><p>Window offset in base pairs from the diagonal.</p>
+</dd>
+<dt><kbd>-L, --no-log</kbd></dt>
+<dd><p>Do not log2-transform insulation index after normalisation. Log-transformation roughly centers values around 0, but if you need this to be exactly centered, use the “–geom-mean” option.</p>
+</dd>
+<dt><kbd>-N, --no-norm</kbd></dt>
+<dd><p>Do not normalise index to insulation average Default is whole chromosome normalisation - to normalise to smaller regions, use –normalisation-window.</p>
+</dd>
+<dt><kbd>--normalisation-window</kbd></dt>
+<dd><p>Size of the normalisation window (moving average) in bins. Default: whole chromosome.</p>
+</dd>
+<dt><kbd>-s, --subtract-mean</kbd></dt>
+<dd><p>Subtract mean instead of dividing by it when “-n” is enabled. You probably do not want this, unless you are working with log-transformed matrices (e.g. fold-change matrices)</p>
+</dd>
+<dt><kbd>-g, --geom-mean</kbd></dt>
+<dd><p>Use geometric mean for normalisation (rather than arithmetic mean). Useful in conjunction with –log to center the distribution at 0. This is very important when comparing insulation scores, for example using the “fanc compare” command!</p>
+</dd>
+<dt><kbd>--trim-mean</kbd></dt>
+<dd><p>Use a trimmed mean for insulation index normalisation with this cutoff (fraction of scores)</p>
+</dd>
+<dt><kbd>-tmp, --work-in-tmp</kbd></dt>
+<dd><p>Work in temporary directory</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code> is typically used to calculate insulation scores with multiple window
+sizes at the same time, as a single window size might be prone to local matrix differences:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc insulation output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
+                architecture/domains/fanc_example_100kb.insulation <span class="se">\</span>
+                -w <span class="m">1000000</span> <span class="m">1500000</span> <span class="m">2000000</span> <span class="m">2500000</span> <span class="m">3000000</span> <span class="m">3500000</span> <span class="m">4000000</span>
+</pre></div>
+</div>
+<p>Window sizes are chosen using the <code class="docutils literal notranslate"><span class="pre">-w</span></code> parameter.</p>
+<p>We can easily plot all insulation scores at the same time using <code class="docutils literal notranslate"><span class="pre">fancplot</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/domains/fanc_example_50kb_tads_insulation.png chr18:18mb-28mb <span class="se">\</span>
+     -p triangular output/hic/binned/fanc_example_100kb.hic -m <span class="m">4000000</span> -vmin <span class="m">0</span> -vmax <span class="m">0</span>.05 <span class="se">\</span>
+     -p scores architecture/domains/fanc_example_100kb.insulation
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_50kb_tads_insulation.png" src="../../_images/fanc_example_50kb_tads_insulation.png" />
+</div>
+<div class="section" id="output-formats">
+<h3>Output formats<a class="headerlink" href="#output-formats" title="Permalink to this headline">¶</a></h3>
+<p>The default output format has maximum compatibility within FAN-C, but other tools like
+genome browsers won’t be able to read it. Export of insulation scores to a different
+format is simple. Just choose <code class="docutils literal notranslate"><span class="pre">-output-format</span> <span class="pre">bed</span></code> to export to BED file,
+<code class="docutils literal notranslate"><span class="pre">-output-format</span> <span class="pre">gff</span></code> to export to GFF format, or <code class="docutils literal notranslate"><span class="pre">-output-format</span> <span class="pre">bigwig</span></code> to export
+to an indexed BigWig file. The latter is a binary file, and hence not readable as
+text format, but is the fastest for accessing subsets of scores.</p>
+<p>When using an output format other than the default, the second positional argument
+(output) becomes an output file prefix. It is appended by the window size (in
+abbreviated form, i.e. 1000000 becomes “1mb”) and gets the file ending of the chosen
+format. Example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc insulation output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
+                architecture/domains/fanc_example_100kb.insulation <span class="se">\</span>
+                -w <span class="m">1000000</span> <span class="m">1500000</span> <span class="m">2000000</span> <span class="m">2500000</span> <span class="m">3000000</span> <span class="m">3500000</span> <span class="m">4000000</span> <span class="se">\</span>
+                -o bed
+</pre></div>
+</div>
+<p>This produces the output files:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_1</span><span class="o">.</span><span class="mi">5</span><span class="n">mb</span><span class="o">.</span><span class="n">bed</span>
+<span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_1mb</span><span class="o">.</span><span class="n">bed</span>
+<span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_2</span><span class="o">.</span><span class="mi">5</span><span class="n">mb</span><span class="o">.</span><span class="n">bed</span>
+<span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_2mb</span><span class="o">.</span><span class="n">bed</span>
+<span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_3</span><span class="o">.</span><span class="mi">5</span><span class="n">mb</span><span class="o">.</span><span class="n">bed</span>
+<span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_3mb</span><span class="o">.</span><span class="n">bed</span>
+<span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_4mb</span><span class="o">.</span><span class="n">bed</span>
+</pre></div>
+</div>
+<p>Of course, you can also simply convert existing insulation scores to another format
+without having to recalculate everything. Simply run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc insulation architecture/domains/fanc_example_100kb.insulation <span class="se">\</span>
+                -o bed
+</pre></div>
+</div>
+<p>and the insulation scores for all window sizes in the object will be converted to BED
+files using the input file name as prefix. If you only want to convert specific window
+sizes, use the <code class="docutils literal notranslate"><span class="pre">-w</span></code> parameter. To find out which window sizes are available in a
+previously calculated scores object, simply run <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code> without any
+parameters:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc insulation architecture/domains/fanc_example_100kb.insulation
+</pre></div>
+</div>
+<p>This prints:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Window</span> <span class="n">sizes</span> <span class="n">available</span> <span class="ow">in</span> <span class="nb">object</span><span class="p">:</span>
+<span class="mi">1</span><span class="n">mb</span> <span class="mf">1.5</span><span class="n">mb</span> <span class="mi">2</span><span class="n">mb</span> <span class="mf">2.5</span><span class="n">mb</span> <span class="mi">3</span><span class="n">mb</span> <span class="mf">3.5</span><span class="n">mb</span> <span class="mi">4</span><span class="n">mb</span>
+</pre></div>
+</div>
+<p>You can plot scores from one or more window sizes using the <code class="docutils literal notranslate"><span class="pre">line</span></code> plot in <code class="docutils literal notranslate"><span class="pre">fancplot</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot --width <span class="m">6</span> -o architecture/domains/fanc_example_50kb_tads_insulation_1mb.png <span class="se">\</span>
+               chr18:18mb-28mb <span class="se">\</span>
+               -p triangular output/hic/binned/fanc_example_100kb.hic -m <span class="m">4000000</span> <span class="se">\</span>
+               -vmin <span class="m">0</span> -vmax <span class="m">0</span>.05 <span class="se">\</span>
+               -p line architecture/domains/fanc_example_100kb.insulation_1mb.bed <span class="se">\</span>
+               architecture/domains/fanc_example_100kb.insulation_2mb.bed <span class="se">\</span>
+               -l <span class="s2">&quot;1mb&quot;</span> <span class="s2">&quot;2mb&quot;</span>
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_50kb_tads_insulation_1mb.png" src="../../_images/fanc_example_50kb_tads_insulation_1mb.png" />
+</div>
+<div class="section" id="normalisation">
+<h3>Normalisation<a class="headerlink" href="#normalisation" title="Permalink to this headline">¶</a></h3>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code> will normalise the insulation scores to the chromosomal
+average and the log-transform them. You can get raw, untransformed scores using <code class="docutils literal notranslate"><span class="pre">-N</span></code> and
+<code class="docutils literal notranslate"><span class="pre">--L</span></code>, respectively. If you want to normalise the scores, but to a smaller region on the
+chromosome (to take into account local variability in insulation), you can choose the
+normalisation window size with <code class="docutils literal notranslate"><span class="pre">--normalisation-window</span></code>. The window is specified in bins.</p>
+<p>Normally, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code> will use the arythmetic mean of the chromosomal scores to
+normalise. This has the effect that scores upon log2-transformation are not perfectly
+centred around 0. To remedy this, you can use the geometric mean instead, with the <code class="docutils literal notranslate"><span class="pre">-g</span></code>
+option.</p>
+<p>When you are working with matrices that are already log2-transformed, you may want to use
+the <code class="docutils literal notranslate"><span class="pre">-s</span></code> option to normalise the scores by subtracting, instead of dividing the chromosomal
+average.</p>
+<p>If you have a lot of outliers and sharp score changes, you may use a trimmed mean
+to calculate average scores with <code class="docutils literal notranslate"><span class="pre">--trim-mean</span> <span class="pre">&lt;f&gt;</span></code>, which will ignore the top and bottom
+fraction <em>f</em> of scores for calculating the average.</p>
+</div>
+<div class="section" id="impute-missing-values">
+<h3>Impute missing values<a class="headerlink" href="#impute-missing-values" title="Permalink to this headline">¶</a></h3>
+<p>In the above examples, you will notice the region on the left that is unmappable in the Hi-C
+matrix. In the insulation score calculation, if the insulation window is covered by more than
+50% of unmappable regions, the score will be NaN. <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code> offers the option to
+impute the unmappable values from the expected values of the chromosome using <code class="docutils literal notranslate"><span class="pre">--impute</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc insulation output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
+                architecture/domains/fanc_example_100kb.insulation_imputed <span class="se">\</span>
+                -w <span class="m">1000000</span> <span class="m">1500000</span> <span class="m">2000000</span> <span class="m">2500000</span> <span class="m">3000000</span> <span class="m">3500000</span> <span class="m">4000000</span> <span class="se">\</span>
+                --impute
+</pre></div>
+</div>
+<p>This will result in score without NaN (at least in the center of chromosomes), but can also
+be misleading if the region of interest happens to lie in an unmappable region. Therefore use
+this capability with caution!</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/domains/fanc_example_50kb_tads_insulation.png chr18:18mb-28mb <span class="se">\</span>
+     -p triangular output/hic/binned/fanc_example_100kb.hic -m <span class="m">4000000</span> -vmin <span class="m">0</span> -vmax <span class="m">0</span>.05 <span class="se">\</span>
+     -p scores architecture/domains/fanc_example_100kb.insulation
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_50kb_tads_insulation_imputed.png" src="../../_images/fanc_example_50kb_tads_insulation_imputed.png" />
+</div>
+</div>
+<div class="section" id="insulating-boundaries-tad-boundaries">
+<h2>Insulating boundaries (TAD boundaries)<a class="headerlink" href="#insulating-boundaries-tad-boundaries" title="Permalink to this headline">¶</a></h2>
+<p>Regions in the genome where the insulation score reaches a local minimum represent the region
+between two self-interacting domains, or TADs. You can use <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">boundaries</span></code> to identify these
+regions:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">boundaries</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW</span> <span class="p">[</span><span class="n">WINDOW</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">DELTA</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">MIN_SCORE</span><span class="p">]</span>
+                       <span class="p">[</span><span class="o">-</span><span class="n">x</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span><span class="p">]</span>
+                       <span class="nb">input</span> <span class="n">output</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>input</kbd></dt>
+<dd><p>Input InsulationScores or regions file</p>
+</dd>
+<dt><kbd>output</kbd></dt>
+<dd><p>Path for boundary BED file. When specifying multiple window sizes or if input file has multiple scores in it, this forms the output file prefix and will be appended by ‘&lt;window size&gt;.bed’</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>-w, --window-sizes</kbd></dt>
+<dd><p>Insulation index window size to calculate boundaries on</p>
+</dd>
+<dt><kbd>-d, --delta</kbd></dt>
+<dd><p>Window size for calculating the delta vector (in bins). Calculation takes into account d bins upstream and d bins downstream for a total window size of 2*d + 1 bins. Default 3.</p>
+</dd>
+<dt><kbd>-s, --min-score</kbd></dt>
+<dd><p>Report only peaks where the two surrounding extrema of the delta vector have at least this difference in height. Default: no threshold.</p>
+</dd>
+<dt><kbd>-x, --sub-bin-precision</kbd></dt>
+<dd><p>Report boundary positions with sub-bin precision. This works because the minimum or the the insulation score track can be determined with sub-bin precision. Default: False</p>
+</dd>
+<dt><kbd>-l, --log</kbd></dt>
+<dd><p>log-transform index values before boundary calling.</p>
+</dd>
+<dt><kbd>-m, --maxima</kbd></dt>
+<dd><p>Call maxima of the insulation score instead of minima.</p>
+</dd>
+</dl>
+</div>
+<p>When we run <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">boundaries</span></code> on the above example using 1mb and 2mb as the window sizes:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc boundaries architecture/domains/fanc_example_100kb.insulation <span class="se">\</span>
+                architecture/domains/fanc_example_100kb.insulation_boundaries <span class="se">\</span>
+                -w 1mb 2mb
+</pre></div>
+</div>
+<p>We get two output files with all insulation score minima and associated scores (the depth of
+the minimum compared to the two neighboring maxima):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_boundaries_1mb</span><span class="o">.</span><span class="n">bed</span>
+<span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_boundaries_2mb</span><span class="o">.</span><span class="n">bed</span>
+</pre></div>
+</div>
+<p>Let’s plot the boundaries from the 1mb scores:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot --width <span class="m">6</span> -o architecture/domains/fanc_example_50kb_tads_insulation_1mb_boundaries.png <span class="se">\</span>
+     chr18:18mb-28mb <span class="se">\</span>
+     -p triangular output/hic/binned/fanc_example_100kb.hic -m <span class="m">4000000</span> -vmin <span class="m">0</span> -vmax <span class="m">0</span>.05 <span class="se">\</span>
+     -p line architecture/domains/fanc_example_100kb.insulation_1mb.bed -l <span class="s2">&quot;1mb&quot;</span> <span class="se">\</span>
+     -p bar architecture/domains/fanc_example_100kb.insulation_boundaries_1mb.bed
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_50kb_tads_insulation_1mb_boundaries.png" src="../../_images/fanc_example_50kb_tads_insulation_1mb_boundaries.png" />
+<p>As you can see, lower minima get higher scores. By default, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">boundaries</span></code> outputs all
+minima, but you may set a threshold using <code class="docutils literal notranslate"><span class="pre">--min-score</span> <span class="pre">&lt;s&gt;</span></code> to report only boundaries with
+scores greater than <em>s</em>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc boundaries architecture/domains/fanc_example_100kb.insulation <span class="se">\</span>
+                architecture/domains/fanc_example_100kb.insulation_boundaries_score0.7 <span class="se">\</span>
+                -w 1mb 2mb --min-score <span class="m">0</span>.7
+</pre></div>
+</div>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">boundaries</span></code> will return minima as matrix bins. However, since the boundary
+calls rely on a smoothed insulation score track, it can attempt to identify the boundary location
+with sub-bin resolution. Use <code class="docutils literal notranslate"><span class="pre">-x</span></code> to try this, but be aware that this is not precise.</p>
+</div>
+<div class="section" id="directionality-index">
+<h2>Directionality Index<a class="headerlink" href="#directionality-index" title="Permalink to this headline">¶</a></h2>
+<p>The directionality index (<a class="reference external" href="http://www.nature.com/doifinder/10.1038/nature11082">Dixon et al. 2012</a>)
+measures the bias in contact frequency up- and downstream of an Hi-C region. When inside TADs,
+this measure tends towards zero, as interactions in either direction are equally frequent. However,
+when approaching a TAD boundary this measure changes drastically, as one direction will remain
+inside the TAD, where there is a high contact intensity, whereas the other direction will lie in
+a low intensity region outside the TAD.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">directionality</span></code> to calculate the directionality index from the command line:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">directionality</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OUTPUT_FORMAT</span><span class="p">]</span>
+                           <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW_SIZES</span> <span class="p">[</span><span class="n">WINDOW_SIZES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">REGION</span><span class="p">]</span>
+                           <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+                           <span class="nb">input</span> <span class="p">[</span><span class="n">output</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>input</kbd></dt>
+<dd><p>Input matrix (Hi-C, fold-change map, …)</p>
+</dd>
+<dt><kbd>output</kbd></dt>
+<dd><p>Output file. Format will be determined by “-o”. By default, this is a FAN-C DirectionalityIndexes object, for maximum compatibility with other analyses. If you choose a text-based output format (BED, GFF, BigWig), this parameter will be the file prefix, and the window size will be appended.If not specified and output format is one of bed, gff, or bigwig, the input file name forms the output file prefix.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>-o, --output-format</kbd></dt>
+<dd><p>Format of the output file. By default, this is a FAN-C DirectionalityIndex object, for maximum compatibility with other analyses. Other options are “bed”, “bigwig”, and “gff”</p>
+</dd>
+<dt><kbd>-w, --window-sizes</kbd></dt>
+<dd><p>Window sizes in base pairs. You can also use abbreviated number format (i.e. 1.5M, 250kb, etc). If not specified, will choose the window sizes based on the matrix resolution r when calculating scores. Specifically: r*3, r*5, r*7, r*10, and r*15</p>
+</dd>
+<dt><kbd>-r, --region</kbd></dt>
+<dd><p>Region selector (&lt;chr&gt;:&lt;start&gt;-&lt;end&gt;) to only calculate directionality index for this region.</p>
+</dd>
+<dt><kbd>-tmp, --work-in-tmp</kbd></dt>
+<dd><p>Work in temporary directory</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="id1">
+<h3>Example<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">directionality</span></code> is very similar in syntax to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code>.
+It is typically used to calculate directionality indexes with multiple window
+sizes at the same time, as a single window size might be prone to local matrix differences:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc directionality output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
+                    architecture/domains/fanc_example_100kb.directionality <span class="se">\</span>
+                    -w <span class="m">1000000</span> <span class="m">1500000</span> <span class="m">2000000</span> <span class="m">2500000</span> <span class="m">3000000</span> <span class="m">3500000</span> <span class="m">4000000</span>
+</pre></div>
+</div>
+<p>Window sizes are chosen using the <code class="docutils literal notranslate"><span class="pre">-w</span></code> parameter.</p>
+<p>We can easily plot all directionality indexes at the same time using <code class="docutils literal notranslate"><span class="pre">fancplot</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/domains/fanc_example_50kb_tads_directionality.png chr18:18mb-28mb <span class="se">\</span>
+     -p triangular output/hic/binned/fanc_example_100kb.hic -m <span class="m">4000000</span> -vmin <span class="m">0</span> -vmax <span class="m">0</span>.05 <span class="se">\</span>
+     -p scores architecture/domains/fanc_example_100kb.directionality
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_50kb_tads_directionality.png" src="../../_images/fanc_example_50kb_tads_directionality.png" />
+<p>To export the directionality index to other genomic formats using <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">directionality</span></code>
+follow the instructions as for <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code>.</p>
+</div>
+</div>
+<div class="section" id="a-note-on-tad-calling">
+<h2>A note on TAD calling<a class="headerlink" href="#a-note-on-tad-calling" title="Permalink to this headline">¶</a></h2>
+<p>There are a lot of tools available for calling TADs in Hi-C matrices, including one that
+we have written called <a class="reference external" href="https://github.com/vaquerizaslab/tadtool">TADtool</a>. However,
+and this is a point we are also making with TADtool specifically, TAD calling algorithms
+often depend critically on their input parameters, and different TAD callers can lead to
+very different results. We are therefore currently not bundling a TAD calling tool with
+FAN-C, and refer the user to one of the many available tools for TAD calling that offer
+a wide range of features.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="comparisons.html" class="btn btn-neutral float-right" title="Matrix and score comparisons" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="pca.html" class="btn btn-neutral float-left" title="PCA analysis" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

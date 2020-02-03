@@ -1,0 +1,475 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Hi-C aggregate analysis &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Loop calling" href="loops.html" />
+    <link rel="prev" title="Matrix and score comparisons" href="comparisons.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../fanc_analyse_hic.html"> Analyse Hi-C matrices</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="oe.html"> Expected values and O/E matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ab_compartments.html"> AB compartments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pca.html"> PCA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="domains.html"> TADs and TAD boundaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparisons.html"> Matrix and score comparisons</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#"> Aggregate Hi-C matrices</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Positional Arguments">Positional Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Named Arguments">Named Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aggregate-over-variable-size-regions">Aggregate over variable size regions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aggregate-tads">Aggregate TADs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fixed-width-regions">Fixed-width regions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#loops-and-other-pairwise-genomic-regions">Loops and other pairwise genomic regions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="loops.html"> Loop calling</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../fanc.html">FAN-C command line tools</a> &raquo;</li>
+        
+          <li><a href="../fanc_analyse_hic.html">Analyse Hi-C matrices (API)</a> &raquo;</li>
+        
+      <li>Hi-C aggregate analysis</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/fanc-executable/fanc-analyse-hic/aggregate_hic.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="hi-c-aggregate-analysis">
+<span id="fanc-aggregate"></span><h1>Hi-C aggregate analysis<a class="headerlink" href="#hi-c-aggregate-analysis" title="Permalink to this headline">¶</a></h1>
+<p>It can be very informative to view the average Hi-C matrix for a set of regions, rather
+than the Hi-C matrix at each individual region. This can help you in identifying common
+structural features of these regions or over-/under-representation of contacts in the
+vicinity.</p>
+<p>Here are examples of TAD and loop aggregate plots from our recent preprint
+(<a class="reference external" href="https://www.biorxiv.org/content/10.1101/523712v1">Kruse et al. (2019)</a>):</p>
+<img alt="../../_images/aggregate_examples_biorxiv.png" src="../../_images/aggregate_examples_biorxiv.png" />
+<p>You can easily create your own aggregate plots using <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">aggregate</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">aggregate</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span> <span class="n">MATRIX_FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">PLOT_FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">tads</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">--</span><span class="n">tads</span><span class="o">-</span><span class="n">flyamer</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">loops</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">pixels</span> <span class="n">PIXELS</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">-</span><span class="n">v</span> <span class="n">REGION_VIEWPOINT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BOUNDARY_MODE</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">INTERPOLATION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RELATIVE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">a</span> <span class="n">ABSOLUTE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">e</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">--</span><span class="n">rescale</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">colormap</span> <span class="n">COLORMAP</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">vmin</span> <span class="n">VMIN</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">--</span><span class="n">vmax</span> <span class="n">VMAX</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">C</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">keep</span><span class="o">-</span><span class="n">submatrices</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">--</span><span class="n">labels</span> <span class="n">LABELS</span> <span class="n">LABELS</span> <span class="n">LABELS</span><span class="p">]</span>
+                      <span class="nb">input</span> <span class="p">[</span><span class="n">regions</span><span class="p">]</span> <span class="p">[</span><span class="n">output</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h2>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h2>
+<dl class="option-list">
+<dt><kbd>input</kbd></dt>
+<dd><p>FAN-C matrix file (e.g. Hic)</p>
+</dd>
+<dt><kbd>regions</kbd></dt>
+<dd><p>File with regions (BED, GFF, Tabix, …) or region pairs (BEDPE)</p>
+</dd>
+<dt><kbd>output</kbd></dt>
+<dd><p>Output AggregateMatrix file for further processing.See -p and -m option for aggregate plot and matrix, respectively.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h2>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h2>
+<dl class="option-list">
+<dt><kbd>-m, --save-matrix</kbd></dt>
+<dd><p>Path to save aggregate matrix (numpy txt format)</p>
+</dd>
+<dt><kbd>-p, --save-plot</kbd></dt>
+<dd><p>Path to save aggregate plot (PDF)</p>
+</dd>
+<dt><kbd>--tads</kbd></dt>
+<dd><p>Use presets for aggregate TADs: –relative 1.0 –expected –log –vmin -1 –vmax 1</p>
+</dd>
+<dt><kbd>--tads-flyamer</kbd></dt>
+<dd><p>Use presets for aggregate TADs: –relative 1.0 –expected–rescale</p>
+</dd>
+<dt><kbd>--loops</kbd></dt>
+<dd><p>Use presets for aggregate loops: –pixels 16 -l</p>
+</dd>
+<dt><kbd>-w, --window</kbd></dt>
+<dd><p>Width of the region window used for aggregation. If set, will only use the center position from the input regions and extract a submatrix of width -w around this region.</p>
+</dd>
+<dt><kbd>--pixels</kbd></dt>
+<dd><p>Width of the output image in pixels. Default: 90</p>
+</dd>
+<dt><kbd>-v, --region-viewpoint</kbd></dt>
+<dd><p>Viewpoint relative to region when using -w. By default, this measures the window from the region center. You can change this to other locations within each region using this parameter. Possible values:start, end, five_prime, three_prime, center</p>
+</dd>
+<dt><kbd>-b, --boundary-mode</kbd></dt>
+<dd><p>Points outside the boundaries of the input are filled according to the given mode. Options areconstant, edge, symmetrix, reflect, and warp.Default: reflect.</p>
+</dd>
+<dt><kbd>-i, --interpolation</kbd></dt>
+<dd><p>Type of interpolation to use for resizing. 0: Nearest-neighbor (default), 1: Bi-linear, 2: Bi-quadratic, 3: Bi-cubic, 4: Bi-quartic, 5: Bi-quintic</p>
+</dd>
+<dt><kbd>-r, --relative</kbd></dt>
+<dd><p>Relative extension of each region as fraction of region length (l). Final region in the image will be: &lt;start of region - e*l&gt; to &lt;end of region + e*l&gt;. Default: 1.0 (results in 3 times region size image). Additive with “-a” parameter!</p>
+</dd>
+<dt><kbd>-a, --absolute</kbd></dt>
+<dd><p>Extension (e) of each region in base pairs. Final region in the image will be:  &lt;start of TAD - e&gt; to &lt;end of TAD + e&gt;. Default: 0 (no extension). Additive with “-r” parameter!</p>
+</dd>
+<dt><kbd>-e, --expected-norm</kbd></dt>
+<dd><p>Normalize matrix to expected values</p>
+</dd>
+<dt><kbd>-l, --log</kbd></dt>
+<dd><p>log2-transform normalized matrices. Only used in conjunction with “-e”.</p>
+</dd>
+<dt><kbd>--rescale</kbd></dt>
+<dd><p>Rescale normalized contact matrices using an a=-0.25 power law. Only used in conjunction with “-e”.</p>
+</dd>
+<dt><kbd>--colormap</kbd></dt>
+<dd><p>Matplotlib colormap to use for matrix</p>
+</dd>
+<dt><kbd>--vmin</kbd></dt>
+<dd><p>Minimum saturation value in image</p>
+</dd>
+<dt><kbd>--vmax</kbd></dt>
+<dd><p>Maximum saturation value in image</p>
+</dd>
+<dt><kbd>-tmp, --work-in-tmp</kbd></dt>
+<dd><p>Work in temporary directory</p>
+</dd>
+<dt><kbd>-C, --no-cache</kbd></dt>
+<dd><p>Do not cache chromosome matrices. Slower, but saves a lot of memory. Use this if you are having trouble with memory usage.</p>
+</dd>
+<dt><kbd>--keep-submatrices</kbd></dt>
+<dd><p>Save all the individual matrices that make up the aggregate matrix in the output object. Useful for debugging and downstream processing. Potentially uses a lot of memory and/or disk space.</p>
+</dd>
+<dt><kbd>-s, --orient-by-strand</kbd></dt>
+<dd><p>Flip submatrix if region is on the negative strand.</p>
+</dd>
+<dt><kbd>--labels</kbd></dt>
+<dd><p>Labels for the left, center, and right edge of the matrix.</p>
+</dd>
+</dl>
+</div>
+<p>You can provide <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">aggregate</span></code> with a list of genomic regions in any of the common
+region-based formats (BED, GFF, BigWig, …) or with a list of genomic region pairs in
+BEDPE format. For lists of regions, the aggregate matrix will be located at the Hi-C
+matrix diagonal. For pairs of regions, matrix subsets can be anywhere in the genome.</p>
+<div class="section" id="aggregate-over-variable-size-regions">
+<h2>Aggregate over variable size regions<a class="headerlink" href="#aggregate-over-variable-size-regions" title="Permalink to this headline">¶</a></h2>
+<p>By default, if you provide <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">aggregate</span></code> with a list of regions, it will extract
+the square Hi-C sub-matrices along the diagonal for each region and interpolate them
+to match the width set by <code class="docutils literal notranslate"><span class="pre">--pixels</span></code> (90 by default). It will then calculate the
+average value for each pixel, which then form the aggregate matrix.</p>
+<p>Let’s try this on TADs called using the arrowhead algorithm (<a class="reference external" href="http://dx.doi.org/10.1016/j.cell.2014.11.021">Rao and Huntley et al.,
+2014</a>). <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">aggregate</span></code> will ignore
+all regions in the file that are not present in the Hi-C matrix. In our example Hic file,
+that is everything outside of chromosomes 18 and 19:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc aggregate output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
+               architecture/domains/gm12878_tads.bed <span class="se">\</span>
+               architecture/aggregate/fanc_example_100kb.agg
+</pre></div>
+</div>
+<p>This command only produces an AggregateMatrix file (<code class="docutils literal notranslate"><span class="pre">fanc_example_100kb.agg</span></code>), which
+is useful for further usage with FAN-C, but not easily readable. To extract the aggregate
+matrix in txt format, simply add <code class="docutils literal notranslate"><span class="pre">-m</span></code> and to plot it just use <code class="docutils literal notranslate"><span class="pre">-p</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc aggregate output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
+               architecture/domains/gm12878_tads.bed <span class="se">\</span>
+               architecture/aggregate/fanc_example_100kb.agg <span class="se">\</span>
+               -p architecture/aggregate/fanc_example_100kb.agg.png <span class="se">\</span>
+               -m architecture/aggregate/fanc_example_100kb.agg.txt
+</pre></div>
+</div>
+<p>The resulting plot looks a bit strange:</p>
+<img alt="../../_images/fanc_example_100kb.agg.png" src="../../_images/fanc_example_100kb.agg.png" />
+<p>Important note: if your input regions have variable sizes, as assumed in this section,
+the resulting aggregate matrix with default settings is highly misleading, since smaller
+regions will have larger average signal in the interpolated matrix due to being closer to
+the diagonal. You can easily correct for this effect using O/E matrices instead of the
+regular Hi-C matrix. Simply set the <code class="docutils literal notranslate"><span class="pre">-e</span></code> flag for this. <code class="docutils literal notranslate"><span class="pre">-e</span></code> works very well with
+log2-transformed data (<code class="docutils literal notranslate"><span class="pre">-l</span></code>). Let’s see how this changes your matrix:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc aggregate output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
+               architecture/domains/gm12878_tads.bed <span class="se">\</span>
+               architecture/aggregate/fanc_example_100kb.agg <span class="se">\</span>
+               -p architecture/aggregate/fanc_example_100kb_oe.agg.png <span class="se">\</span>
+               -m architecture/aggregate/fanc_example_100kb_oe.agg.txt <span class="se">\</span>
+               -e -l
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_100kb_oe.agg.png" src="../../_images/fanc_example_100kb_oe.agg.png" />
+<p>This still does not look like much of a TAD, but we can add a little more context by
+expanding the plotting region relative to the region size using <code class="docutils literal notranslate"><span class="pre">-r</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc aggregate output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
+               architecture/domains/gm12878_tads.bed <span class="se">\</span>
+               architecture/aggregate/fanc_example_100kb.agg <span class="se">\</span>
+               -p architecture/aggregate/fanc_example_100kb_oe_large.agg.png <span class="se">\</span>
+               -m architecture/aggregate/fanc_example_100kb_oe_large.agg.txt <span class="se">\</span>
+               -e -l -r <span class="m">1</span>.0
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_100kb_oe_large.agg.png" src="../../_images/fanc_example_100kb_oe_large.agg.png" />
+<p>That plot depicts a region that is 3x the size of the TAD located in its center and
+already looks like we would expect: High signal in the center, especially at the TAD
+corner, where the corner loops are typically located.</p>
+<p>We can further apply an exponential rescaling (<code class="docutils literal notranslate"><span class="pre">--rescale</span></code>) of the data to make this
+look more like a Hi-C matrix:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc aggregate output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
+               architecture/domains/gm12878_tads.bed <span class="se">\</span>
+               architecture/aggregate/fanc_example_100kb.agg <span class="se">\</span>
+               -p architecture/aggregate/fanc_example_100kb_oe_large_res.png <span class="se">\</span>
+               -m architecture/aggregate/fanc_example_100kb_oe_large.agg.txt <span class="se">\</span>
+               -e -r <span class="m">1</span>.0 --rescale --vmax <span class="m">0</span>.045
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_100kb_oe_large_res.agg.png" src="../../_images/fanc_example_100kb_oe_large_res.agg.png" />
+<p>Here, we are not log-transforming the data and we are setting the saturation of the
+pixel values at 0.045 using <code class="docutils literal notranslate"><span class="pre">--vmax</span></code>.</p>
+</div>
+<div class="section" id="aggregate-tads">
+<h2>Aggregate TADs<a class="headerlink" href="#aggregate-tads" title="Permalink to this headline">¶</a></h2>
+<p>For both the log2(O/E) and rescaled versions of the aggregate matrices, there are
+preset flags you can use called <code class="docutils literal notranslate"><span class="pre">--tads</span></code> and <code class="docutils literal notranslate"><span class="pre">--tads-flyamer</span></code>, respectively. The
+latter is named after the first author of the publication that first used rescaled
+aggregate matrices in this fashion
+(<a class="reference external" href="http://www.nature.com/doifinder/10.1038/nature21711">Flyamer et al., 2017</a>). In
+the above example, you can simply run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc aggregate output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
+               architecture/domains/gm12878_tads.bed <span class="se">\</span>
+               architecture/aggregate/fanc_example_100kb.agg <span class="se">\</span>
+               -p architecture/aggregate/fanc_example_100kb_oe_large.agg.png <span class="se">\</span>
+               -m architecture/aggregate/fanc_example_100kb_oe_large.agg.txt <span class="se">\</span>
+               --tads
+</pre></div>
+</div>
+</div>
+<div class="section" id="fixed-width-regions">
+<h2>Fixed-width regions<a class="headerlink" href="#fixed-width-regions" title="Permalink to this headline">¶</a></h2>
+<p>Sometimes, you may want to use a fixed window surrounding a set of features in the
+aggregate analysis, such as TAD boundaries. <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">aggregate</span></code> provides the <code class="docutils literal notranslate"><span class="pre">-w</span></code>
+option to plot the aggregate Hi-C matrix in a window os size w around the center
+of each region in the list provided.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc aggregate output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
+               architecture/domains/fanc_example_100kb.insulation_boundaries_score0.7_1mb.bed <span class="se">\</span>
+               architecture/aggregate/fanc_example_100kb_boundaries.agg <span class="se">\</span>
+               -w 5mb -p architecture/aggregate/fanc_example_100kb_boundaries.agg.png <span class="se">\</span>
+               -m architecture/aggregate/fanc_example_100kb_boundaries.agg.txt <span class="se">\</span>
+               --vmin <span class="m">0</span> --vmax <span class="m">0</span>.03
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_100kb_boundaries.agg.png" src="../../_images/fanc_example_100kb_boundaries.agg.png" />
+<p>You can see the relatively faint “average boundary” in the centre of the plot. When using
+O/E and log2-transformed matrices, this becomes much more obvious:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc aggregate output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
+               architecture/domains/fanc_example_100kb.insulation_boundaries_score0.7_1mb.bed <span class="se">\</span>
+               architecture/aggregate/fanc_example_100kb_boundaries_oe.agg <span class="se">\</span>
+               -w 5mb -p architecture/aggregate/fanc_example_100kb_boundaries_oe.agg.png <span class="se">\</span>
+               -m architecture/aggregate/fanc_example_100kb_boundaries_oe.agg.txt <span class="se">\</span>
+               -e -l
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_100kb_boundaries_oe.agg.png" src="../../_images/fanc_example_100kb_boundaries_oe.agg.png" />
+<p>You can change the viewpoint to other positions within a region, such as the 5’ end,
+using the <code class="docutils literal notranslate"><span class="pre">-v</span></code> option.</p>
+</div>
+<div class="section" id="loops-and-other-pairwise-genomic-regions">
+<h2>Loops and other pairwise genomic regions<a class="headerlink" href="#loops-and-other-pairwise-genomic-regions" title="Permalink to this headline">¶</a></h2>
+<p>When you have loop calls or other pairwise genomic regions in BEDPE format, you can use
+<code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">aggregate</span></code> to make aggregate loop plots. The preset for this is <code class="docutils literal notranslate"><span class="pre">--loops</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc aggregate architecture/loops/rao2014.chr11_77400000_78600000.hic <span class="se">\</span>
+               architecture/loops/rao2014.chr11_77400000_78600000.loops_no_singlets.bedpe <span class="se">\</span>
+               architecture/loops/rao2014.chr11_77400000_78600000.loops_no_singlets.agg <span class="se">\</span>
+               -p architecture/aggregate/rao2014.chr11_77400000_78600000.loops_no_singlets.agg.png <span class="se">\</span>
+               --loops
+</pre></div>
+</div>
+<img alt="../../_images/rao2014.chr11_77400000_78600000.loops_no_singlets.agg.png" src="../../_images/rao2014.chr11_77400000_78600000.loops_no_singlets.agg.png" />
+<p>Control the size of the plot using the <code class="docutils literal notranslate"><span class="pre">--pixels</span></code> argument.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="loops.html" class="btn btn-neutral float-right" title="Loop calling" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="comparisons.html" class="btn btn-neutral float-left" title="Matrix and score comparisons" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

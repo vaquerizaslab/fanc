@@ -1,0 +1,323 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Matrix and score comparisons &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Hi-C aggregate analysis" href="aggregate_hic.html" />
+    <link rel="prev" title="Hi-C domain analysis" href="domains.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../fanc_analyse_hic.html"> Analyse Hi-C matrices</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="oe.html"> Expected values and O/E matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ab_compartments.html"> AB compartments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pca.html"> PCA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="domains.html"> TADs and TAD boundaries</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#"> Matrix and score comparisons</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Positional Arguments">Positional Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Named Arguments">Named Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#compare-matrices">Compare matrices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#compare-scores">Compare scores</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#compare-multi-score-files">Compare multi-score files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="aggregate_hic.html"> Aggregate Hi-C matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="loops.html"> Loop calling</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../fanc.html">FAN-C command line tools</a> &raquo;</li>
+        
+          <li><a href="../fanc_analyse_hic.html">Analyse Hi-C matrices (API)</a> &raquo;</li>
+        
+      <li>Matrix and score comparisons</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/fanc-executable/fanc-analyse-hic/comparisons.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="matrix-and-score-comparisons">
+<span id="fanc-comparisons"></span><h1>Matrix and score comparisons<a class="headerlink" href="#matrix-and-score-comparisons" title="Permalink to this headline">¶</a></h1>
+<p>FAN-C provides a central utility named <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">compare</span></code> to compare Hi-C matrices
+and measures derived from them between two conditions, such as different cell types,
+treatments, etc.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">compare</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">COMPARISON</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OUTPUT_FORMAT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">S</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span>
+                    <span class="p">[</span><span class="o">--</span><span class="n">log</span><span class="o">-</span><span class="n">matrix</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">Z</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">I</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">e</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">u</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+                    <span class="nb">input</span> <span class="nb">input</span> <span class="n">output</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h2>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h2>
+<dl class="option-list">
+<dt><kbd>input</kbd></dt>
+<dd><p>Input matrix (e.g. Hic) files.</p>
+</dd>
+<dt><kbd>output</kbd></dt>
+<dd><p>Output ComparisonMatrix file.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h2>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h2>
+<dl class="option-list">
+<dt><kbd>-c, --comparison</kbd></dt>
+<dd><p>Type of comparison. Default: fold-change, other options are: difference</p>
+</dd>
+<dt><kbd>-o, --output-format</kbd></dt>
+<dd><p>Output format for region-based comparisons. Only relevant when using BED, GFF, or another region-based format as input.</p>
+</dd>
+<dt><kbd>-S, --no-scale</kbd></dt>
+<dd><p>Do not scale input matrices to the same number of valid pairs</p>
+</dd>
+<dt><kbd>-l, --log</kbd></dt>
+<dd><p>Log2-convert comparison values (AFTER the comparison)</p>
+</dd>
+<dt><kbd>--log-matrix</kbd></dt>
+<dd><p>Log2-convert matrices (BEFORE the comparison)</p>
+</dd>
+<dt><kbd>-Z, --ignore-zero</kbd></dt>
+<dd><p>Do not consider pixels where one matrix entry is zero</p>
+</dd>
+<dt><kbd>-I, --ignore-infinite</kbd></dt>
+<dd><p>Do not consider pixels where the comparison yields “inf”</p>
+</dd>
+<dt><kbd>-e, --observed-expected</kbd></dt>
+<dd><p>O/E transform matrix values before comparison. Only has an effect on matrix comparisons.</p>
+</dd>
+<dt><kbd>-u, --uncorrected</kbd></dt>
+<dd><p>Compare uncorrected matrices. Only has an effect on matrix comparisons.</p>
+</dd>
+<dt><kbd>-tmp, --work-in-tmp</kbd></dt>
+<dd><p>Work in temporary directory</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="compare-matrices">
+<h2>Compare matrices<a class="headerlink" href="#compare-matrices" title="Permalink to this headline">¶</a></h2>
+<p>When you provide <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">compare</span></code> with two matrix files (e.g. Hic), these need to have
+the same binning (more specifically, they must have identical regions). The comparison is
+then done on a per-pixel basis. By default, the fold-change between pixels in the two
+matrices is calculated, but you can also calculate the difference using <code class="docutils literal notranslate"><span class="pre">-c</span> <span class="pre">difference</span></code>
+(you can also use “fc” and “diff” as short-hand).</p>
+<p>The output is a FAN-C matrix object (that can be used like a Hic object in most cases)
+where entries are the fold-change (or difference) of pixels in both matrices. The
+comparison is matrix1/matrix2 (or matrix1 - matrix2). For fold-change comparisons, it
+might be useful to log-transform pixel values using <code class="docutils literal notranslate"><span class="pre">-l</span></code>. Also, if pixel entries are
+zero in one matrix, the fold-change could return NaN values. You can simply ignore
+comparisons where one or both pixels are zero using <code class="docutils literal notranslate"><span class="pre">-Z</span></code>. Or you can ignore infinite
+values resulting from a comparison using <code class="docutils literal notranslate"><span class="pre">-I</span></code>.</p>
+<p>For a fair comparison, matrix entries are scaled to the total number of valid pairs on
+each chromosome. This corrects for different coverage of the two matrices. If you have
+chosen a normalisation that takes care of this directly, you can save some computation
+time by specifying <code class="docutils literal notranslate"><span class="pre">-S</span></code> to omit the calculation of a scaling factor.</p>
+</div>
+<div class="section" id="compare-scores">
+<h2>Compare scores<a class="headerlink" href="#compare-scores" title="Permalink to this headline">¶</a></h2>
+<p>You can also use <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">compare</span></code> to compare scores in any compatible region-based file,
+such as BED, GFF, BigWig, or any region-based FAN-C output (e.g. insulation scores).
+By default, the output will be a FAN-C <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionsTable</span></code> object, but you can
+change this behavior using the <code class="docutils literal notranslate"><span class="pre">-o</span></code> option, which you can use to output BED, GFF, or
+BigWig files.</p>
+</div>
+<div class="section" id="compare-multi-score-files">
+<h2>Compare multi-score files<a class="headerlink" href="#compare-multi-score-files" title="Permalink to this headline">¶</a></h2>
+<p>The output of <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code> and <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">directionality</span></code> for multiple window sizes
+is a FAN-C multi-score file, which contains the insulation/directionality scores for
+multiple windows sizes at once. You can directly compare all scores against each other
+by providing two multi-score files as input to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">compare</span></code> - every window size will
+be compared independently and the comparisons output in yet another multi-score file.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="aggregate_hic.html" class="btn btn-neutral float-right" title="Hi-C aggregate analysis" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="domains.html" class="btn btn-neutral float-left" title="Hi-C domain analysis" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

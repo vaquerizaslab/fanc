@@ -1,0 +1,457 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>AB compartment analysis &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="PCA analysis" href="pca.html" />
+    <link rel="prev" title="Expected values" href="oe.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../fanc_analyse_hic.html"> Analyse Hi-C matrices</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="oe.html"> Expected values and O/E matrices</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#"> AB compartments</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Positional Arguments">Positional Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Named Arguments">Named Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#correlation-matrix">Correlation matrix</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ab-eigenvector">AB Eigenvector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ab-domains">AB domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ab-enrichment-profiles">AB enrichment profiles</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="pca.html"> PCA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="domains.html"> TADs and TAD boundaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparisons.html"> Matrix and score comparisons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aggregate_hic.html"> Aggregate Hi-C matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="loops.html"> Loop calling</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../fanc.html">FAN-C command line tools</a> &raquo;</li>
+        
+          <li><a href="../fanc_analyse_hic.html">Analyse Hi-C matrices (API)</a> &raquo;</li>
+        
+      <li>AB compartment analysis</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/fanc-executable/fanc-analyse-hic/ab_compartments.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="ab-compartment-analysis">
+<span id="fanc-ab-compartments"></span><h1>AB compartment analysis<a class="headerlink" href="#ab-compartment-analysis" title="Permalink to this headline">¶</a></h1>
+<p>Regions in a Hi-C matrix can generally be assigned to either the active or the inactive
+compartment, also called ‘A’ and ‘B’ compartments, respectively.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">compartments</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">DOMAINS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">v</span> <span class="n">EIGENVECTOR</span><span class="p">]</span>
+                         <span class="p">[</span><span class="o">-</span><span class="n">e</span> <span class="n">ENRICHMENT_FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span> <span class="n">MATRIX_FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span> <span class="n">GENOME</span><span class="p">]</span>
+                         <span class="p">[</span><span class="o">-</span><span class="n">w</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">REGION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">EIGENVECTOR_INDEX</span><span class="p">]</span>
+                         <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">PERCENTILES</span> <span class="p">[</span><span class="n">PERCENTILES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">COLORMAP</span><span class="p">]</span>
+                         <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">SYMMETRIC_AT</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">enrichment</span><span class="o">-</span><span class="nb">min</span> <span class="n">VMIN</span><span class="p">]</span>
+                         <span class="p">[</span><span class="o">--</span><span class="n">enrichment</span><span class="o">-</span><span class="nb">max</span> <span class="n">VMAX</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">G</span><span class="p">]</span>
+                         <span class="p">[</span><span class="o">-</span><span class="n">x</span> <span class="n">EXCLUDE</span> <span class="p">[</span><span class="n">EXCLUDE</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
+                         <span class="p">[</span><span class="o">--</span><span class="n">recalculate</span><span class="p">]</span>
+                         <span class="n">matrix</span> <span class="p">[</span><span class="n">ab_compartments</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h2>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h2>
+<dl class="option-list">
+<dt><kbd>matrix</kbd></dt>
+<dd><p>Input matrix (Hi-C, fold-change map, …) or existing AB compartment matrix.</p>
+</dd>
+<dt><kbd>ab_compartments</kbd></dt>
+<dd><p>AB compartment matrix file.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h2>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h2>
+<dl class="option-list">
+<dt><kbd>-d, --domains</kbd></dt>
+<dd><p>Write AB domains to this file. AB domains are output in BED format, and include the domains type (A/B) in the name field, and the eigenvector values (averaged across all bins in the domain) in the score field</p>
+</dd>
+<dt><kbd>-v, --eigenvector</kbd></dt>
+<dd><p>Write eigenvector values to this file.Output format is BED, containing of each matrix bin. The score field contains the eigenvector value of the bin.</p>
+</dd>
+<dt><kbd>-e, --enrichment-profile</kbd></dt>
+<dd><p>Plot AB enrichment profile to this file.</p>
+</dd>
+<dt><kbd>-m, --enrichment-matrix</kbd></dt>
+<dd><p>Path to save enrichment profile matrix (numpy txt format)</p>
+</dd>
+<dt><kbd>-g, --genome</kbd></dt>
+<dd><p>Genome file. Used to “orient” the eigenvector values (change sign) using the average GC content of domains. Possible input files are FASTA, folder with FASTA, comma-separated list of FASTA) used to change sign of eigenvector based on GC content.</p>
+</dd>
+<dt><kbd>-w, --whole-genome</kbd></dt>
+<dd><p>Calculate AB compartments on the whole genome matrix, instead of individual chromosomes.</p>
+</dd>
+<dt><kbd>-r, --region</kbd></dt>
+<dd><p>Only outputs domains / eigenvector values in this region. Only works with the -d and -e arguments. Compartmentalisation is always calculated on the whole genome.</p>
+</dd>
+<dt><kbd>-i, --eigenvector-index</kbd></dt>
+<dd><p>Eigenvector index. By default, the first eigenvector is output for eigenvector and domain analysis. Sometimes, it is useful to choose a higher eigenvector. E.g. for second eigenvector,specify “-i 2”.</p>
+</dd>
+<dt><kbd>-p, --enrichment-percentiles</kbd></dt>
+<dd><p>Percentiles to use for calculation of the enrichment profile. By default uses 20, 40, 60, 80, 100. The 0 percentile is included by default.</p>
+</dd>
+<dt><kbd>-c, --enrichment-colormap</kbd></dt>
+<dd><p>Matplotlib colormap to use for plotting the enrichment profile.</p>
+</dd>
+<dt><kbd>-s, --enrichment-symmetric-at</kbd></dt>
+<dd><p>Make enrichment profile plot symmetric around this value (e.g. use 0 to ensure that 0 is in the center of the plot).</p>
+</dd>
+<dt><kbd>--enrichment-min</kbd></dt>
+<dd><p>Minimum saturation value in enrichment profile. Default -1</p>
+</dd>
+<dt><kbd>--enrichment-max</kbd></dt>
+<dd><p>Maximum saturation value in enrichment profile. Default: 1</p>
+</dd>
+<dt><kbd>-G, --only-gc</kbd></dt>
+<dd><p>Only use GC content for enrichment profile calculation, not the correlation matrix eigenvector.</p>
+</dd>
+<dt><kbd>-x, --enrichment-exclude</kbd></dt>
+<dd><p>Chromosome names to exclude from enrichment profile calculation</p>
+</dd>
+<dt><kbd>-tmp, --work-in-tmp</kbd></dt>
+<dd><p>Work in temporary directory</p>
+</dd>
+<dt><kbd>-f, --force</kbd></dt>
+<dd><p>Force overwriting of output files.</p>
+</dd>
+<dt><kbd>--recalculate</kbd></dt>
+<dd><p>Force recalculation of eigenvector even if a vector with the same parameters has previously been calculated.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="correlation-matrix">
+<h2>Correlation matrix<a class="headerlink" href="#correlation-matrix" title="Permalink to this headline">¶</a></h2>
+<p>Compartments are derived from a correlation matrix, in which each entry i, j corresponds
+to the Pearson correlation between row i and column j of the (Hi-C) matrix.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">compartments</span></code> command can produce a correlation matrix (AB compartment) object
+from a FAN-C matrix file. Example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc compartments output/hic/binned/fanc_example_1mb.hic architecture/compartments/fanc_example_1mb.ab
+</pre></div>
+</div>
+<p>By default, compartment matrices are calculated on a per-chromosome basis, since each
+chromosome might be normalised differently. To force the AB calculation on the whole genome,
+use the <code class="docutils literal notranslate"><span class="pre">-w</span></code> option.</p>
+<p>We can quickly plot the correlation matrix using the <code class="docutils literal notranslate"><span class="pre">fancplot</span></code> command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/compartments/fanc_example_1mb.ab.png chr18 <span class="se">\</span>
+     -p square architecture/compartments/fanc_example_1mb.ab <span class="se">\</span>
+     -vmin -0.75 -vmax <span class="m">0</span>.75 -c RdBu_r
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_1mb.ab.png" src="../../_images/fanc_example_1mb.ab.png" />
+</div>
+<div class="section" id="ab-eigenvector">
+<h2>AB Eigenvector<a class="headerlink" href="#ab-eigenvector" title="Permalink to this headline">¶</a></h2>
+<p>The eigenvector of the correlation matrix is used to derive compartment type and strength
+for each matrix bin. Generally, regions with positive values are assigned the ‘A’,
+regions with negative values the ‘B’ compartment. To calculate the eigenvector in addition
+to the correlation matrix, simply add the <code class="docutils literal notranslate"><span class="pre">-v</span> <span class="pre">&lt;file_name&gt;</span></code> option to the previous command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc compartments -v architecture/compartments/fanc_example_1mb.ev.txt <span class="se">\</span>
+                  output/hic/binned/fanc_example_1mb.hic <span class="se">\</span>
+                  architecture/compartments/fanc_example_1mb.ab
+</pre></div>
+</div>
+<p>If <code class="docutils literal notranslate"><span class="pre">architecture/compartments/fanc_example_1mb.ab</span></code> already exists, it will not be recalculated
+but the matrix is loaded from file. You can use the <code class="docutils literal notranslate"><span class="pre">-f</span></code> option to overwrite the existing file
+in any case.</p>
+<p>Alternatively, if you have already calculated the correlation matrix previously, simply run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc compartments -v architecture/compartments/fanc_example_1mb.ev.txt <span class="se">\</span>
+                  architecture/compartments/fanc_example_1mb.ab
+</pre></div>
+</div>
+<p>Note that I have not specified an output file for the correlation matrix in this case.</p>
+<p>We can plot the eigenvector using <code class="docutils literal notranslate"><span class="pre">fancplot</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/compartments/fanc_example_1mb.ab_and_ev.png chr18 <span class="se">\</span>
+     -p square architecture/compartments/fanc_example_1mb.ab <span class="se">\</span>
+     -vmin -0.75 -vmax <span class="m">0</span>.75 -c RdBu_r <span class="se">\</span>
+     -p line architecture/compartments/fanc_example_1mb.ev.txt
+</pre></div>
+</div>
+<img alt="../../_images/fanc_example_1mb.ab_and_ev.png" src="../../_images/fanc_example_1mb.ab_and_ev.png" />
+<p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">compartments</span></code> outputs the first eigenvector by default. In some cases it might be
+useful to choose a different eigenvector (sometimes the first eigenvector identifies
+chromosomal arms rather than compartments). To change the eiegnvector use the <cite>–i`</cite> option,
+e.g. <code class="docutils literal notranslate"><span class="pre">-i</span> <span class="pre">2</span></code> for the second instead of the first correlation matrix eigenvector.</p>
+<p>The sign of the eigenvector does not necessarily correspond well to the A or B compartment.
+Often, the eigenvector is “flipped” (inverted signs on its entries). Mathematically, if x
+is an eigenvector, so is -x. You can use external information to “orient” the eigenvector,
+so that it most likely corresponds to the active and inactive compartments. Specifically,
+you can supply a FASTA file with the genomic sequence to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">compartments</span></code> using the
+<code class="docutils literal notranslate"><span class="pre">-g</span> <span class="pre">&lt;fasta_file&gt;</span></code> argument., This is typically a good idea: <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">compartments</span></code> then
+calculates the average GC content of regions with positive and those with negative eigenvector
+entries. As GC content has previously been shown to correlate well with compartmentalisation,
+the eigenvector is oriented in such a way that negative entries correspond to ‘B’ (low GC
+content) and positive entries to ‘A’ (high GC content).</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc compartments -g hg19_chr18_19.fa -v architecture/compartments/fanc_example_1mb.ev_gc.txt <span class="se">\</span>
+                      architecture/compartments/fanc_example_1mb.ab
+</pre></div>
+</div>
+</div>
+<div class="section" id="ab-domains">
+<h2>AB domains<a class="headerlink" href="#ab-domains" title="Permalink to this headline">¶</a></h2>
+<p>Consecutive matrix bins with the same eigenvector sign are considered part of a “domain”.
+You can use the <code class="docutils literal notranslate"><span class="pre">-d</span> <span class="pre">&lt;domain_file&gt;</span></code> option to write the AB domains to a BED file:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc compartments -d architecture/compartments/fanc_example_1mb.domains.bed <span class="se">\</span>
+                      architecture/compartments/fanc_example_1mb.ab
+</pre></div>
+</div>
+<p>Again, it is recommended to supply the genome for a better assignment of ‘A’ and ‘B’ to
+each domain:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc compartments -g hg19_chr18_19.fa <span class="se">\</span>
+                  -d architecture/compartments/fanc_example_1mb.domains_gc.bed <span class="se">\</span>
+                  architecture/compartments/fanc_example_1mb.ab
+</pre></div>
+</div>
+<p>The output contains the domain type in the “name” field and the average eigenvector entry
+values of all bins in the domain in the “score” field.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chr18</span>       <span class="mi">1</span>       <span class="mi">1000000</span> <span class="n">A</span>       <span class="mf">0.047985319048166275</span>    <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">1000001</span> <span class="mi">2000000</span> <span class="n">A</span>       <span class="mf">0.08676216192543507</span>     <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">2000001</span> <span class="mi">3000000</span> <span class="n">A</span>       <span class="mf">0.08487135296066602</span>     <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">3000001</span> <span class="mi">4000000</span> <span class="n">B</span>       <span class="mf">0.03837760258466005</span>     <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">4000001</span> <span class="mi">5000000</span> <span class="n">A</span>       <span class="mf">0.058217800408601764</span>    <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">5000001</span> <span class="mi">6000000</span> <span class="n">A</span>       <span class="mf">0.05965448978046576</span>     <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">6000001</span> <span class="mi">7000000</span> <span class="n">B</span>       <span class="mf">0.04354590017880712</span>     <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">7000001</span> <span class="mi">8000000</span> <span class="n">B</span>       <span class="mf">0.026129358913749456</span>    <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">8000001</span> <span class="mi">9000000</span> <span class="n">B</span>       <span class="mf">0.008547724535067877</span>    <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">9000001</span> <span class="mi">10000000</span>        <span class="n">B</span>       <span class="o">-</span><span class="mf">0.007353482022881508</span>   <span class="o">.</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="ab-enrichment-profiles">
+<h2>AB enrichment profiles<a class="headerlink" href="#ab-enrichment-profiles" title="Permalink to this headline">¶</a></h2>
+<p>The compartmentalisation of a genome can be visualised in an enrichment profile plot.
+This will divide bins into percentiles using the associated eigenvector values, and then
+the average observed/expected (O/E) values of contacts in each pair of percentile bins
+is calculated and plotted.</p>
+<p>Use the <code class="docutils literal notranslate"><span class="pre">-e</span> <span class="pre">&lt;plot_file&gt;</span></code> option to generate this plot. You can also use the
+<code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">&lt;matrix_file&gt;</span></code> option to output the enrichment matrix values to file for further
+analysis.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc compartments -e architecture/compartments/fanc_example_1mb.ab_profile.png <span class="se">\</span>
+                  output/hic/binned/fanc_example_1mb.hic <span class="se">\</span>
+                  architecture/compartments/fanc_example_1mb.ab
+</pre></div>
+</div>
+<p>Note that for the enrichment plot you will also need to provide the Hi-C matrix file for
+enrichment calculation. If the AB compartment matrix already exists at the output location,
+it will not be overwritten unless you are using the <code class="docutils literal notranslate"><span class="pre">-f</span></code> option.</p>
+<p>As with the above commands, it is highly recommended to supply a genome file to properly
+orient the eigenvector:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc compartments -g hg19_chr18_19.fa <span class="se">\</span>
+                  -e architecture/compartments/fanc_example_1mb.ab_profile.png <span class="se">\</span>
+                  output/hic/binned/fanc_example_1mb.hic <span class="se">\</span>
+                  architecture/compartments/fanc_example_1mb.ab
+</pre></div>
+</div>
+<p>This is what the plot looks like for the example:</p>
+<img alt="../../_images/fanc_example_1mb.ab_profile.png" src="../../_images/fanc_example_1mb.ab_profile.png" />
+<p>You can customise the enrichment analysis using additional parameters. By default, the
+percentiles for eigenvector binning are chosen at 20, 40, 60, 80, and 100. To choose a
+finer binning, for example, you can use <code class="docutils literal notranslate"><span class="pre">-p</span> <span class="pre">10</span> <span class="pre">20</span> <span class="pre">30</span> <span class="pre">40</span> <span class="pre">50</span> <span class="pre">60</span> <span class="pre">70</span> <span class="pre">80</span> <span class="pre">90</span> <span class="pre">100</span></code>. The “0”
+percentile is always added automatically. The eigenvector values are not necessarily
+centred around 0, which can lead to some unexpected enrichment plots. To force the central
+enrichment matrix bin to 0, and perform separate percentile calculations for values &lt; 0 and
+&gt;= 0, use the <code class="docutils literal notranslate"><span class="pre">-s</span> <span class="pre">0</span></code> option. Note, however, that this will lead to differences in the
+number of bins plotted on the left and right side of the matrix.</p>
+<img alt="../../_images/fanc_example_1mb.ab_profile_sym.png" src="../../_images/fanc_example_1mb.ab_profile_sym.png" />
+<p>To format the plot, you can choose a different colormap with <code class="docutils literal notranslate"><span class="pre">-c</span> <span class="pre">&lt;cmap&gt;</span></code>. See
+<a class="reference external" href="https://matplotlib.org/examples/color/colormaps_reference.html">here</a> for colormap
+options. You can set the colorbar scale with <code class="docutils literal notranslate"><span class="pre">--enrichment-min</span> <span class="pre">&lt;n&gt;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">--enrichment-max</span> <span class="pre">&lt;n&gt;</span></code>, where n is -1 and 1, respectively.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="pca.html" class="btn btn-neutral float-right" title="PCA analysis" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="oe.html" class="btn btn-neutral float-left" title="Expected values" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,382 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Basic usage &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Panel types" href="panel_types.html" />
+    <link rel="prev" title="FAN-C command line plotting" href="../fancplot.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../fancplot.html">fancplot: plotting from the command line</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#"> Overview and basic usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#overview">Overview</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Positional Arguments">Positional Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Named Arguments">Named Arguments</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#setting-up-the-figure-and-plotting-regions">Setting up the figure and plotting regions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#adding-panels">Adding panels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#common-parameters">Common parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="panel_types.html"> Panel types</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../fancplot.html">FAN-C command line plotting</a> &raquo;</li>
+        
+      <li>Basic usage</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/fancplot-executable/fancplot_basic.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="basic-usage">
+<span id="fancplot-executable"></span><h1>Basic usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">fancplot</span></code> is modular and multiple plots can be combined into a single figure.
+Each plot can be configured individually, with a number of customisation options.</p>
+<p>There are two modes: by default, an interactive plot opens in a new window,
+which allows synchronised scrolling, zooming and panning for plots that support it.
+By specifying an output file, the plot is saved to file directly.</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p><p>fancplot plotting tool for fanc</p>
+</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fancplot</span> <span class="p">[</span><span class="o">&lt;</span><span class="n">fancplot</span> <span class="k">global</span> <span class="n">parameters</span><span class="o">&gt;</span><span class="p">]</span> <span class="o">&lt;</span><span class="n">region</span><span class="o">&gt;</span> <span class="p">[</span><span class="o">&lt;</span><span class="n">region</span><span class="o">&gt;</span> <span class="o">...</span><span class="p">]</span>
+            <span class="o">--</span><span class="n">plot</span> <span class="o">&lt;</span><span class="n">plot</span> <span class="nb">type</span><span class="o">&gt;</span> <span class="p">[</span><span class="o">&lt;</span><span class="n">plot</span> <span class="n">parameters</span><span class="o">&gt;</span><span class="p">]</span> <span class="o">&lt;</span><span class="n">plot</span> <span class="n">data</span> <span class="n">file</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">&gt;</span> <span class="p">[</span><span class="o">...</span><span class="p">]</span>
+
+            <span class="n">Run</span> <span class="n">fancplot</span> <span class="o">--</span><span class="n">plot</span> <span class="o">&lt;</span><span class="n">plot</span> <span class="nb">type</span><span class="o">&gt;</span> <span class="o">-</span><span class="n">h</span> <span class="k">for</span> <span class="n">help</span> <span class="n">on</span> <span class="n">a</span> <span class="n">specific</span> <span class="n">subplot</span><span class="o">.</span>
+
+<span class="n">Plot</span> <span class="n">types</span><span class="p">:</span>
+
+<span class="o">--</span> <span class="n">Matrix</span> <span class="o">--</span>
+<span class="n">triangular</span>    <span class="n">Triangular</span> <span class="n">Hi</span><span class="o">-</span><span class="n">C</span> <span class="n">plot</span>
+<span class="n">square</span>        <span class="n">Square</span> <span class="n">Hi</span><span class="o">-</span><span class="n">C</span> <span class="n">plot</span>
+<span class="n">split</span>         <span class="n">Matrix</span> <span class="n">vs</span> <span class="n">matrix</span> <span class="n">plot</span>
+<span class="n">mirror</span>        <span class="s2">&quot;Mirrored&quot;</span> <span class="n">matrix</span> <span class="n">comparison</span> <span class="n">plot</span>
+
+<span class="o">--</span> <span class="n">Region</span> <span class="o">--</span>
+<span class="n">scores</span>        <span class="n">Region</span> <span class="n">scores</span> <span class="n">plot</span> <span class="k">with</span> <span class="n">parameter</span> <span class="n">dependency</span>
+<span class="n">line</span>          <span class="n">Line</span> <span class="n">plot</span>
+<span class="n">bar</span>           <span class="n">Bar</span> <span class="n">plot</span> <span class="k">for</span> <span class="n">region</span> <span class="n">scores</span>
+<span class="n">layer</span>         <span class="n">Layered</span> <span class="n">feature</span> <span class="n">plot</span>
+<span class="n">gene</span>          <span class="n">Gene</span> <span class="n">plot</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>regions</kbd></dt>
+<dd><p>List of region selectors (&lt;chr&gt;:&lt;start&gt;-&lt;end&gt;) or files with region information (BED, GTF, …).</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>-o, --output</kbd></dt>
+<dd><p>Suppresses interactive plotting window and redirects plot to file. Specify path to file when plotting a single region, and path to a folder for plotting multiple regions.</p>
+</dd>
+<dt><kbd>-s, --script</kbd></dt>
+<dd><p>Use a script file to define plot.</p>
+</dd>
+<dt><kbd>-p, --plot</kbd></dt>
+<dd><p>New plot, type will be chosen automatically by file type, unless “-t” is provided.</p>
+</dd>
+<dt><kbd>-n, --name</kbd></dt>
+<dd><p>Plot name to be used as prefix when plotting multiple regions. Is ignored for single region and interactive plot.</p>
+</dd>
+<dt><kbd>--width</kbd></dt>
+<dd><p>Width of the figure in inches. Default: 4</p>
+</dd>
+<dt><kbd>-w, --window-size</kbd></dt>
+<dd><p>Plotting region size in base pairs. If provided, the actual size of the given region is ignored and instead a region &lt;chromosome&gt;:&lt;region center - window size/2&gt; - &lt;region center + window size/2&gt; will be plotted.</p>
+</dd>
+<dt><kbd>--invert-x</kbd></dt>
+<dd><p>Invert x-axis for this plot</p>
+</dd>
+<dt><kbd>--tick-locations</kbd></dt>
+<dd><p>Manually define the locations of the tick labels on the genome axis.</p>
+</dd>
+<dt><kbd>-V, --version</kbd></dt>
+<dd><p>Print version information</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="setting-up-the-figure-and-plotting-regions">
+<h2>Setting up the figure and plotting regions<a class="headerlink" href="#setting-up-the-figure-and-plotting-regions" title="Permalink to this headline">¶</a></h2>
+<p>The main argument of <code class="docutils literal notranslate"><span class="pre">fancplot</span></code> is a region specification. You can list one or more
+regions by region selector (of the form &lt;chromosome&gt;:&lt;start&gt;-&lt;end&gt;), or you can
+provide the path to a file with region information (BED, GFF, FAN-C
+object, …). You can also mix the two. Regions will be plotted in the order they are
+listed with the next plot appearing after the previous one has been closed.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># single region</span>
+fancplot chr18:6mb-10mb
+
+<span class="c1"># multiple regions</span>
+fancplot chr18:12000000-14000000 chr18:6.5mb-10mb
+
+<span class="c1"># BED file</span>
+fancplot /path/to/file.bed
+</pre></div>
+</div>
+<p>By default, <code class="code docutils literal notranslate"><span class="pre">fancplot</span></code> plots exactly the area that is provided. It is, however,
+also possible to merely center the plot on the provided region, and to set a fixed
+plotting window using the <code class="docutils literal notranslate"><span class="pre">-w</span></code> option. This is especially useful when providing
+regions from other analyses, such as ChIP-seq peaks or insulation boundaries,
+and allows you to quickly survey other genomic features in their immediate surrounding.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -w 1mb /path/to/chipseq.narrowPeak
+</pre></div>
+</div>
+<p>By default, <code class="code docutils literal notranslate"><span class="pre">fancplot</span></code> will open an interactive plotting window. With the <code class="docutils literal notranslate"><span class="pre">-o</span> <span class="pre">&lt;path&gt;</span></code>
+argument, it is possible to directly plot to a file. The file ending determines its
+type.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o /path/to/plot.png chr18:6mb-10mb
+</pre></div>
+</div>
+<p>When specifying multiple regions, the output argument will be interpreted as a folder,
+and each plot will be named by the pattern
+<code class="docutils literal notranslate"><span class="pre">&lt;region</span> <span class="pre">index&gt;_[&lt;prefix&gt;_]_&lt;chromosome&gt;_&lt;start&gt;_&lt;end&gt;</span></code>. The <code class="docutils literal notranslate"><span class="pre">&lt;prefix&gt;</span></code> can be added
+using the <code class="docutils literal notranslate"><span class="pre">--name</span></code> argument.</p>
+<p>The figure width is controlled using the <code class="docutils literal notranslate"><span class="pre">--width</span></code> argument (4 inches by default).
+The figure height is determined automatically from the figure width, the number of
+panels, and their aspect ratio.</p>
+</div>
+<div class="section" id="adding-panels">
+<h2>Adding panels<a class="headerlink" href="#adding-panels" title="Permalink to this headline">¶</a></h2>
+<p>After setting up the figure and plotting region(s), you can start adding plots to the
+figure. On the command line, the <code class="docutils literal notranslate"><span class="pre">-p</span></code> or <code class="docutils literal notranslate"><span class="pre">--plot</span></code> argument adds a new panel. You need
+to provide the type of plot you want immediately after <code class="docutils literal notranslate"><span class="pre">-p</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular
+</pre></div>
+</div>
+<p>A basic call to <code class="docutils literal notranslate"><span class="pre">fancplot</span></code>, plotting a 4 Megabase region on chromosome 18 of a Hi-C matrix
+in a triangular heatmap, could look like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_triangular_example.png" src="../_images/fancplot_triangular_example.png" />
+<p><code class="docutils literal notranslate"><span class="pre">fancplot</span></code> tries to find a sensible placement of ticks and ticklabels on the genome axis,
+but if you prefer different tick locations or if labels are overlapping in small figures,
+define your own custom labels with the <code class="docutils literal notranslate"><span class="pre">--tick-locations</span></code> argument.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb --tick-locations 8mb 10mb -p triangular output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_triangular_example_custom_ticks.png" src="../_images/fancplot_triangular_example_custom_ticks.png" />
+<p>The first label will always get a chromosome prefix.</p>
+<p>To get help on a specific panel type, and list available parameters, use <code class="docutils literal notranslate"><span class="pre">-h</span></code> after
+the plot type:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -h
+</pre></div>
+</div>
+</div>
+<div class="section" id="common-parameters">
+<h2>Common parameters<a class="headerlink" href="#common-parameters" title="Permalink to this headline">¶</a></h2>
+<p>A few parameters are supported by all panel types. For example, you can set a title above
+a panel using the <code class="docutils literal notranslate"><span class="pre">--title</span></code> parameter.</p>
+<p>You can format the genome axis in various ways. For example, add minor ticks between the
+major ones on the genome axis using <code class="docutils literal notranslate"><span class="pre">--show-minor-ticks</span></code>, or hide the major
+ticks, too using <code class="docutils literal notranslate"><span class="pre">--hide-major-ticks</span></code>. You can add a small legend to the panel showing
+the distances between minor and major ticks, as well as the size of the plotting region
+with <code class="docutils literal notranslate"><span class="pre">--show-tick-legend</span></code>. You can hide the x axis altogether with <code class="docutils literal notranslate"><span class="pre">--hide-x</span></code>.</p>
+<p>The aspect ratio of each plot controls the height of the y axis relative to the width
+of the x axis. For example, the default aspect ratio of the <code class="docutils literal notranslate"><span class="pre">square</span></code> plot is <code class="docutils literal notranslate"><span class="pre">1.0</span></code>
+while the default for <code class="docutils literal notranslate"><span class="pre">triangular</span></code> is automatically determined so that the matrix is
+not distorted.</p>
+<p>Sometimes there might be a nomenclature mismatch in the data backing different panels
+regarding chromosome naming (with or without the <code class="docutils literal notranslate"><span class="pre">chr</span></code> prefix). Rather than having to
+reformat your data to match with the plotting region definition, you can correct for
+this issue on the fly, for each panel separately using <code class="docutils literal notranslate"><span class="pre">--fix-chromosome</span></code>.</p>
+<p>In the following sections we will introduce the different <a class="reference internal" href="panel_types.html#panel-types"><span class="std std-ref">Panel types</span></a> in more detail.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="panel_types.html" class="btn btn-neutral float-right" title="Panel types" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../fancplot.html" class="btn btn-neutral float-left" title="FAN-C command line plotting" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,1400 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Plotting API &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="FAN-C Python tools modules" href="tools.html" />
+    <link rel="prev" title="Domains module" href="architecture/domains.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../interfaces.html">Interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../analyse.html">Analyse Hi-C matrices (API)</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../modules.html">Reference</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="init.html">init</a></li>
+<li class="toctree-l3"><a class="reference internal" href="map.html">map</a></li>
+<li class="toctree-l3"><a class="reference internal" href="regions.html">regions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pairs.html">pairs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="matrix.html">matrix</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hic.html">hic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="peaks.html">peaks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="compatibility.html">compatibility</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html">architecture</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">plotting</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#index-of-plot-classes">Index of plot classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-fanc.plotting">Description and examples</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="tools.html">tools</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../api.html">fanc Python module</a> &raquo;</li>
+        
+          <li><a href="../modules.html">FAN-C Python modules</a> &raquo;</li>
+        
+      <li>Plotting API</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/api/modules/plotting.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="plotting-api">
+<span id="fanc-plotting"></span><h1>Plotting API<a class="headerlink" href="#plotting-api" title="Permalink to this headline">¶</a></h1>
+<p>Here is an overview of the plot types and functions available in the plotting API.</p>
+<div class="section" id="index-of-plot-classes">
+<h2>Index of plot classes<a class="headerlink" href="#index-of-plot-classes" title="Permalink to this headline">¶</a></h2>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicFigure" title="fanc.plotting.GenomicFigure"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicFigure</span></code></a>(plots[, width, ticks_last, …])</p></td>
+<td><p>GenomicFigure composed of one or more plots.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.HicPlot" title="fanc.plotting.HicPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicPlot</span></code></a></p></td>
+<td><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.hic_plotter.TriangularMatrixPlot</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.HicPlot2D" title="fanc.plotting.HicPlot2D"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicPlot2D</span></code></a></p></td>
+<td><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.hic_plotter.SquareMatrixPlot</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.LinePlot" title="fanc.plotting.LinePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LinePlot</span></code></a>(data[, bin_size, fill, attribute, …])</p></td>
+<td><p>Plot data as line.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.BigWigPlot" title="fanc.plotting.BigWigPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BigWigPlot</span></code></a>(bigwigs[, names, bin_size, fill, …])</p></td>
+<td><p>Plot data from on or more BigWig or Bedgraph files.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenePlot" title="fanc.plotting.GenePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenePlot</span></code></a>(genes[, feature_types, …])</p></td>
+<td><p>Plot genes including exon/intron structure from BED, GTF files or similar.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicFeaturePlot" title="fanc.plotting.GenomicFeaturePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicFeaturePlot</span></code></a>(regions[, feature_types, …])</p></td>
+<td><p>Plot discrete genomic regions from BED, GTF files or similar.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.HicComparisonPlot2D" title="fanc.plotting.HicComparisonPlot2D"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicComparisonPlot2D</span></code></a></p></td>
+<td><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.hic_plotter.SplitMatrixPlot</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.HicSlicePlot" title="fanc.plotting.HicSlicePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicSlicePlot</span></code></a>(hic_data, slice_region[, …])</p></td>
+<td><p>Draw Hi-C data as virtual 4C-plot.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.HicPeakPlot" title="fanc.plotting.HicPeakPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicPeakPlot</span></code></a>(peaks[, radius, circle_props])</p></td>
+<td><p>Overlay peaks onto Hicplot or HicPlot2D.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.VerticalSplitPlot" title="fanc.plotting.VerticalSplitPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VerticalSplitPlot</span></code></a></p></td>
+<td><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.plotter.MirrorMatrixPlot</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenomicVectorArrayPlot" title="fanc.plotting.GenomicVectorArrayPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicVectorArrayPlot</span></code></a>(array[, parameters, …])</p></td>
+<td><p>Plot matrix from a <code class="xref py py-class docutils literal notranslate"><span class="pre">MultiVectorArchitecturalRegionFeature</span></code> object.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicRegionsPlot" title="fanc.plotting.GenomicRegionsPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicRegionsPlot</span></code></a>(regions[, attributes, …])</p></td>
+<td><p>Plot scalar values from one or more <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegions</span></code> objects</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenomicFeatureScorePlot" title="fanc.plotting.GenomicFeatureScorePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicFeatureScorePlot</span></code></a>(regions[, …])</p></td>
+<td><p>Plot discrete genomic regions from BED, GTF files or similar.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.FeatureLayerPlot" title="fanc.plotting.FeatureLayerPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FeatureLayerPlot</span></code></a>(features[, …])</p></td>
+<td><p>Plot genomic features in layers grouped by name/type..</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenomicDataFramePlot" title="fanc.plotting.GenomicDataFramePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicDataFramePlot</span></code></a>(genomic_data_frame[, …])</p></td>
+<td><p>Plot data from a table.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.HighlightAnnotation" title="fanc.plotting.HighlightAnnotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HighlightAnnotation</span></code></a>(bed[, plot1, plot2, …])</p></td>
+<td><p>Vertical lines or rectangles (shaded regions) which can be positioned at specific genomic coordinates from a BED file and can span multiple panels of the GenomicFigure.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.SymmetricNorm" title="fanc.plotting.SymmetricNorm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SymmetricNorm</span></code></a>([vmin, vmax, percentile])</p></td>
+<td><p>Normalizes data for plotting on a divergent colormap.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.LimitGroup" title="fanc.plotting.LimitGroup"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LimitGroup</span></code></a>([limit, sig])</p></td>
+<td><p>Can be used for synchronizing axis limits across multiple plots.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="module-fanc.plotting">
+<span id="description-and-examples"></span><h2>Description and examples<a class="headerlink" href="#module-fanc.plotting" title="Permalink to this headline">¶</a></h2>
+<p>Provide plotting functions for genomic data types.</p>
+<p>Many common data types used in genomics research are supported. Including, but
+not limited to, <a class="reference internal" href="#fanc.plotting.HicPlot" title="fanc.plotting.HicPlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hi-C</span></code></a>,
+<a class="reference internal" href="#fanc.plotting.GenomicFeaturePlot" title="fanc.plotting.GenomicFeaturePlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">bed</span></code></a>,
+<a class="reference internal" href="#fanc.plotting.BigWigPlot" title="fanc.plotting.BigWigPlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">bigwig</span></code></a>
+and <a class="reference internal" href="#fanc.plotting.GenePlot" title="fanc.plotting.GenePlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">gene</span> <span class="pre">(GTF)</span></code></a> file visualization.
+The basic idea is that figures can be composed of multiple panels which are
+arranged vertically and share a common x-axis representing genomic coordinates.</p>
+<p>Each panel is created separately and then combined into a single figure.
+For example, when analyzing Hi-C data it is often interesting to correlate
+features in the Hi-C map with ChIP-seq tracks. In that case, one would first
+create a <a class="reference internal" href="#fanc.plotting.HicPlot" title="fanc.plotting.HicPlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">HicPlot</span></code></a> object, which visualizes
+Hi-C data, and then a <a class="reference internal" href="#fanc.plotting.BigWigPlot" title="fanc.plotting.BigWigPlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">BigWigPlot</span></code></a> object, which
+can plot bigwig files that are used during ChIP-seq analysis. Finally, the two
+objects are used to create a <a class="reference internal" href="#fanc.plotting.GenomicFigure" title="fanc.plotting.GenomicFigure"><code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code></a>.</p>
+<p class="rubric">Example</p>
+<p>FAN-C comes with a few example datasets that can be used to explore the basic
+functionalities of the plotting module. The paths in this example are relative
+to the top-level fanc directory where the setup.py file is located.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The paths to the example datasets can be accessed easily using the
+example_data dictionary:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
+<span class="k">print</span><span class="p">(</span><span class="n">fanc</span><span class="o">.</span><span class="n">example_data</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Yields a dict with the user-specific path to the datasets:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">&#39;chip_bedgraph&#39;</span><span class="p">:</span> <span class="s1">&#39;/Users/example/fanc/fanc/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bedgraph.gz&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;chip_bigwig&#39;</span><span class="p">:</span> <span class="s1">&#39;/Users/example/fanc/fanc/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;chip_peak_bed&#39;</span><span class="p">:</span> <span class="s1">&#39;/Users/example/fanc/fanc/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.peaks.bed.gz&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;gene_gtf&#39;</span><span class="p">:</span> <span class="s1">&#39;/Users/example/fanc/fanc/test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;hic&#39;</span><span class="p">:</span> <span class="s1">&#39;/Users/example/fanc/fanc/test/data/test_network/rao2014.chr11_77400000_78600000.hic&#39;</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">kplot</span>
+
+<span class="c1"># Create Hic plot</span>
+<span class="n">hplot</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">HicPlot</span><span class="p">(</span><span class="s2">&quot;fanc/test/data/test_network/rao2014.chr11_77400000_78600000.hic&quot;</span><span class="p">)</span>
+
+<span class="c1"># Create plot showing some CTCF ChIP-seq data from ENCODE</span>
+<span class="n">bplot</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;fanc/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig&quot;</span><span class="p">,</span>
+                         <span class="n">title</span><span class="o">=</span><span class="s2">&quot;CTCF ChIP&quot;</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="s2">&quot;fold enrichment&quot;</span><span class="p">)</span>
+
+<span class="c1"># Create plot of all genes in the region. The squash option in combination</span>
+<span class="c1"># with the group_by option causes all exons of each gene to be merged.</span>
+<span class="c1"># This is useful if the number of alternative transcripts is overwhelming</span>
+<span class="c1"># the plot.</span>
+<span class="n">gplot</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">GenePlot</span><span class="p">(</span><span class="s2">&quot;fanc/test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz&quot;</span><span class="p">,</span>
+                       <span class="n">group_by</span><span class="o">=</span><span class="s2">&quot;gene_name&quot;</span><span class="p">,</span> <span class="n">squash</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">show_labels</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                       <span class="n">title</span><span class="o">=</span><span class="s2">&quot;mm10 genes&quot;</span><span class="p">)</span>
+
+<span class="c1"># The created plots are used to generate a figure by passing them as a list</span>
+<span class="c1"># to the GenomicFigure constructor. The order in which they are passed</span>
+<span class="c1"># determines the order of panels in the figure.</span>
+<span class="n">gfig</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">([</span><span class="n">hplot</span><span class="p">,</span> <span class="n">bplot</span><span class="p">,</span> <span class="n">gplot</span><span class="p">])</span>
+
+<span class="c1"># Plot a specific region of the genome</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">gfig</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;chr11:77400000-78600000&quot;</span><span class="p">)</span>
+
+<span class="c1"># Open plot in an interactive window</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="figure align-default" id="id1">
+<img alt="api/modules/../../../fanc-doc/fancplot-executable/images/example_plot.png" src="api/modules/../../../fanc-doc/fancplot-executable/images/example_plot.png" />
+<p class="caption"><span class="caption-text">Example rendering of the above code saved using
+<code class="docutils literal notranslate"><span class="pre">fig.savefig(&quot;example.png&quot;,</span> <span class="pre">dpi=100)</span></code>.</span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
+</div>
+<div class="section" id="editing-figure-and-axes">
+<h3>Editing figure and axes<a class="headerlink" href="#editing-figure-and-axes" title="Permalink to this headline">¶</a></h3>
+<p>The <a class="reference internal" href="#fanc.plotting.GenomicFigure.plot" title="fanc.plotting.GenomicFigure.plot"><code class="xref py py-meth docutils literal notranslate"><span class="pre">GenomicFigure.plot()</span></code></a>
+function returns standard matplotlib Figure and a list of Axes instances that
+can be further adjusted using standard matplotlib methods. The matplotlib axes
+instance associated with each plot is also accesible from the “ax” property of
+each plot.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The Axes instances of the plot should only be edited after
+<a class="reference internal" href="#fanc.plotting.GenomicFigure.plot" title="fanc.plotting.GenomicFigure.plot"><code class="xref py py-meth docutils literal notranslate"><span class="pre">GenomicFigure.plot()</span></code></a>
+has been called. Otherwise any changes that were made may be overwritten
+when the plot() method is called.</p>
+</div>
+<p>For example, to add a bit of annotating text at a specific location in the
+BigWigPlot, the example above can be edited as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">gfig</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;chr11:77400000-78600000&quot;</span><span class="p">)</span>
+<span class="n">bplot</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="mi">77850000</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="s2">&quot;Interesting peak!&quot;</span><span class="p">)</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The coordinates in the Axes are data coordinates, the x-axis is genomic
+coordinates on the current chromosome and the y-axis in this case the
+fold-enrichment of the bigwig track.</p>
+</div>
+<div class="section" id="basic-plot-types-and-options">
+<h3>Basic Plot types and options<a class="headerlink" href="#basic-plot-types-and-options" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>An explanation of each plot class and the parameters that it supports can be
+accessed by suffixing a question mark (in Ipython/Jupyter) or calling the
+help() function:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>import fanc.plotting as kplot
+kplot.BigWigPlot? # Ipython/Jupyter
+help(kplot.BigWigPlot) # standard python
+</pre></div>
+</div>
+</div>
+<p>A few basic parameters such as a title and the aspect ratio are available for
+all plot classes. The aspect ratio parameter is a floating point number between
+0 and 1 that determines the height of the plot. A value of 1 results in a square
+plot, .5 represents a plot that is half as high as it is wide.</p>
+<p>The <a class="reference internal" href="#fanc.plotting.GenomicFigure" title="fanc.plotting.GenomicFigure"><code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code></a> provides a few convenience
+parameters. Setting <code class="docutils literal notranslate"><span class="pre">ticks_last=True</span></code> for example removes tick labels from all
+panels but the last one which makes the overall plot more compact.</p>
+<div class="section" id="independent-x-axis-and-inverting-x-axis">
+<h4>Independent x-axis and inverting x-axis<a class="headerlink" href="#independent-x-axis-and-inverting-x-axis" title="Permalink to this headline">¶</a></h4>
+<p>By default, the x-axis of all plots in a figure are linked, meaning that all
+plots display exactly the same region. In some situations in can be helpful
+to plot a multiple regions, such as when features in syntenic regions across
+multiple species need to be compared. Since syntenic regions can be on the +
+strand in some species and on the - strande, sometimes the x-axis also needs to
+be inverted to maintain correct orientation.</p>
+<p>In this situation the <code class="docutils literal notranslate"><span class="pre">independent-x</span></code> option should be set in the
+<a class="reference internal" href="#fanc.plotting.GenomicFigure" title="fanc.plotting.GenomicFigure"><code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code></a>. As a result, the
+<a class="reference internal" href="#fanc.plotting.GenomicFigure.plot" title="fanc.plotting.GenomicFigure.plot"><code class="xref py py-meth docutils literal notranslate"><span class="pre">GenomicFigure.plot()</span></code></a> method
+no longer expects a single region as argument, but a list of regions equal to
+the number of plots in the figure. We can modify the example above to illustrate
+this point:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">gfig</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">([</span><span class="n">hplot</span><span class="p">,</span> <span class="n">bplot</span><span class="p">,</span> <span class="n">gplot</span><span class="p">],</span> <span class="n">independent_x</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">gfig</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="s2">&quot;chr11:77400000-78600000&quot;</span><span class="p">,</span> <span class="s2">&quot;chr11:77500000-78600000&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;chr11:77200000-78600000&quot;</span><span class="p">])</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="synchronize-y-axis-limits-for-multiple-datasets">
+<h4>Synchronize y-axis limits for multiple datasets<a class="headerlink" href="#synchronize-y-axis-limits-for-multiple-datasets" title="Permalink to this headline">¶</a></h4>
+<p>Sometimes it can be useful to synchronize y-axis limits across multiple datasets
+in order to compare their signals. Many plot types support plotting multiple
+datasets in the same panel, making comparisons easy:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">bplot</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">([</span><span class="s2">&quot;dataset1.bigwig&quot;</span><span class="p">,</span> <span class="s2">&quot;dataset2.bigwig&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Alternatively it is possible to synchronize y-axis limits across panels using
+<a class="reference internal" href="#fanc.plotting.LimitGroup" title="fanc.plotting.LimitGroup"><code class="xref py py-class docutils literal notranslate"><span class="pre">LimitGroup</span></code></a> instances. In this example the y-axis limits
+are shared between bplot1 and bplot2 and seperately between bplot3 and bplot4:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ygroup</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">LimitGroup</span><span class="p">()</span>
+<span class="n">ygroup2</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">LimitGroup</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+<span class="n">bplot1</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;dataset1.bigwig&quot;</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">ygroup</span><span class="p">)</span>
+<span class="n">bplot2</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;dataset2.bigwig&quot;</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">ygroup</span><span class="p">)</span>
+<span class="n">bplot3</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;dataset3.bigwig&quot;</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">ygroup2</span><span class="p">)</span>
+<span class="n">bplot4</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;dataset4.bigwig&quot;</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">ygroup2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>It is also possible to constrain the y-axis limits. Passing <code class="docutils literal notranslate"><span class="pre">limit=(None,</span> <span class="pre">10)</span></code>
+to the constructor constrains the upper limit to a maximum of 10 while leaving
+the lower limit unconstrained.</p>
+</div>
+</div>
+<div class="section" id="programmatic-plotting-using-loops">
+<h3>Programmatic plotting using loops<a class="headerlink" href="#programmatic-plotting-using-loops" title="Permalink to this headline">¶</a></h3>
+<p>fanc plotting is ideally suited for programmatic generation of many plots or
+dynamic assembly of multiple datasets in a single figure. In this example three
+Hi-C datasets are visualized in a single figure:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">kplot</span>
+<span class="n">hic_datasets</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;my_data1.hic&quot;</span><span class="p">,</span> <span class="s2">&quot;my_data2.hic&quot;</span><span class="p">,</span> <span class="n">my_data3</span><span class="o">.</span><span class="n">hic</span><span class="s2">&quot;]</span>
+<span class="n">hic_plots</span> <span class="o">=</span> <span class="p">[</span><span class="n">kplot</span><span class="o">.</span><span class="n">HicPlot</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">max_dist</span><span class="o">=</span><span class="mi">500000</span><span class="p">)</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">hic_datasets</span><span class="p">]</span>
+<span class="n">gfig</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">(</span><span class="n">hic_plots</span><span class="p">)</span>
+<span class="n">regions</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;chr11:77400000-78600000&quot;</span><span class="p">,</span> <span class="s2">&quot;chr11:1100000-13600000&quot;</span><span class="p">]</span>
+<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">regions</span><span class="p">:</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">gfig</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;plot_region_{}.png&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)))</span>
+</pre></div>
+</div>
+<dl class="data">
+<dt id="fanc.plotting.example_data">
+<code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">example_data</code><a class="headerlink" href="#fanc.plotting.example_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>dict with user-specific paths to example data included in fanc.</p>
+</dd></dl>
+
+<dl class="data">
+<dt id="fanc.plotting.style_ticks_whitegrid">
+<code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">style_ticks_whitegrid</code><a class="headerlink" href="#fanc.plotting.style_ticks_whitegrid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Seaborn style that can be passed to <code class="docutils literal notranslate"><span class="pre">axes_style</span></code> attribute
+of plots. Draws a grid of lines on the plot.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.plotting.HicPlot">
+<code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">HicPlot</code><a class="headerlink" href="#fanc.plotting.HicPlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.hic_plotter.TriangularMatrixPlot</span></code></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.plotting.HicPlot2D">
+<code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">HicPlot2D</code><a class="headerlink" href="#fanc.plotting.HicPlot2D" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.hic_plotter.SquareMatrixPlot</span></code></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.plotting.HicComparisonPlot2D">
+<code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">HicComparisonPlot2D</code><a class="headerlink" href="#fanc.plotting.HicComparisonPlot2D" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.hic_plotter.SplitMatrixPlot</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.HicSlicePlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">HicSlicePlot</code><span class="sig-paren">(</span><em class="sig-param">hic_data</em>, <em class="sig-param">slice_region</em>, <em class="sig-param">names=None</em>, <em class="sig-param">colors=None</em>, <em class="sig-param">fill=None</em>, <em class="sig-param">buffering_strategy='relative'</em>, <em class="sig-param">buffering_arg=1</em>, <em class="sig-param">weight_field=None</em>, <em class="sig-param">default_value=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.HicSlicePlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draw Hi-C data as virtual 4C-plot. All interactions that
+involve the slice region are shown.</p>
+<dl class="method">
+<dt id="fanc.plotting.HicSlicePlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">hic_data</em>, <em class="sig-param">slice_region</em>, <em class="sig-param">names=None</em>, <em class="sig-param">colors=None</em>, <em class="sig-param">fill=None</em>, <em class="sig-param">buffering_strategy='relative'</em>, <em class="sig-param">buffering_arg=1</em>, <em class="sig-param">weight_field=None</em>, <em class="sig-param">default_value=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.HicSlicePlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hic_data</strong> – <code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrix</span></code>. Can be list of
+multiple Hi-C datasets.</p></li>
+<li><p><strong>slice_region</strong> – String (“2L:1000000-1500000”) or <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>.
+All interactions involving this region are shown.</p></li>
+<li><p><strong>names</strong> – If multiple Hi-C datasets are provided, can pass a list of names.
+Are used as names in the legend of the plot.</p></li>
+<li><p><strong>buffering_strategy</strong> – A valid buffering strategy for class:<cite>~BufferedMatrix</cite></p></li>
+<li><p><strong>buffering_arg</strong> – Adjust range of buffering for class:<cite>~BufferedMatrix</cite></p></li>
+<li><p><strong>style</strong> (<em>str</em>) – ‘step’ Draw values in a step-wise manner for each bin
+‘mid’ Draw values connecting mid-points of bins</p></li>
+<li><p><strong>tupleylim</strong> – Set y-axis limits as tuple. Can leave upper or lower
+limit undetermined by setting None, e.g. (2.5, None).
+Alternatively, a <code class="xref py py-class docutils literal notranslate"><span class="pre">LimitGroup</span></code> instance can
+be passed to synchronize limits across multiple plots.
+Default: Automatically determined by data limits</p></li>
+<li><p><strong>yscale</strong> (<em>str</em>) – Scale of y-axis. Is passed to Matplotlib set_yscale,
+so any valid argument (“linear”, “log”, etc.) works
+Default: “linear”</p></li>
+<li><p><strong>condensed</strong> (<em>bool</em>) – Only show maximum y-axis tick.
+Default: False</p></li>
+<li><p><strong>n_yticks</strong> (<em>int</em>) – Number of y-axis ticks. If only the maximum
+tick should be displayed set condensed to True.
+Default: 3</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.HicPeakPlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">HicPeakPlot</code><span class="sig-paren">(</span><em class="sig-param">peaks</em>, <em class="sig-param">radius=None</em>, <em class="sig-param">circle_props={}</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.HicPeakPlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Overlay peaks onto Hicplot or HicPlot2D. Accepts
+<code class="xref py py-class docutils literal notranslate"><span class="pre">PeakInfo</span></code>.
+Add to HicPlot or HicPlot2D using add_overlay method.</p>
+<dl class="method">
+<dt id="fanc.plotting.HicPeakPlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">peaks</em>, <em class="sig-param">radius=None</em>, <em class="sig-param">circle_props={}</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.HicPeakPlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>peaks</strong> – fanc peaks instance</p></li>
+<li><p><strong>radius</strong> – Radius in bp for plotted circles.
+If not specified (default), use the radius of the
+peak itself. This is often too small to see,
+providing a value like 50000 helps. Default: None</p></li>
+<li><p><strong>circe_props</strong> – Dictionary with properties for the plotted circles
+for the matplotlib.patches.Circle constructor.
+Default: Black edges, no fill, linewidth 3 pt</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.plotting.VerticalSplitPlot">
+<code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">VerticalSplitPlot</code><a class="headerlink" href="#fanc.plotting.VerticalSplitPlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.plotter.MirrorMatrixPlot</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.GenomicVectorArrayPlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">GenomicVectorArrayPlot</code><span class="sig-paren">(</span><em class="sig-param">array</em>, <em class="sig-param">parameters=None</em>, <em class="sig-param">y_coords=None</em>, <em class="sig-param">y_scale='linear'</em>, <em class="sig-param">plot_kwargs=None</em>, <em class="sig-param">genomic_format=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicVectorArrayPlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot matrix from a <code class="xref py py-class docutils literal notranslate"><span class="pre">MultiVectorArchitecturalRegionFeature</span></code> object.</p>
+<dl class="method">
+<dt id="fanc.plotting.GenomicVectorArrayPlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">array</em>, <em class="sig-param">parameters=None</em>, <em class="sig-param">y_coords=None</em>, <em class="sig-param">y_scale='linear'</em>, <em class="sig-param">plot_kwargs=None</em>, <em class="sig-param">genomic_format=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicVectorArrayPlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>array</strong> – <code class="xref py py-class docutils literal notranslate"><span class="pre">MultiVectorArchitecturalRegionFeature</span></code></p></li>
+<li><p><strong>keys</strong> – keys for which vectors to use for array. None indicates all vectors will be used.</p></li>
+<li><p><strong>y_coords</strong> – Matrices in the <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicTrack</span></code> object are
+unitless. Can provide the coordinates for the
+y-direction here. Matrix has shape (X, Y) must
+have shape Y or Y + 1</p></li>
+<li><p><strong>y_scale</strong> – Set scale of the y-axis, is passed to Matplotlib set_yscale, so any
+valid argument (“linear”, “log”, etc.) works</p></li>
+<li><p><strong>plot_kwargs</strong> – Keyword-arguments passed on to pcolormesh</p></li>
+<li><p><strong>colormap</strong> – Can be the name of a colormap or a Matplotlib colormap instance</p></li>
+<li><p><strong>norm</strong> – Can be “lin”, “log” or any Matplotlib Normalization instance</p></li>
+<li><p><strong>vmin</strong> (<em>float</em>) – Clip interactions below this value</p></li>
+<li><p><strong>vmax</strong> (<em>float</em>) – Clip interactions above this value</p></li>
+<li><p><strong>show_colorbar</strong> (<em>bool</em>) – Draw a colorbar. Default: True</p></li>
+<li><p><strong>blend_zero</strong> (<em>bool</em>) – If True then zero count bins will be drawn using replacement_color</p></li>
+<li><p><strong>replacement_color</strong> (<em>str</em>) – If None use the lowest color in the colormap, otherwise
+use the specified color. Can be any valid matplotlib
+color name or specification.</p></li>
+<li><p><strong>unmappable_color</strong> – Draw unmappable bins using this color. Defaults to
+light gray (“.9”)</p></li>
+<li><p><strong>illegal_color</strong> – Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
+None (no special color).</p></li>
+<li><p><strong>colorbar_symmetry</strong> (<em>float</em>) – Set to enforce that the colorbar is symmetric around
+this value. Default: None</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.GenomicFeaturePlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">GenomicFeaturePlot</code><span class="sig-paren">(</span><em class="sig-param">regions</em>, <em class="sig-param">feature_types=False</em>, <em class="sig-param">label_field='gene_symbol'</em>, <em class="sig-param">label_func=None</em>, <em class="sig-param">color='black'</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicFeaturePlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot discrete genomic regions from BED, GTF files or similar.
+Just draws a black box where the feature is located.</p>
+<dl class="method">
+<dt id="fanc.plotting.GenomicFeaturePlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">regions</em>, <em class="sig-param">feature_types=False</em>, <em class="sig-param">label_field='gene_symbol'</em>, <em class="sig-param">label_func=None</em>, <em class="sig-param">color='black'</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicFeaturePlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>regions</strong> – Any input that pybedtools can parse. Can be a path to a
+GTF/BED file or a list of tuples [(2L, 500, 1000), (3R, 400, 600), …]</p></li>
+<li><p><strong>feature_types</strong> – If the input file is a GTF, only draw certain feature types (3rd column)
+If False, draw all features on a common track
+If None, automatically draw different feature types on separate tracks
+If a list, draw only the feature types in the list on separate tracks,
+don’t draw the rest.</p></li>
+<li><p><strong>label_field</strong> – Use this field as a label for each feature drawn.
+Can be an integer to select a specific column or the name of an attribute
+in the GTF file. If None or False no label is drawn. E.g. 2 for the second
+column or “score” for the score attribute.</p></li>
+<li><p><strong>label_func</strong> – Alternatively, label can be generated by calling this function which
+takes pybedtools.Interval als argument and returns label string</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.GenomicRegionsPlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">GenomicRegionsPlot</code><span class="sig-paren">(</span><em class="sig-param">regions</em>, <em class="sig-param">attributes=None</em>, <em class="sig-param">names=None</em>, <em class="sig-param">colors=None</em>, <em class="sig-param">linestyles=None</em>, <em class="sig-param">legend=True</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicRegionsPlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot scalar values from one or more <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegions</span></code> objects</p>
+<dl class="method">
+<dt id="fanc.plotting.GenomicRegionsPlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">regions</em>, <em class="sig-param">attributes=None</em>, <em class="sig-param">names=None</em>, <em class="sig-param">colors=None</em>, <em class="sig-param">linestyles=None</em>, <em class="sig-param">legend=True</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicRegionsPlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>regions</strong> – <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegions</span></code></p></li>
+<li><p><strong>attributes</strong> – Only draw attributes from the track objects
+which match this description.
+Should be a list of names. Supports wildcard matching
+and regex.</p></li>
+<li><p><strong>names</strong> – Supply list of names for each track.</p></li>
+<li><p><strong>legend</strong> – Draw legend. Default: True</p></li>
+<li><p><strong>style</strong> (<em>str</em>) – ‘step’ Draw values in a step-wise manner for each bin
+‘mid’ Draw values connecting mid-points of bins</p></li>
+<li><p><strong>tupleylim</strong> – Set y-axis limits as tuple. Can leave upper or lower
+limit undetermined by setting None, e.g. (2.5, None).
+Alternatively, a <code class="xref py py-class docutils literal notranslate"><span class="pre">LimitGroup</span></code> instance can
+be passed to synchronize limits across multiple plots.
+Default: Automatically determined by data limits</p></li>
+<li><p><strong>yscale</strong> (<em>str</em>) – Scale of y-axis. Is passed to Matplotlib set_yscale,
+so any valid argument (“linear”, “log”, etc.) works
+Default: “linear”</p></li>
+<li><p><strong>condensed</strong> (<em>bool</em>) – Only show maximum y-axis tick.
+Default: False</p></li>
+<li><p><strong>n_yticks</strong> (<em>int</em>) – Number of y-axis ticks. If only the maximum
+tick should be displayed set condensed to True.
+Default: 3</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.GenomicFeatureScorePlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">GenomicFeatureScorePlot</code><span class="sig-paren">(</span><em class="sig-param">regions</em>, <em class="sig-param">attribute='score'</em>, <em class="sig-param">feature_types=None</em>, <em class="sig-param">color_neutral='grey'</em>, <em class="sig-param">color_forward='red'</em>, <em class="sig-param">color_reverse='blue'</em>, <em class="sig-param">annotation_field=None</em>, <em class="sig-param">ylim=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicFeatureScorePlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot discrete genomic regions from BED, GTF files or similar.</p>
+<p>Regions will be plotted as bars with the height equal to the score provided in the file.</p>
+<dl class="method">
+<dt id="fanc.plotting.GenomicFeatureScorePlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">regions</em>, <em class="sig-param">attribute='score'</em>, <em class="sig-param">feature_types=None</em>, <em class="sig-param">color_neutral='grey'</em>, <em class="sig-param">color_forward='red'</em>, <em class="sig-param">color_reverse='blue'</em>, <em class="sig-param">annotation_field=None</em>, <em class="sig-param">ylim=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicFeatureScorePlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>regions</strong> – Any input that pybedtools can parse. Can be a path to a
+GTF/BED file or a list of tuples [(2L, 500, 1000), (3R, 400, 600), …]</p></li>
+<li><p><strong>attribute</strong> – Field in the fiel which is plotted as score. Can be integer or attribute name
+(if it is a GTF/GFF file)</p></li>
+<li><p><strong>feature_types</strong> – If the input file is a GTF, only draw certain feature types (3rd column)
+If False, draw all features on a common track
+If None, automatically draw different feature types on separate tracks
+If a list, draw only the feature types in the list on separate tracks,
+don’t draw the rest.</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.GenomicFigure">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">GenomicFigure</code><span class="sig-paren">(</span><em class="sig-param">plots</em>, <em class="sig-param">width=4.0</em>, <em class="sig-param">ticks_last=False</em>, <em class="sig-param">invert_x=False</em>, <em class="sig-param">cax_padding=0.3</em>, <em class="sig-param">cax_width=0.3</em>, <em class="sig-param">fig_padding=(0.5</em>, <em class="sig-param">0.5</em>, <em class="sig-param">1.0</em>, <em class="sig-param">1.0)</em>, <em class="sig-param">independent_x=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicFigure" title="Permalink to this definition">¶</a></dt>
+<dd><p>GenomicFigure composed of one or more plots.
+All plots are arranged in a single column, their genomic coordinates aligned.</p>
+<dl class="method">
+<dt id="fanc.plotting.GenomicFigure.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">plots</em>, <em class="sig-param">width=4.0</em>, <em class="sig-param">ticks_last=False</em>, <em class="sig-param">invert_x=False</em>, <em class="sig-param">cax_padding=0.3</em>, <em class="sig-param">cax_width=0.3</em>, <em class="sig-param">fig_padding=(0.5</em>, <em class="sig-param">0.5</em>, <em class="sig-param">1.0</em>, <em class="sig-param">1.0)</em>, <em class="sig-param">independent_x=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicFigure.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>plots</strong> (<em>list</em>) – List of plot instances each will form a separate panel in the figure.
+Should inherit from <code class="xref py py-class docutils literal notranslate"><span class="pre">BasePlotter</span></code> or
+<code class="xref py py-class docutils literal notranslate"><span class="pre">BaseAnnotation</span></code></p></li>
+<li><p><strong>width</strong> (<em>float</em>) – Width of the plots in inches. Height is automatically determined
+from the specified aspect ratios of the Plots.
+Default: 5.</p></li>
+<li><p><strong>ticks_last</strong> (<em>bool</em>) – Only draw genomic coordinate tick labels on last (bottom) plot</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis for on all plots. Default: False</p></li>
+<li><p><strong>cax_padding</strong> (<em>float</em>) – Distance between plots and the colorbar in inches. Default: 0.3</p></li>
+<li><p><strong>cax_width</strong> (<em>float</em>) – Width of colorbar in inches. Default: 0.5</p></li>
+<li><p><strong>fig_padding</strong> (<em>tuple</em><em>(</em><em>float</em><em>, </em><em>float</em><em>, </em><em>float</em><em>, </em><em>float</em><em>)</em>) – Distance between the edges of the plots and the figure borders
+in inches (bottom, top, left, right). Default: (.5, .5, .5, .5)</p></li>
+<li><p><strong>independent_x</strong> (<em>bool</em>) – When plotting, supply separate coordinates for each plot
+in the figure. Default: False</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.plotting.GenomicFigure.plot">
+<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param">region</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicFigure.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a plot of the specified region.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>region</strong> (<em>string</em><em> or </em><em>GenomicRegion</em>) – A string describing a region “2L:10000000-12000000” or
+a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>.
+If <code class="docutils literal notranslate"><span class="pre">independent_x</span></code> was set, a list of regions
+equal to the length of plots + the length of
+annotations (if present) must be supplied.
+The order of the regions here must be the same
+as the order in which the plots were supplied to
+the GenomicFigure constructor.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A matplotlib Figure instance and a list of figure axes</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.BigWigPlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">BigWigPlot</code><span class="sig-paren">(</span><em class="sig-param">bigwigs</em>, <em class="sig-param">names=None</em>, <em class="sig-param">bin_size=None</em>, <em class="sig-param">fill=True</em>, <em class="sig-param">plot_kwargs=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.BigWigPlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot data from on or more BigWig or Bedgraph files. <em>Deprecated, use LinePlot instead</em>.</p>
+<dl class="method">
+<dt id="fanc.plotting.BigWigPlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">bigwigs</em>, <em class="sig-param">names=None</em>, <em class="sig-param">bin_size=None</em>, <em class="sig-param">fill=True</em>, <em class="sig-param">plot_kwargs=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.BigWigPlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bigwigs</strong> – Path or list of paths to bigwig or bedgraph files</p></li>
+<li><p><strong>names</strong> – List of names for each bigwig. Used as label in the legend.</p></li>
+<li><p><strong>bin_size</strong> – Bin BigWig values using fixed size bins of the given size.
+If None, will plot values as they are in the BigWig file</p></li>
+<li><p><strong>fill</strong> – Fill space between x-axis and data line. Default: True</p></li>
+<li><p><strong>plot_kwargs</strong> – Dictionary of additional keyword arguments passed to the plot function</p></li>
+<li><p><strong>style</strong> (<em>str</em>) – ‘step’ Draw values in a step-wise manner for each bin
+‘mid’ Draw values connecting mid-points of bins</p></li>
+<li><p><strong>tupleylim</strong> – Set y-axis limits as tuple. Can leave upper or lower
+limit undetermined by setting None, e.g. (2.5, None).
+Alternatively, a <code class="xref py py-class docutils literal notranslate"><span class="pre">LimitGroup</span></code> instance can
+be passed to synchronize limits across multiple plots.
+Default: Automatically determined by data limits</p></li>
+<li><p><strong>yscale</strong> (<em>str</em>) – Scale of y-axis. Is passed to Matplotlib set_yscale,
+so any valid argument (“linear”, “log”, etc.) works
+Default: “linear”</p></li>
+<li><p><strong>condensed</strong> (<em>bool</em>) – Only show maximum y-axis tick.
+Default: False</p></li>
+<li><p><strong>n_yticks</strong> (<em>int</em>) – Number of y-axis ticks. If only the maximum
+tick should be displayed set condensed to True.
+Default: 3</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.LinePlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">LinePlot</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">bin_size=None</em>, <em class="sig-param">fill=True</em>, <em class="sig-param">attribute='score'</em>, <em class="sig-param">colors=None</em>, <em class="sig-param">show_legend=None</em>, <em class="sig-param">legend_location='best'</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.LinePlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot data as line. Data must be <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionBased</span></code></p>
+<dl class="method">
+<dt id="fanc.plotting.LinePlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">bin_size=None</em>, <em class="sig-param">fill=True</em>, <em class="sig-param">attribute='score'</em>, <em class="sig-param">colors=None</em>, <em class="sig-param">show_legend=None</em>, <em class="sig-param">legend_location='best'</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.LinePlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> – Data or list of data. Or dictionary, where keys represent
+data labels. Data can be paths to files on the disk or anything
+that pybedtools can parse [(chr, start, end, score), …].
+If a list of data or dict is provided multiple lines are drawn.
+Examples:
+data=[“x.bigwig”, [(“chr11”, 40, 50, 1.8), (“chr11”, 50, 70, 4.3)]]
+data=[“y.bedgraph”, “z.bigwig”]
+data={“x_chip”: “x.bedgraph”, “y_chip”: “y.bigwig”}</p></li>
+<li><p><strong>labels</strong> – List of labels for each data file. Used as label in the legend.
+Ignored if labels are specified in data dictionary.</p></li>
+<li><p><strong>bin_size</strong> – Bin values using fixed size bins of the given size.
+If None, will plot values as they are in the data.</p></li>
+<li><p><strong>fill</strong> – Fill space between x-axis and data line. Default: True</p></li>
+<li><p><strong>plot_kwargs</strong> – Dictionary of additional keyword arguments passed to the plot function</p></li>
+<li><p><strong>data</strong> – Data or list of data. Or dictionary, where keys represent
+data labels. Data can be paths to files on the disk or anthing
+that pybedtools can parse [(chr, start, end, score), …].
+If a list of data or dict is provided multiple lines are drawn.
+Examples:
+data=[“x.bigwig”, [(“chr11”, 40, 50, 1.8), (“chr11”, 50, 70, 4.3)]]
+data=[“y.bedgraph”, “z.bigwig”]
+data={“x_chip”: “x.bedgraph”, “y_chip”: “y.bigwig”}</p></li>
+<li><p><strong>labels</strong> – List of labels for each data file. Used as label in the legend.
+Ignored if labels are specified in data dictionary.</p></li>
+<li><p><strong>bin_size</strong> – Bin values using fixed size bins of the given size.
+If None, will plot values as they are in the data.</p></li>
+<li><p><strong>fill</strong> – Fill space between x-axis and data line. Default: True</p></li>
+<li><p><strong>plot_kwargs</strong> – Dictionary of additional keyword arguments passed to the plot function</p></li>
+<li><p><strong>style</strong> (<em>str</em>) – ‘step’ Draw values in a step-wise manner for each bin
+‘mid’ Draw values connecting mid-points of bins</p></li>
+<li><p><strong>tupleylim</strong> – Set y-axis limits as tuple. Can leave upper or lower
+limit undetermined by setting None, e.g. (2.5, None).
+Alternatively, a <code class="xref py py-class docutils literal notranslate"><span class="pre">LimitGroup</span></code> instance can
+be passed to synchronize limits across multiple plots.
+Default: Automatically determined by data limits</p></li>
+<li><p><strong>yscale</strong> (<em>str</em>) – Scale of y-axis. Is passed to Matplotlib set_yscale,
+so any valid argument (“linear”, “log”, etc.) works
+Default: “linear”</p></li>
+<li><p><strong>condensed</strong> (<em>bool</em>) – Only show maximum y-axis tick.
+Default: False</p></li>
+<li><p><strong>n_yticks</strong> (<em>int</em>) – Number of y-axis ticks. If only the maximum
+tick should be displayed set condensed to True.
+Default: 3</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.GenePlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">GenePlot</code><span class="sig-paren">(</span><em class="sig-param">genes</em>, <em class="sig-param">feature_types=('exon'</em>, <em class="sig-param">)</em>, <em class="sig-param">color_neutral='gray'</em>, <em class="sig-param">color_forward='orangered'</em>, <em class="sig-param">color_reverse='darkturquoise'</em>, <em class="sig-param">color_score=False</em>, <em class="sig-param">box_height=0.1</em>, <em class="sig-param">show_labels=True</em>, <em class="sig-param">label_field='name'</em>, <em class="sig-param">font_size=9</em>, <em class="sig-param">arrow_size=8</em>, <em class="sig-param">show_arrows=True</em>, <em class="sig-param">line_width=1</em>, <em class="sig-param">group_by='transcript_id'</em>, <em class="sig-param">collapse=False</em>, <em class="sig-param">squash=False</em>, <em class="sig-param">min_gene_size=None</em>, <em class="sig-param">lookahead=2000000</em>, <em class="sig-param">score_colormap='RdBu'</em>, <em class="sig-param">relative_text_offset=0.01</em>, <em class="sig-param">relative_marker_step=0.03</em>, <em class="sig-param">no_labels_outside_plot=False</em>, <em class="sig-param">include=None</em>, <em class="sig-param">exclude=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenePlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot genes including exon/intron structure from BED, GTF files or similar.</p>
+<dl class="method">
+<dt id="fanc.plotting.GenePlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">genes</em>, <em class="sig-param">feature_types=('exon'</em>, <em class="sig-param">)</em>, <em class="sig-param">color_neutral='gray'</em>, <em class="sig-param">color_forward='orangered'</em>, <em class="sig-param">color_reverse='darkturquoise'</em>, <em class="sig-param">color_score=False</em>, <em class="sig-param">box_height=0.1</em>, <em class="sig-param">show_labels=True</em>, <em class="sig-param">label_field='name'</em>, <em class="sig-param">font_size=9</em>, <em class="sig-param">arrow_size=8</em>, <em class="sig-param">show_arrows=True</em>, <em class="sig-param">line_width=1</em>, <em class="sig-param">group_by='transcript_id'</em>, <em class="sig-param">collapse=False</em>, <em class="sig-param">squash=False</em>, <em class="sig-param">min_gene_size=None</em>, <em class="sig-param">lookahead=2000000</em>, <em class="sig-param">score_colormap='RdBu'</em>, <em class="sig-param">relative_text_offset=0.01</em>, <em class="sig-param">relative_marker_step=0.03</em>, <em class="sig-param">no_labels_outside_plot=False</em>, <em class="sig-param">include=None</em>, <em class="sig-param">exclude=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenePlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>genes</strong> – Any input that pybedtools can parse. Can be a path to a
+GTF/BED file</p></li>
+<li><p><strong>feature_types</strong> – If the input file is a GTF, only draw certain feature types (3rd column)
+If False, draw all features on a common track
+If None, automatically draw different feature types on separate tracks
+If a list, draw only the feature types in the list on separate tracks,
+don’t draw the rest.</p></li>
+<li><p><strong>label_field</strong> – Field of input file for labelling transcripts/genes. Default: name</p></li>
+<li><p><strong>collapse</strong> – Draw all transcripts on a single row. Everything will overlap. Default: False</p></li>
+<li><p><strong>squash</strong> – Squash all exons belonging to a single grouping unit (merging overlapping exons).
+Useful especially when setting group_by=”gene_id” or “gene_symbol”.
+Genes will still draw on separate rows, if necessary. Default: False</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.FeatureLayerPlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">FeatureLayerPlot</code><span class="sig-paren">(</span><em class="sig-param">features</em>, <em class="sig-param">gff_grouping_attribute=None</em>, <em class="sig-param">element_height=0.8</em>, <em class="sig-param">include=None</em>, <em class="sig-param">exclude=None</em>, <em class="sig-param">color_by='strand'</em>, <em class="sig-param">colors=((1</em>, <em class="sig-param">'orangered')</em>, <em class="sig-param">(-1</em>, <em class="sig-param">'darkturquoise'))</em>, <em class="sig-param">shadow=True</em>, <em class="sig-param">shadow_width=0.005</em>, <em class="sig-param">collapse=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.FeatureLayerPlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot genomic features in layers grouped by name/type.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">B1</span>         <span class="o">-</span>   <span class="o">-</span>      <span class="o">-</span>
+<span class="n">B2</span>      <span class="o">-</span>   <span class="o">-</span>     <span class="o">-</span> <span class="o">-</span>   <span class="o">-</span>
+<span class="n">L1</span>       <span class="o">---</span>   <span class="o">---</span>     <span class="o">--</span>
+    <span class="n">_____________________</span>
+    <span class="mi">0</span>    <span class="mi">10</span>    <span class="mi">20</span>    <span class="mi">30</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="fanc.plotting.FeatureLayerPlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">features</em>, <em class="sig-param">gff_grouping_attribute=None</em>, <em class="sig-param">element_height=0.8</em>, <em class="sig-param">include=None</em>, <em class="sig-param">exclude=None</em>, <em class="sig-param">color_by='strand'</em>, <em class="sig-param">colors=((1</em>, <em class="sig-param">'orangered')</em>, <em class="sig-param">(-1</em>, <em class="sig-param">'darkturquoise'))</em>, <em class="sig-param">shadow=True</em>, <em class="sig-param">shadow_width=0.005</em>, <em class="sig-param">collapse=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.FeatureLayerPlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>features</strong> – Any input that pybedtools can parse. Can be a path to a
+GTF/BED file. If BED, elements will be grouped by name,
+if GFF will be grouped by feature type</p></li>
+<li><p><strong>gff_grouping_attribute</strong> – By default, GFF entries are grouped by feature type,
+change this to any attribute using this parameter</p></li>
+<li><p><strong>element_height</strong> – Height of an individual element in the plot. A row’s height
+is 1.0, so you should choose a value smaller than that.</p></li>
+<li><p><strong>color_by</strong> – element attribute to color the element by. Currently, only categorical
+values are supported.</p></li>
+<li><p><strong>colors</strong> – List of (attribute, color) pairs to color elements according to some attribute</p></li>
+<li><p><strong>shadow</strong> – Draws a translucent box under each element the is min_element_width wide.
+Useful if the size of elements is very small compared to plotting region</p></li>
+<li><p><strong>shadow_width</strong> – Width of the shadow of an element in fraction of plotting region.
+Some very small features won’t be visible in this plot unless
+you increase this parameter</p></li>
+<li><p><strong>collapse</strong> – Collapse all rows onto a single one (ignore grouping)</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.GenomicDataFramePlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">GenomicDataFramePlot</code><span class="sig-paren">(</span><em class="sig-param">genomic_data_frame</em>, <em class="sig-param">names=None</em>, <em class="sig-param">plot_kwargs=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicDataFramePlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot data from a table.</p>
+<dl class="method">
+<dt id="fanc.plotting.GenomicDataFramePlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">genomic_data_frame</em>, <em class="sig-param">names=None</em>, <em class="sig-param">plot_kwargs=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.GenomicDataFramePlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>genomic_data_frame</strong> – <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicDataFrame</span></code></p></li>
+<li><p><strong>names</strong> – List of column names to plot (on the same axis)</p></li>
+<li><p><strong>plot_kwargs</strong> – Dictionary of additional keyword arguments passed to the plot function</p></li>
+<li><p><strong>style</strong> (<em>str</em>) – ‘step’ Draw values in a step-wise manner for each bin
+‘mid’ Draw values connecting mid-points of bins</p></li>
+<li><p><strong>tupleylim</strong> – Set y-axis limits as tuple. Can leave upper or lower
+limit undetermined by setting None, e.g. (2.5, None).
+Alternatively, a <code class="xref py py-class docutils literal notranslate"><span class="pre">LimitGroup</span></code> instance can
+be passed to synchronize limits across multiple plots.
+Default: Automatically determined by data limits</p></li>
+<li><p><strong>yscale</strong> (<em>str</em>) – Scale of y-axis. Is passed to Matplotlib set_yscale,
+so any valid argument (“linear”, “log”, etc.) works
+Default: “linear”</p></li>
+<li><p><strong>condensed</strong> (<em>bool</em>) – Only show maximum y-axis tick.
+Default: False</p></li>
+<li><p><strong>n_yticks</strong> (<em>int</em>) – Number of y-axis ticks. If only the maximum
+tick should be displayed set condensed to True.
+Default: 3</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.HighlightAnnotation">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">HighlightAnnotation</code><span class="sig-paren">(</span><em class="sig-param">bed</em>, <em class="sig-param">plot1=None</em>, <em class="sig-param">plot2=None</em>, <em class="sig-param">plot_kwargs=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.HighlightAnnotation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Vertical lines or rectangles (shaded regions) which can be
+positioned at specific genomic coordinates from a BED file
+and can span multiple panels of the GenomicFigure.</p>
+<p>Useful for highlighting specific regions across multiple
+panels of figures.</p>
+<dl class="method">
+<dt id="fanc.plotting.HighlightAnnotation.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">bed</em>, <em class="sig-param">plot1=None</em>, <em class="sig-param">plot2=None</em>, <em class="sig-param">plot_kwargs=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.HighlightAnnotation.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bed</strong> (<em>string</em><em> or </em><em>pybedtool.BedTool</em>) – Anything pybedtools can parse. Path to BED-file
+GTF-file, or a list of tuples [(chr, start, end), …]
+If features are 1bp long, lines are drawn. If they
+are &gt; 1bp rectangles are drawn. Their appearance
+can be controlled using the plot_kwargs.</p></li>
+<li><p><strong>plot1</strong> – First plot where line should start. Default: First</p></li>
+<li><p><strong>plot2</strong> – Second plot where line should end. Default: Last</p></li>
+<li><p><strong>plot_kwargs</strong> – Dictionary of properties which are passed
+to matplotlib.lines.Line2D or
+matplotlib.patches.Rectangle constructor</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.SymmetricNorm">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">SymmetricNorm</code><span class="sig-paren">(</span><em class="sig-param">vmin=None</em>, <em class="sig-param">vmax=None</em>, <em class="sig-param">percentile=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.SymmetricNorm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Normalizes data for plotting on a divergent colormap.
+Automatically chooses vmin and vmax so that the colormap is
+centered at zero.</p>
+<dl class="method">
+<dt id="fanc.plotting.SymmetricNorm.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">vmin=None</em>, <em class="sig-param">vmax=None</em>, <em class="sig-param">percentile=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.SymmetricNorm.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vmin</strong> – Choose vmin manually</p></li>
+<li><p><strong>vmax</strong> – Choose vmax manually</p></li>
+<li><p><strong>percentile</strong> – Instead of taking the minmum or maximum to
+automatically determine vmin/vmax, take the
+percentile.
+eg. with 5, vmin is 5%-ile, vmax 95%-ile</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.plotting.SymmetricNorm.autoscale">
+<code class="sig-name descname">autoscale</code><span class="sig-paren">(</span><em class="sig-param">A</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.SymmetricNorm.autoscale" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set <em>vmin</em>, <em>vmax</em> to min, max of <em>A</em>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.plotting.SymmetricNorm.autoscale_None">
+<code class="sig-name descname">autoscale_None</code><span class="sig-paren">(</span><em class="sig-param">A</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.SymmetricNorm.autoscale_None" title="Permalink to this definition">¶</a></dt>
+<dd><p>Autoscale only None-valued vmin or vmax.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.LimitGroup">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">LimitGroup</code><span class="sig-paren">(</span><em class="sig-param">limit=None</em>, <em class="sig-param">sig=2</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.LimitGroup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Can be used for synchronizing axis limits across multiple
+plots. Pass the same instance of this class to all plots
+that should have synchronized axis limits.</p>
+<dl class="method">
+<dt id="fanc.plotting.LimitGroup.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">limit=None</em>, <em class="sig-param">sig=2</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.LimitGroup.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>limit</strong> – tuple (vmin, vmax) to set absolute limits
+for axis. Final limits will be chosen
+within this absolute limit. Pass None
+for vmin or vmax to set no limit.
+Default: (None, None)</p></li>
+<li><p><strong>sig</strong> – Round limits to sig significant digits.
+If None, don’t round.
+Default: 2</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="tools.html" class="btn btn-neutral float-right" title="FAN-C Python tools modules" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="architecture/domains.html" class="btn btn-neutral float-left" title="Domains module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

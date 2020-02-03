@@ -1,0 +1,346 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>RegionMatrixContainer &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Generate Hi-C matrices (API)" href="../generate.html" />
+    <link rel="prev" title="RegionPairsContainer" href="edges_interface.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../interfaces.html">Interfaces</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="regions_interface.html">Genomic regions (RegionBased interface)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="edges_interface.html">Edges (contacts, pixels, ...) (RegionPairsContainer interface)</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Matrices (RegionMatrixContainer interface)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#the-matrix-function">The matrix function</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../analyse.html">Analyse Hi-C matrices (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules.html">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../api.html">fanc Python module</a> &raquo;</li>
+        
+          <li><a href="../interfaces.html">Common interfaces</a> &raquo;</li>
+        
+      <li>RegionMatrixContainer</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/api/interfaces/matrix_interface.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="regionmatrixcontainer">
+<span id="matrix-interface"></span><h1>RegionMatrixContainer<a class="headerlink" href="#regionmatrixcontainer" title="Permalink to this headline">¶</a></h1>
+<p>This interface simplifies and unifies working with matrix data in the context of genomic
+region pairs, such as you would find in a Hi-C matrix. It builds on the
+<a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code></a> (see previous section <a class="reference internal" href="edges_interface.html#edges-interface"><span class="std std-ref">RegionPairsContainer</span></a>),
+which dealt with scores and other attributes between genomic regions, and extends it by
+adding functions for representing the scores in a numeric matrix.</p>
+<p>After loading a dataset using <a class="reference internal" href="../modules/tools/load.html#fanc.tools.load.load" title="fanc.tools.load.load"><code class="xref py py-func docutils literal notranslate"><span class="pre">load()</span></code></a>, you can check for
+support of the <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer" title="fanc.matrix.RegionMatrixContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrixContainer</span></code></a> interface with:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hic</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;examples/output/hic/binned/fanc_example_500kb.hic&quot;</span><span class="p">)</span>
+<span class="nb">isinstance</span><span class="p">(</span><span class="n">hic</span><span class="p">,</span> <span class="n">fanc</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">RegionMatrixContainer</span><span class="p">)</span>  <span class="c1"># True if interface supported</span>
+</pre></div>
+</div>
+<p>The current list of FAN-C classes supporting <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer" title="fanc.matrix.RegionMatrixContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrixContainer</span></code></a> is:
+<a class="reference internal" href="../modules/compatibility/cooler.html#fanc.compatibility.cooler.CoolerHic" title="fanc.compatibility.cooler.CoolerHic"><code class="xref py py-class docutils literal notranslate"><span class="pre">CoolerHic</span></code></a>,
+<a class="reference internal" href="../modules/compatibility/juicer.html#fanc.compatibility.juicer.JuicerHic" title="fanc.compatibility.juicer.JuicerHic"><code class="xref py py-class docutils literal notranslate"><span class="pre">JuicerHic</span></code></a>,
+<a class="reference internal" href="../modules/hic.html#fanc.hic.Hic" title="fanc.hic.Hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code></a>,
+<a class="reference internal" href="../modules/architecture/compartments.html#fanc.architecture.compartments.ABCompartmentMatrix" title="fanc.architecture.compartments.ABCompartmentMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">ABCompartmentMatrix</span></code></a>,
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.DifferenceMatrix" title="fanc.architecture.comparisons.DifferenceMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">DifferenceMatrix</span></code></a>,
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.FoldChangeMatrix" title="fanc.architecture.comparisons.FoldChangeMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">FoldChangeMatrix</span></code></a>,
+<a class="reference internal" href="../modules/peaks.html#fanc.peaks.PeakInfo" title="fanc.peaks.PeakInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">PeakInfo</span></code></a>,
+and
+<a class="reference internal" href="../modules/peaks.html#fanc.peaks.RaoPeakInfo" title="fanc.peaks.RaoPeakInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">RaoPeakInfo</span></code></a>.</p>
+<div class="section" id="the-matrix-function">
+<h2>The matrix function<a class="headerlink" href="#the-matrix-function" title="Permalink to this headline">¶</a></h2>
+<p>To obtain the whole-genome, normalised matrix from an object, use the
+<code class="xref py py-func docutils literal notranslate"><span class="pre">matrix()</span></code> function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Of course, the <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer.matrix" title="fanc.matrix.RegionMatrixContainer.matrix"><code class="xref py py-func docutils literal notranslate"><span class="pre">matrix()</span></code></a> function supports matrix subsets:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_chr19</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>When using tuples as keys, the first entry will select the rows, and the second entry
+the columns of the matrix:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_inter1</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr18&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">))</span>
+<span class="n">m_inter1</span><span class="o">.</span><span class="n">shape</span>  <span class="c1"># (157, 119)</span>
+<span class="n">m_inter2</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr18&#39;</span><span class="p">))</span>
+<span class="n">m_inter2</span><span class="o">.</span><span class="n">shape</span>  <span class="c1"># (119, 157)</span>
+</pre></div>
+</div>
+<p>The returned object is of type <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrix" title="fanc.matrix.RegionMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrix</span></code></a>, which is a subclass
+of Numpy’s masked <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code> with added perks for genomic region handling.</p>
+<p>A <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrix" title="fanc.matrix.RegionMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrix</span></code></a> can be used like any other numpy matrix,
+for example calculating marginals by summing up values in rows or columns:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_chr19</span><span class="o">.</span><span class="n">shape</span>  <span class="c1"># (119, 119)</span>
+<span class="n">marginals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">m_chr19</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">marginals</span><span class="o">.</span><span class="n">shape</span>  <span class="c1"># (119,)</span>
+<span class="n">marginals</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span>
+<span class="c1"># [1.0000000074007467, 0.9999999585562779,</span>
+<span class="c1"># 1.0000000102533806, 0.999999987196381, 1.0000000140165086]</span>
+</pre></div>
+</div>
+<p>(this Hi-C object is normalised on a per-chromosome basis, so each marginal will be
+close to 1)</p>
+<p>Rows and columns in a matrix can be masked, i.e. their entries are considered invalid and
+are ignored for most downstream analysis to prevent artifacts. By default, FAN-C masks
+regions that have no edges (after filtering), typically due to mappability issues.
+You can turn off masking using the <code class="code docutils literal notranslate"><span class="pre">mask=False</span></code> parameter:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_unmasked</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">mask</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>However, we recommend working with masked matrices to ensure no unwanted edges are
+part of your analyses.</p>
+<p><a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrix" title="fanc.matrix.RegionMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrix</span></code></a> objects also keep track of the regions corresponding to
+columns and rows of a matrix:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_inter1</span><span class="o">.</span><span class="n">row_regions</span>
+<span class="c1"># [chr18:1-500000,</span>
+<span class="c1">#  chr18:500001-1000000,</span>
+<span class="c1">#  chr18:1000001-1500000,</span>
+<span class="c1">#  chr18:1500001-2000000,</span>
+<span class="c1"># ...</span>
+<span class="n">m_inter1</span><span class="o">.</span><span class="n">col_regions</span>
+<span class="c1"># [chr19:1-500000,</span>
+<span class="c1">#  chr19:500001-1000000,</span>
+<span class="c1">#  chr19:1000001-1500000,</span>
+<span class="c1">#  chr19:1500001-2000000,</span>
+<span class="c1"># ...</span>
+</pre></div>
+</div>
+<p>You can subset a <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrix" title="fanc.matrix.RegionMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrix</span></code></a> using indexes or region intervals:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># subset by index</span>
+<span class="n">m_chr19_sub1</span> <span class="o">=</span> <span class="n">m_chr19</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+<span class="n">m_chr19_sub1</span><span class="o">.</span><span class="n">row_regions</span>
+<span class="c1"># [chr19:1-500000, chr19:500001-1000000, chr19:1000001-1500000]</span>
+<span class="n">m_chr19_sub1</span><span class="o">.</span><span class="n">col_regions</span>
+<span class="c1"># [chr19:1-500000, chr19:500001-1000000, chr19:1000001-1500000]</span>
+
+<span class="c1"># subset by region interval</span>
+<span class="n">m_chr19_sub2</span> <span class="o">=</span> <span class="n">m_chr19</span><span class="p">[</span><span class="s1">&#39;chr19:2mb-3mb&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19:500kb-1mb&#39;</span><span class="p">]</span>
+<span class="n">m_chr19_sub2</span><span class="o">.</span><span class="n">row_regions</span>
+<span class="c1"># [chr19:1500001-2000000, chr19:2000001-2500000, chr19:2500001-3000000]</span>
+<span class="n">m_chr19_sub2</span><span class="o">.</span><span class="n">col_regions</span>
+</pre></div>
+</div>
+<p>Note that region interval definitions are always interpreted as 1-based, inclusive, and any
+overlapping region is returned (in the above example the region <code class="code docutils literal notranslate"><span class="pre">chr19:150001-200000</span></code>
+has a 1 base overlap with the requested interval).</p>
+<p><a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer.matrix" title="fanc.matrix.RegionMatrixContainer.matrix"><code class="xref py py-func docutils literal notranslate"><span class="pre">matrix()</span></code></a> supports all arguments also available for
+<a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.edges" title="fanc.matrix.RegionPairsContainer.edges"><code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></a>, but it is not necessary to use lazy loading.
+You can, for example, output an uncorrected matrix with</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_chr19_uncorr</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">),</span> <span class="n">norm</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In addition, there are several parameters specific to
+<a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer.matrix" title="fanc.matrix.RegionMatrixContainer.matrix"><code class="xref py py-func docutils literal notranslate"><span class="pre">matrix()</span></code></a>. Most notably, you can use the
+<code class="code docutils literal notranslate"><span class="pre">oe=True</span></code> parameter to return an observed/expected (O/E) matrix:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_chr19_oe</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">),</span> <span class="n">oe</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Internally, <code class="code docutils literal notranslate"><span class="pre">oe=True</span></code> uses
+<a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer.expected_values" title="fanc.matrix.RegionMatrixContainer.expected_values"><code class="xref py py-class docutils literal notranslate"><span class="pre">expected_values</span></code></a> to calculate the expected
+(average) weight of all edges connecting regions at a certain distance. The matrix
+is then simply divided by the expected matrix. You may want to log2-transform the
+matrix for a symmetric scale of values:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_chr19_log_oe</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">),</span> <span class="n">oe</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../generate.html" class="btn btn-neutral float-right" title="Generate Hi-C matrices (API)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="edges_interface.html" class="btn btn-neutral float-left" title="RegionPairsContainer" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

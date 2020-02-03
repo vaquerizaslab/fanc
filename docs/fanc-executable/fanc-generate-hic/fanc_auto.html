@@ -1,0 +1,577 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Individual pipeline steps" href="fanc_modular_steps.html" />
+    <link rel="prev" title="Generate Hi-C matrices" href="../fanc_generate_hic.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#"> fanc auto: Automated generation of Hi-C matrices</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#parameters">Parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#input-types">Input types</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#test-runs-and-sun-oracle-grid-engine-support">Test runs and Sun/Oracle Grid engine support</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#next-steps">Next steps</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="fanc_modular_steps.html"> Individual pipeline steps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc_helpers.html"> Helper tools</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc_config.html"> Configuration options</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../fanc_analyse_hic.html"> Analyse Hi-C matrices</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../fanc.html">FAN-C command line tools</a> &raquo;</li>
+        
+          <li><a href="../fanc_generate_hic.html">Generate Hi-C matrices</a> &raquo;</li>
+        
+      <li>Generating Hi-C matrices with fanc</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/fanc-executable/fanc-generate-hic/fanc_auto.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="generating-hi-c-matrices-with-fanc">
+<span id="fanc-auto"></span><h1>Generating Hi-C matrices with fanc<a class="headerlink" href="#generating-hi-c-matrices-with-fanc" title="Permalink to this headline">¶</a></h1>
+<p>This part of the documentation will focus primarily on <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> - the most versatile
+command in the FAN-C toolkit. Its main goal is to convert any input to binned Hi-C matrices.
+The following schematic will give you an overview of what file types <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> can handle
+and how they are processed downstream.</p>
+<img alt="../../_images/fanc-auto-schematic.png" src="../../_images/fanc-auto-schematic.png" />
+<p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> will map reads in FASTQ (or gzipped FASTQ) files to a reference genome, generating
+SAM/BAM files. SAM/BAM files with paired-end reads will be automatically sorted and mate pairs
+will be matched to generate Pairs files. Pairs files will be converted into fragment-level Hic
+objects. Multiple fragment-level Hic objects will be merged into a single Hi-C object. Finally,
+the fragment-level Hic object will be binned at various bin sizes.</p>
+<p>Internally, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> constructs its Hi-C processing pipeline from more specialised <code class="docutils literal notranslate"><span class="pre">fanc</span></code>
+commands. When describing the different pipeline steps and how you can control them below, we
+will also reference the specialised command that is used to build each step of the pipeline.</p>
+<div class="section" id="parameters">
+<h2>Parameters<a class="headerlink" href="#parameters" title="Permalink to this headline">¶</a></h2>
+<p>Each pipeline step in <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> is controlled by a specific set of parameters in <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code>.
+Some of these are mandatory for specific types of input, others are optional and affect, for example,
+the processing and filtering of objects in the pipeline.</p>
+<p>Here is the help output for <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">auto</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span> <span class="n">GENOME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RESTRICTION_ENZYME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">GENOME_INDEX</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">-</span><span class="n">n</span> <span class="n">BASENAME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STEP_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BIN_SIZES</span> <span class="p">[</span><span class="n">BIN_SIZES</span> <span class="o">...</span><span class="p">]]</span>
+                 <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">fanc</span><span class="o">-</span><span class="n">parallel</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">fastq</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">memory</span><span class="o">-</span><span class="nb">map</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">ice</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY_CUTOFF</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">iterative</span><span class="o">-</span><span class="n">quality</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">ITERATIVE_QUALITY_CUTOFF</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">le</span><span class="o">-</span><span class="n">inward</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">INWARD_CUTOFF</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">le</span><span class="o">-</span><span class="n">outward</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">OUTWARD_CUTOFF</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">auto</span><span class="o">-</span><span class="n">le</span><span class="o">-</span><span class="n">cutoff</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">iterative</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">sam</span><span class="o">-</span><span class="n">sort</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">restore</span><span class="o">-</span><span class="n">coverage</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">ligation</span><span class="o">-</span><span class="n">junction</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="nb">filter</span><span class="o">-</span><span class="n">pairs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">hic</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">run</span><span class="o">-</span><span class="k">with</span> <span class="n">RUN_WITH</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">job</span><span class="o">-</span><span class="n">prefix</span> <span class="n">JOB_PREFIX</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
+                 <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span> <span class="n">output_folder</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>input</kbd></dt>
+<dd><p>Input files. fanc will try to guess the file type by its extension.</p>
+</dd>
+<dt><kbd>output_folder</kbd></dt>
+<dd><p>Output folder. All output files and folders will be generated under this directory.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>-g, --genome</kbd></dt>
+<dd><p>Genome for the Hi-C object.Path to region-based file (BED, GFF, …) containing the non-overlapping regions to be used for Hi-C object construction. Typically restriction-enzyme fragments. Alternatively: Path to genome file (FASTA, folder with FASTA, hdf5 file), which will be used in conjunction with the type of restriction enzyme (-r) to calculate fragments directly.</p>
+</dd>
+<dt><kbd>-r, --restriction-enzyme</kbd></dt>
+<dd><p>Restriction enzyme name. Used for in silico digestion of genomic sequences and splitting of reads at Hi-C ligation junctions. (e.g. HindIII, case-sensitive)</p>
+</dd>
+<dt><kbd>-i, --genome-index</kbd></dt>
+<dd><p>Bowtie 2 or BWA genome index. Only required when passing FASTQ files as input.</p>
+</dd>
+<dt><kbd>-n, --basename</kbd></dt>
+<dd><p>Basename for output files. If not provided, will be guessed based on input file names.</p>
+</dd>
+<dt><kbd>-s, --step-size</kbd></dt>
+<dd><p>Step size for iterative mapping. Default: 3</p>
+</dd>
+<dt><kbd>-b, --bin-sizes</kbd></dt>
+<dd><p>Bin sizes for Hi-C matrix generation. Default: 5mb, 2mb, 1mb, 500kb, 250kb, 100kb, 50kb, 25kb, 10kb, 5kb.</p>
+</dd>
+<dt><kbd>-t, --threads</kbd></dt>
+<dd><p>Maximum number of threads. The number provided here will not be exceeded by analysis steps running alone or in parallel.</p>
+</dd>
+<dt><kbd>--fanc-parallel</kbd></dt>
+<dd><p>Use FAN-C parallelisation, which launches multiple mapper jobs. This may be faster in some cases than relying on the internal paralellisation of the mapper, but has potentially high disk I/O and memory usage.</p>
+</dd>
+<dt><kbd>--split-fastq</kbd></dt>
+<dd><p>Split fastq files into chunks of 10M reads. Reads will be merged again on the SAM level. Splitting and merging bypasses the -tmp flag. This option reduces disk usage in tmp, in case the system has a small tmp partition.</p>
+</dd>
+<dt><kbd>--memory-map</kbd></dt>
+<dd><p>Map Bowtie2 index to memory. Recommended if running on medium-memory systems and using many parallel threads).</p>
+</dd>
+<dt><kbd>--ice</kbd></dt>
+<dd><p>Correct Hi-C matrices using ICE.</p>
+</dd>
+<dt><kbd>-q, --quality-cutoff</kbd></dt>
+<dd><p>Cutoff for the minimum mapping quality of a read. For numbers larger than 1, will filter on MAPQ. If a number between 0 and 1 is provided, will filter on the AS tag instead of mapping quality (only BWA). The quality cutoff is then interpreted as the fraction of bases that have to be matched for any given read. Only applies to SAM/BAM input!</p>
+</dd>
+<dt><kbd>--iterative-quality-cutoff</kbd></dt>
+<dd><p>MAPQ cutoff for mapped reads. Only applies when iterative mapping is enabled: if a mapped read has MAPQ below this cutoff,it will be sent to another iteration in an attempt to find a higher quality alignment. Default is 3 for BWA and 30 for Bowtie2.</p>
+</dd>
+<dt><kbd>--le-inward-cutoff</kbd></dt>
+<dd><p>Ligation error inward cutoff. Default: no ligation error filtering.</p>
+</dd>
+<dt><kbd>--le-outward-cutoff</kbd></dt>
+<dd><p>Ligation error outward cutoff. Default: no ligation error filtering.</p>
+</dd>
+<dt><kbd>--auto-le-cutoff</kbd></dt>
+<dd><p>Automatically determine ligation error cutoffs. Use with caution, this setting has a tendency to choose large cutoffs, removing many pairs close to the diagonal.</p>
+</dd>
+<dt><kbd>-tmp, --work-in-tmp</kbd></dt>
+<dd><p>Work in temporary directory. Copies input files and generates output files in a temporary directory. Files will be moved to their intended destination once an analysis step finishes. Reduces network I/O if using remote file systems.</p>
+</dd>
+<dt><kbd>--iterative</kbd></dt>
+<dd><p>Map reads iteratively. Can improve mappability, especially with low-quality reads. Reads are initially trimmed to 25bp and mapped to the reference genome. If no unique mapping location is found, the read is extended by 3bp and the process is repeated until the full length of the read is reached or a unique mapping location is found.</p>
+</dd>
+<dt><kbd>--no-sam-sort</kbd></dt>
+<dd><p>Do not sort SAM/BAM files. Sorted files are required for the pair generating step. Only omit this if you are supplying presorted (by read name) SAM/BAM files.</p>
+</dd>
+<dt><kbd>--restore-coverage</kbd></dt>
+<dd><p>Restore coverage to the original total number of reads. Otherwise matrix entries will be contact probabilities. Only available for KR matrix balancing.</p>
+</dd>
+<dt><kbd>--split-ligation-junction</kbd></dt>
+<dd><p>Split reads at predicted ligation junction before mapping. Requires the -r argument.</p>
+</dd>
+<dt><kbd>--no-filter-pairs</kbd></dt>
+<dd><p>Do not filter read pairs. By default, the following filters are applied: self-ligations, PDR duplicates,restriction distance (&gt;10kb)</p>
+</dd>
+<dt><kbd>--no-hic</kbd></dt>
+<dd><p>Do not process pairs into Hi-C maps (stop after read pairing step).</p>
+</dd>
+<dt><kbd>--run-with</kbd></dt>
+<dd><p>Choose how to run the commands in fanc auto. Options: ‘parallel’ (default): Run fanc commands on local machine, use multiprocessing parallelisation. ‘sge’: Submit fanc commands to a Sun/Oracle Grid Engine cluster. ‘slurm’: Submit fanc commands to a Slurm cluster. ‘test’: Do not run fanc commands but print all commands and their dependencies to stdout for review.</p>
+</dd>
+<dt><kbd>--job-prefix</kbd></dt>
+<dd><p>Job Prefix for SGE and Slurm. Works with ‘–run-with sge’ and –run-with slurm. Default: ‘fanc_&lt;6 random letters&gt;_’</p>
+</dd>
+<dt><kbd>-f, --force-overwrite</kbd></dt>
+<dd><p>Force overwriting of existing files. Otherwise you will be prompted before files are overwritten.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="mandatory-arguments">
+<h3>Mandatory arguments<a class="headerlink" href="#mandatory-arguments" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fanc</span> <span class="n">auto</span> <span class="o">&lt;</span><span class="nb">input</span> <span class="mi">1</span><span class="o">&gt;</span> <span class="o">&lt;</span><span class="nb">input</span> <span class="mi">2</span><span class="o">&gt;</span> <span class="o">&lt;</span><span class="nb">input</span> <span class="mi">3</span><span class="o">&gt;</span> <span class="o">&lt;</span> <span class="o">...</span> <span class="o">&gt;</span> <span class="o">&lt;</span><span class="n">output</span> <span class="n">folder</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> accepts any number of input files, which will be discussed below.
+The last positional argument (without ‘-‘) must always be the output folder for
+all intermediate and final FAN-C files. <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> will generate the following
+folder structure in the output folder:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>output_folder
+├── fastq
+├── sam
+├── pairs
+├── hic
+│   └── binned
+└── plots
+    └── stats
+</pre></div>
+</div>
+<p>You will find the processed files in these folders after completion of the pipeline -
+the folder names should be self-explanatory.</p>
+</div>
+<div class="section" id="general-arguments">
+<h3>General arguments<a class="headerlink" href="#general-arguments" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> will name its output files using the <code class="docutils literal notranslate"><span class="pre">-n</span></code> parameter as prefix. If this is not
+provided, it will try to come up with a basename from the largest overlap of the input file
+names. As this can be surprising it is often best to specify the <code class="docutils literal notranslate"><span class="pre">-n</span></code> parameter directly.</p>
+<p>You should also use the <code class="docutils literal notranslate"><span class="pre">-t</span></code> parameter to set the maximum number of parallel threads used
+by <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> - by default, it uses only a single processor. It is highly recommended to
+set this to a much higher value to enable parallel processing of large datasets.</p>
+<p>If you are working on a network, or with multiple hard drives, you may want to use the <code class="docutils literal notranslate"><span class="pre">-tmp</span></code>
+option. It instructs <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> to perform as many calculations as possible in a temporary
+directory.</p>
+</div>
+</div>
+<div class="section" id="input-types">
+<h2>Input types<a class="headerlink" href="#input-types" title="Permalink to this headline">¶</a></h2>
+<p>For this tutorial, we are going to use the example data provided on our
+<a class="reference external" href="http://www.github.com/vaquerizaslab/fanc">GitHub page</a> in the <code class="docutils literal notranslate"><span class="pre">examples</span></code> folder.
+It is a downsampled Hi-C library of a previously published human adrenal tissue dataset
+(<a class="reference external" href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM2322539">SRR4271982 of GSM2322539</a>)
+that only contains chromosomes 18 and 19.</p>
+<p>Now let us discuss the different input types <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> can handle.</p>
+<div class="section" id="fastq-input">
+<h3>FASTQ input<a class="headerlink" href="#fastq-input" title="Permalink to this headline">¶</a></h3>
+<p>To process FASTQ files with <code class="docutils literal notranslate"><span class="pre">fanc</span></code>, you must first have
+<a class="reference external" href="http://bowtie-bio.sourceforge.net/bowtie2/index.shtml">Bowtie2</a> or
+<a class="reference external" href="http://bio-bwa.sourceforge.net/">BWA</a> installed on your system and available in your PATH.
+Additionally, you need the corresponding index for the reference genome of your choice. We currently
+recommend using BWA, as it supports chimeric reads, which are frequent in Hi-C libraries when
+ligation junctions are sequenced.</p>
+<p>Once you have these prerequisites, you can call <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> like this, assuming you are in the <code class="docutils literal notranslate"><span class="pre">examples</span></code> folder:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_2.fastq.gzip <span class="se">\</span>
+          ./example_output/ -i bwa-index/hg19_chr18_19.fa <span class="se">\</span>
+          -g hg19_chr18_19_re_fragments.bed
+</pre></div>
+</div>
+<p>The first two arguments are the paired-end FASTQ files. <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> works with FASTQ and gzipped
+FASTQ files. In general, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> assumes that two consecutive FASTQ file arguments are mate
+pairs (there is no pattern matching on _1 and _2 involved, so make sure you have the correct order
+of input files!). Following the FASTQ files as the last positional argument is the output folder
+(<code class="docutils literal notranslate"><span class="pre">example_output</span></code>). <code class="docutils literal notranslate"><span class="pre">-i</span></code> or <code class="docutils literal notranslate"><span class="pre">--genome-index</span></code> instructs <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> to use the specified index
+for mapping the FASTQ files to a reference genome. It will automatically determine whether a
+BWA mem or Bowtie2 index is provided and choose the mapping software accordingly. Other mappers are
+currently not supported (raise an <a class="reference external" href="http://www.github.com/vaquerizaslab/fanc">issue on GitHub</a>
+if you are interested in support for your favourite mapper).</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Always use the most comprehensive assembly of your genome of interest. Do not generate
+and index from a subset of chromosomes. If you want to limit the chromosomes in your
+Hi-C analysis, for example to canonical chromosomes, please do that using the <code class="docutils literal notranslate"><span class="pre">-g</span></code>
+argument!</p>
+</div>
+<p>The last parameter (<code class="docutils literal notranslate"><span class="pre">-g</span></code>) is necessary for generating a fragment-level Hi-C map later in the
+pipeline. This will be explained in more detail in the next section.</p>
+<p>There are a few additional parameters that you can use to control the mapping process. Use
+<code class="docutils literal notranslate"><span class="pre">--iterative</span></code> to iterative mapping: Reads are initially trimmed to 25bp before mapping, and
+then iteratively expanded until a unique, high quality mapping location can be found. This can
+improve mapping efficiency by a few percent, as smaller reads have a lower likelihood of mismatches
+due to sequencing errors. <code class="docutils literal notranslate"><span class="pre">-s</span></code> or <code class="docutils literal notranslate"><span class="pre">--step-size</span></code> controls the size by which reads are extended
+at every iterative mapping step.</p>
+<p>As mentioned above, it is common to find reads in Hi-C libraries that contain a ligation junction
+sequence. FAN-C can automatically split these kinds of reads before mapping using the
+<code class="docutils literal notranslate"><span class="pre">--split-ligation-junction</span></code> option, which can improve mapping efficiency.</p>
+<p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> parallelises mapping by spawning multiple mapping
+processes internally. This can result in high disk I/O - if you have issues with poor performance,
+try using the <code class="docutils literal notranslate"><span class="pre">--mapper-parallel</span></code> option, which will instead use the multithreading of your chosen
+mapping software. If you are using Bowtie2, you can additionally use the <code class="docutils literal notranslate"><span class="pre">--memory-map</span></code> option,
+which will load the entire Bowtie2 index into memory to be shared across all Bowtie2 processes. Use
+this option if your system has a lot of memory available to speed up the mapping. Finally, if you
+are using the <code class="docutils literal notranslate"><span class="pre">-tmp</span></code> option, which causes <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> to perform most pipeline steps in a
+temporary directory, you may want to use the <code class="docutils literal notranslate"><span class="pre">--split-fastq</span></code> option to split the FASTQ files into
+smaller chunks before mapping, so you can save space on your <code class="docutils literal notranslate"><span class="pre">tmp</span></code> partition.</p>
+<p>The resulting BAM files are automatically handed to the next step in the pipeline, or you can
+provide SAM/BAM files to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> directly. This is described in the following section.
+You can also perform the mapping separately with the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">map</span></code> command, which also gives you
+additional options for controlling the mapping process, and which is described in
+<a class="reference internal" href="fanc_modular_steps.html#fanc-map"><span class="std std-ref">fanc map: Mapping FASTQ files</span></a>.</p>
+</div>
+<div class="section" id="sam-bam-input">
+<h3>SAM/BAM input<a class="headerlink" href="#sam-bam-input" title="Permalink to this headline">¶</a></h3>
+<p>To process SAM/BAM files, no additional external software is required. However, we do recommend
+the installation of <a class="reference external" href="http://lomereiter.github.io/sambamba/">Sambamba</a>, which can greatly speed
+up the SAM sorting step required for merging mate pairs into the Pairs object.</p>
+<p>A minimal <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> command using SAM/BAM files could look like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto sam/SRR4271982_chr18_19_1.bam sam/SRR4271982_chr18_19_2.bam ./example_output/ <span class="se">\</span>
+          -g hg19_chr18_19_re_fragments.bed
+</pre></div>
+</div>
+<p>Similarly to FASTQ input, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> assumes that two consecutive SAM/BAM files represent
+mate pairs, and will match the read names in the pairing step. The <code class="docutils literal notranslate"><span class="pre">-g</span></code> or <code class="docutils literal notranslate"><span class="pre">--genome</span></code>
+parameter is mandatory for both FASTQ and SAM/BAM input, and is used to load (or construct) the
+restriction fragment regions necessary for building the fragment-level Hi-C object.
+You can either directly provide a region-based file with restriction fragments (most file
+formats are supported, including BED and GFF), or use a FASTA file with the genomic sequence
+in conjunction with the <code class="docutils literal notranslate"><span class="pre">-r</span></code> or <code class="docutils literal notranslate"><span class="pre">--restriction-enzyme</span></code> parameter. In the latter case,
+<code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> will perform an in silico digestion of the genome and use the resulting
+restriction fragments from there.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Genome assembly FASTA files typically contain a large number of unassembled contigs or
+other sequences that are often irrelevant for downstream Hi-C analysis. As the number of
+chromosomes can negatively affect FAN-C performance, it is generally a good idea to limit
+the analysis to canonical chromosomes. A very easy way to do with with <code class="docutils literal notranslate"><span class="pre">fanc</span></code> is the
+<code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">fragments</span></code> command, which accepts a <code class="docutils literal notranslate"><span class="pre">--chromosomes</span></code> option to specify exactly
+which chromosomes you want in the final analysis. The output file can be directly used as
+input for the <code class="docutils literal notranslate"><span class="pre">-g</span></code> argument.</p>
+</div>
+<p>SAM/BAM files are first sorted and then matched by <code class="docutils literal notranslate"><span class="pre">qname</span></code>. Together with the restriction
+fragment list, mate pairs will be assigned to restriction fragments and stored in a “Pairs”
+object. By default, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> excludes unmappable and multimapping reads, as these are
+unusable or misleading in interpreting Hi-C data. Additional filters for read pairs are
+described in the <a class="reference internal" href="#fanc-auto-pairs"><span class="std std-ref">Pairs input</span></a> section.</p>
+<p>You can run the SAM/BAM to Pairs step of the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> pipeline separately using
+<code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pairs</span></code>, which is described in mor detail in <a class="reference internal" href="fanc_modular_steps.html#fanc-pairs"><span class="std std-ref">fanc pairs: Generating and filtering read Pairs</span></a>.</p>
+</div>
+<div class="section" id="valid-pairs-txt-input">
+<h3>“Valid pairs” txt input<a class="headerlink" href="#valid-pairs-txt-input" title="Permalink to this headline">¶</a></h3>
+<p>Many tools for processing Hi-C data output “valid pairs” files, which are typically tab-delimited
+text files that contain read pair information. FAN-C supports valid pairs files from
+<a class="reference external" href="http://nservant.github.io/HiC-Pro/RESULTS.html#list-of-valid-interaction-products">HiC-Pro</a>
+and the <a class="reference external" href="https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md">4D Nucleome project</a>.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> you can load them like this</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto test.validPairs ./example_output/ -g hg19_chr18_19_re_fragments.bed
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> will attempt to automatically determine if you supply a valid pairs file.</p>
+</div>
+<div class="section" id="pairs-input">
+<span id="fanc-auto-pairs"></span><h3>Pairs input<a class="headerlink" href="#pairs-input" title="Permalink to this headline">¶</a></h3>
+<p>If you already have a FAN-C Pairs object, for example from a previous <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> run or
+from the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pairs</span></code> command, you can feed them to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> directly:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto pairs/test.pairs ./example_output/
+</pre></div>
+</div>
+<p>The Pairs objects already contain restriction fragment information, hence the <code class="docutils literal notranslate"><span class="pre">-g</span></code> parameter
+is no longer necessary. Unless using the <code class="docutils literal notranslate"><span class="pre">--no-filter-pairs</span></code> option, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> will first
+filter read pairs for self-ligated fragments, PCR duplicates, and restriction site distance
+(&gt;10kb). You have the option to additionally filter out ligation error products using the
+<code class="docutils literal notranslate"><span class="pre">--le-inward-cutoff</span></code> and <code class="docutils literal notranslate"><span class="pre">--le-outward-cutoff</span></code> parameters. More details on the different
+filtering options are available in the description of the separate <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pairs</span></code> command:
+<a class="reference internal" href="fanc_modular_steps.html#fanc-pairs"><span class="std std-ref">fanc pairs: Generating and filtering read Pairs</span></a></p>
+<p>After filtering, Pairs files are converted to fragment-level Hic objects. The parameters
+applying to their processing are described in the next section.</p>
+</div>
+<div class="section" id="hic-input">
+<h3>Hic input<a class="headerlink" href="#hic-input" title="Permalink to this headline">¶</a></h3>
+<p>If you already have a FAN-C Hic object, for example from a previous <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> run or
+from the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span></code> command, you can feed them to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> directly:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto hic/test.hic ./example_output/
+</pre></div>
+</div>
+<p>If you are running this command with multiple input files, these will be merged into a single
+fragment-level Hic object. This merged Hic object will then be binned at the resolutions
+specified with the <code class="docutils literal notranslate"><span class="pre">-b</span></code> parameter. By default, it will produce binned Hic files at 5mb,
+2mb, 1mb, 500kb, 250kb, 100kb, 50kb, 25kb, 10kb, and 5kb resolution.</p>
+<p>Binned Hi-C files will be filtered for coverage (bins with less reads than 10% of the median
+bin coverage) and corrected using Knight-Ruiz matrix balancing. If you prefer ICE correction,
+use the <code class="docutils literal notranslate"><span class="pre">--ice</span></code> parameter. Each chromosome in the matrix is corrected independently, and
+by default the corrected matrix entries correspond to contact probabilities. You can use the
+<code class="docutils literal notranslate"><span class="pre">--restore-coverage</span></code> option to force matrix entries in a chromosome to sum up to the
+total number of reads before correction.</p>
+<p>You can run the Hi-C processing step independently with the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span></code> command, as described
+in detail in <a class="reference internal" href="fanc_modular_steps.html#fanc-hic"><span class="std std-ref">fanc hic: Generating, binning, and filtering Hic objects</span></a></p>
+</div>
+<div class="section" id="mixed-input">
+<h3>Mixed input<a class="headerlink" href="#mixed-input" title="Permalink to this headline">¶</a></h3>
+<p>Now that we have covered all the different input options fort <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code>, it is worth
+stressing that you can combined different types of input in the same command. <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code>
+will attempt to automatically determine the commands necessary for each input to run
+through the entire pipeline, and will merge inputs into a single fragment-level Hic object
+before binning.</p>
+<p>That means something like this is possible:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto hic/test.hic pairs/test.pairs test.validPairs <span class="se">\</span>
+          sam/SRR4271982_chr18_19_1.bam sam/SRR4271982_chr18_19_2.bam <span class="se">\</span>
+          SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_2.fastq.gzip <span class="se">\</span>
+          ./example_output/ -g hg19_chr18_19_re_fragments.bed -b 1mb, 50kb, 25kb <span class="se">\</span>
+          -i bwa-index/hg19_chr18_19.fa -n <span class="nb">test</span> -s <span class="m">20</span> -t <span class="m">16</span> -q <span class="m">3</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="test-runs-and-sun-oracle-grid-engine-support">
+<h2>Test runs and Sun/Oracle Grid engine support<a class="headerlink" href="#test-runs-and-sun-oracle-grid-engine-support" title="Permalink to this headline">¶</a></h2>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> runs tasks in parallel locally on the machine it was started on.
+If you want to perform a test run, without actually executing any commands, you can use
+the <code class="docutils literal notranslate"><span class="pre">--run-with</span> <span class="pre">test</span></code> option. This will not run any of the <code class="docutils literal notranslate"><span class="pre">fanc</span></code> pipeline steps, but
+will print each command it would run, including the dependencies between commands, to the
+command line.
+If you have access to a computational cluster running Sun/Oracle Grid Engine (SGE/OGE), you
+can instruct <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> to submit all commands to the cluster using <code class="docutils literal notranslate"><span class="pre">--run-with</span> <span class="pre">sge</span></code>.
+Internally, this calls <code class="docutils literal notranslate"><span class="pre">qsub</span></code> on each command and uses the <code class="docutils literal notranslate"><span class="pre">--hold_jid</span></code> parameter to
+ensure each command waits for the output of its dependencies. You can configure the SGE
+setup using <a class="reference internal" href="fanc_config.html#fanc-config"><span class="std std-ref">FAN-C config files</span></a></p>
+</div>
+<div class="section" id="next-steps">
+<h2>Next steps<a class="headerlink" href="#next-steps" title="Permalink to this headline">¶</a></h2>
+<p>Once you have generated your binned, filtered, and corrected Hic objects with <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code>,
+you may want to explore the data in those matrices. FAN-C provides a number of commands for
+data analsyis and exploration. Continue with :ref:`` for further details.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="fanc_modular_steps.html" class="btn btn-neutral float-right" title="Individual pipeline steps" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../fanc_generate_hic.html" class="btn btn-neutral float-left" title="Generate Hi-C matrices" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

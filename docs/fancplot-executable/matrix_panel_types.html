@@ -1,0 +1,329 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Matrix panel types &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Region and Score panel types" href="region_panel_types.html" />
+    <link rel="prev" title="Panel types" href="panel_types.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../fancplot.html">fancplot: plotting from the command line</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="fancplot_basic.html"> Overview and basic usage</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="panel_types.html"> Panel types</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#"> Matrix panels</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#triangular">triangular</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#square">square</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#split">split</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mirror">mirror</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="region_panel_types.html"> Region and score panels</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../fancplot.html">FAN-C command line plotting</a> &raquo;</li>
+        
+          <li><a href="panel_types.html">Panel types</a> &raquo;</li>
+        
+      <li>Matrix panel types</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/fancplot-executable/matrix_panel_types.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="matrix-panel-types">
+<span id="id1"></span><h1>Matrix panel types<a class="headerlink" href="#matrix-panel-types" title="Permalink to this headline">¶</a></h1>
+<p>This section will provide details about the different types of panels in the
+command-line interface of <code class="docutils literal notranslate"><span class="pre">fancplot</span></code>.</p>
+<div class="section" id="triangular">
+<h2>triangular<a class="headerlink" href="#triangular" title="Permalink to this headline">¶</a></h2>
+<p>This is the common triangular heatmap plot used primarily for Hi-C data, but which
+is compatible with all sort of input matrices, including difference and fold-change
+comparisons. You simply provide it with a FAN-C compatible matrix file:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_triangular_example.png" src="../_images/fancplot_triangular_example.png" />
+<p>You can truncate the triangle at a certain distance with <code class="docutils literal notranslate"><span class="pre">-m</span></code> for more compact plots:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -m 2mb output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_triangular_example_truncated.png" src="../_images/fancplot_triangular_example_truncated.png" />
+<p>For interactive plotting, you can add a slider that controls the saturation of the
+heatmap colors using <code class="docutils literal notranslate"><span class="pre">-r</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -r output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_triangular_example_range.png" src="../_images/fancplot_triangular_example_range.png" />
+<p>Or you can set the saturation values directly using <code class="docutils literal notranslate"><span class="pre">-vmin</span></code> and <code class="docutils literal notranslate"><span class="pre">-vmax</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -vmin <span class="m">0</span> -vmax <span class="m">0</span>.03 output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_triangular_example_vminvmax.png" src="../_images/fancplot_triangular_example_vminvmax.png" />
+<p>To change the default colormap use <code class="docutils literal notranslate"><span class="pre">-c</span> <span class="pre">&lt;matplotlib</span> <span class="pre">colormap&gt;</span></code> - any
+<a class="reference external" href="https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html">colormap in matplotlib</a>
+is supported.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -c Greens output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_triangular_example_colormap.png" src="../_images/fancplot_triangular_example_colormap.png" />
+<p>You can change the color scale from linear to log using <code class="docutils literal notranslate"><span class="pre">-l</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -l output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_triangular_example_log.png" src="../_images/fancplot_triangular_example_log.png" />
+<p>By default, <code class="docutils literal notranslate"><span class="pre">triangular</span></code> plots normalised matrix data. You can turn this off
+on the fly to plot uncorrected data using <code class="docutils literal notranslate"><span class="pre">-u</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -u output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_triangular_example_nonorm.png" src="../_images/fancplot_triangular_example_nonorm.png" />
+<p>Similarly, you can convert the matrix on the fly to an observed/expected (O/E)
+matrix using <code class="docutils literal notranslate"><span class="pre">-e</span></code>. When using this option, the matrix values are automatically
+log-2 transformed and the colorscale adjusts to a divergent colormap symmetrical
+around 0.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -e output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_triangular_example_oe.png" src="../_images/fancplot_triangular_example_oe.png" />
+</div>
+<div class="section" id="square">
+<h2>square<a class="headerlink" href="#square" title="Permalink to this headline">¶</a></h2>
+<p>This plot is the common square matrix plot. It has nearly the same options as
+<code class="docutils literal notranslate"><span class="pre">triangle</span></code> and uses the same syntax:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p square output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_square_example.png" src="../_images/fancplot_square_example.png" />
+<p>In addition to <code class="docutils literal notranslate"><span class="pre">triangle</span></code>, <code class="docutils literal notranslate"><span class="pre">square</span></code> supports flipping the matrix upside-down
+with <code class="docutils literal notranslate"><span class="pre">-f</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p square -f output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_square_example_flip.png" src="../_images/fancplot_square_example_flip.png" />
+</div>
+<div class="section" id="split">
+<h2>split<a class="headerlink" href="#split" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">split</span></code> plot divides a heatmap along the diagonal to compare two matrices.
+<code class="docutils literal notranslate"><span class="pre">split</span></code> requires those matrices to be binned at the same resolution (or have identical
+region definitions), as they are combined into a single merged matrix on the fly.
+Besides providing two input matrices, one for the top and one for the bottom half
+of the heatmap, the plot works in the same way as <code class="docutils literal notranslate"><span class="pre">square</span></code>.</p>
+<p>The plot assumes that the matrices are directly comparable and have been normalised to
+the same sequencing depth. If this is not the case, you can scale the matrices using
+the <code class="docutils literal notranslate"><span class="pre">-s</span></code> parameter, but note that this could potentially take a very long time.</p>
+</div>
+<div class="section" id="mirror">
+<h2>mirror<a class="headerlink" href="#mirror" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">mirror</span></code> plot is built from two triangular heatmaps, the bottom one is flipped
+upside-down to give the effect of a reflection along the horizontal axis. This can be
+used to compare different matrices, including the same Hi-C dataset binned at different
+resolutions:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p mirror -d 3mb output/hic/binned/fanc_example_50kb.hic output/hic/binned/fanc_example_100kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_square_example_mirror.png" src="../_images/fancplot_square_example_mirror.png" />
+<p>As this plot essentially consists of two <code class="docutils literal notranslate"><span class="pre">triangular</span></code> plots stapled together, the
+parameters for the top and bottom plot can also be controlled independently. The
+parameter names match those of the <code class="docutils literal notranslate"><span class="pre">triangular</span></code> plot, but with the <code class="docutils literal notranslate"><span class="pre">u</span></code> prefix
+for the upper and <code class="docutils literal notranslate"><span class="pre">l</span></code> prefix for the lower plot:
+<code class="docutils literal notranslate"><span class="pre">--uvmin</span></code>, <code class="docutils literal notranslate"><span class="pre">--uvmax</span></code>, <code class="docutils literal notranslate"><span class="pre">--uc</span></code>, <code class="docutils literal notranslate"><span class="pre">--ue</span></code> and
+<code class="docutils literal notranslate"><span class="pre">--lvmin</span></code>, <code class="docutils literal notranslate"><span class="pre">--lvmax</span></code>, <code class="docutils literal notranslate"><span class="pre">--lc</span></code>, <code class="docutils literal notranslate"><span class="pre">--le</span></code>.</p>
+<p>Here is one more example showing a matrix and its O/E transformed version:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p mirror -d 3mb -le -lvmin -2 -lvmax <span class="m">2</span> output/hic/binned/fanc_example_50kb.hic output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_square_example_mirror_oe.png" src="../_images/fancplot_square_example_mirror_oe.png" />
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="region_panel_types.html" class="btn btn-neutral float-right" title="Region and Score panel types" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="panel_types.html" class="btn btn-neutral float-left" title="Panel types" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,291 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Expected and O/E calculations &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="AB compartments" href="compartments.html" />
+    <link rel="prev" title="Analyse Hi-C matrices using the API" href="../analyse.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../interfaces.html">Interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../analyse.html">Analyse Hi-C matrices (API)</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Expected values and O/E matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="compartments.html">AB compartments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="compartments.html#eigenvectors">Eigenvectors</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules.html">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../api.html">fanc Python module</a> &raquo;</li>
+        
+          <li><a href="../analyse.html">Analyse Hi-C matrices using the API</a> &raquo;</li>
+        
+      <li>Expected and O/E calculations</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/api/analyse/oe.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="expected-and-o-e-calculations">
+<span id="api-oe"></span><h1>Expected and O/E calculations<a class="headerlink" href="#expected-and-o-e-calculations" title="Permalink to this headline">¶</a></h1>
+<p>The following steps assume that you ran the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> command in <a class="reference internal" href="../../getting_started.html#example-fanc-auto"><span class="std std-ref">Example analysis</span></a>.
+Additionally, we set up the Python session like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+
+<span class="n">hic_500kb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;output/hic/binned/fanc_example_500kb.hic&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer" title="fanc.matrix.RegionMatrixContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrixContainer</span></code></a> objects (see <a class="reference internal" href="../interfaces/matrix_interface.html#matrix-interface"><span class="std std-ref">here</span></a>) have a builtin
+function to calculate expected values from existing matrix data called
+<a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer.expected_values" title="fanc.matrix.RegionMatrixContainer.expected_values"><code class="xref py py-func docutils literal notranslate"><span class="pre">expected_values()</span></code></a>. This function calculates and returns
+intra-chromosomal, intra-chromosomal per chromosome, and inter-chromosomal expected values.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>intra_expected, intra_expected_chromosome, <span class="nv">inter_expected</span> <span class="o">=</span> hic_500kb.expected_values<span class="o">()</span>
+</pre></div>
+</div>
+<p>Here, <code class="docutils literal notranslate"><span class="pre">intra_expected</span></code> is a list of average (/expected) contact values, where the position of
+the value in the list corresponds to the separation between genomic regions in bins.
+<code class="docutils literal notranslate"><span class="pre">intra_expected_chromosome</span></code> is a dictionary with chromosome names as keys, and an expected
+value list as value calculated on a per-chromosome basis. <code class="docutils literal notranslate"><span class="pre">inter_expected</span></code> is a single, average
+inter-chromosomal contact value.</p>
+<p>When running the <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer.expected_values" title="fanc.matrix.RegionMatrixContainer.expected_values"><code class="xref py py-func docutils literal notranslate"><span class="pre">expected_values()</span></code></a> function on a matrix
+opened in read-only mode, you will receive a warning that the values cannot be save to the object.
+This means, the expected values will be recalculated every time they are needed in downstream
+analyses. You can ensure the values are saved to the object by opening the matrix in “append” mode:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hic_500kb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;output/hic/binned/fanc_example_500kb.hic&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;a&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The expected values are typically plotted on a log-log scale, as illustrated here using chromosome 19:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># obtain bin distances</span>
+<span class="n">bin_size</span> <span class="o">=</span> <span class="n">hic_500kb</span><span class="o">.</span><span class="n">bin_size</span>
+<span class="n">distance</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">bin_size</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">intra_expected_chromosome</span><span class="p">[</span><span class="s1">&#39;chr19&#39;</span><span class="p">]),</span> <span class="n">bin_size</span><span class="p">))</span>
+
+<span class="c1"># plot expected values</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">distance</span><span class="p">,</span> <span class="n">intra_expected_chromosome</span><span class="p">[</span><span class="s1">&#39;chr19&#39;</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Distance&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Average contacts&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../../_images/oe_500kb.png" src="../../_images/oe_500kb.png" />
+<p>Note: as Hi-C matrices are normalised on a per-chromosome basis in FAN-C by default, it would be misleading
+to plot the overall normalised intra-chromosomal expected values, or to use them for downstream analysis.
+We can, however, also calculate the unnormalised expected values easily enough:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">intra_expected_nonorm</span><span class="p">,</span> <span class="n">intra_expected_chromosome_nonorm</span><span class="p">,</span> <span class="n">inter_expected_nonorm</span> <span class="o">=</span> <span class="n">hic_500kb</span><span class="o">.</span><span class="n">expected_values</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+<span class="c1"># obtain bin distances</span>
+<span class="n">bin_size</span> <span class="o">=</span> <span class="n">hic_500kb</span><span class="o">.</span><span class="n">bin_size</span>
+<span class="n">distance</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">bin_size</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">intra_expected_nonorm</span><span class="p">),</span> <span class="n">bin_size</span><span class="p">))</span>
+
+<span class="c1"># plot expected values</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">distance</span><span class="p">,</span> <span class="n">intra_expected_nonorm</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Distance&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Average contacts (not normalised)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../../_images/oe_500kb_nonorm.png" src="../../_images/oe_500kb_nonorm.png" />
+<p>Expected values rarely need to be calculated explicitly in FAN-C analysis functions, but will be calculated
+(or retrieved) on demand whenever necessary. To obtain observed/expected matrices, for example, please
+refer to <a class="reference internal" href="../interfaces/matrix_interface.html#matrix-interface"><span class="std std-ref">RegionMatrixContainer</span></a>.</p>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="compartments.html" class="btn btn-neutral float-right" title="AB compartments" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../analyse.html" class="btn btn-neutral float-left" title="Analyse Hi-C matrices using the API" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

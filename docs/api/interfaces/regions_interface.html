@@ -1,0 +1,299 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>RegionBased &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="RegionPairsContainer" href="edges_interface.html" />
+    <link rel="prev" title="Common interfaces" href="../interfaces.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../interfaces.html">Interfaces</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Genomic regions (RegionBased interface)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="edges_interface.html">Edges (contacts, pixels, ...) (RegionPairsContainer interface)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="matrix_interface.html">Matrices (RegionMatrixContainer interface)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../analyse.html">Analyse Hi-C matrices (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules.html">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../api.html">fanc Python module</a> &raquo;</li>
+        
+          <li><a href="../interfaces.html">Common interfaces</a> &raquo;</li>
+        
+      <li>RegionBased</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/api/interfaces/regions_interface.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="regionbased">
+<span id="genomic-regions"></span><h1>RegionBased<a class="headerlink" href="#regionbased" title="Permalink to this headline">¶</a></h1>
+<p>FAN-C builds extensively on the <code class="code docutils literal notranslate"><span class="pre">genomic_regions</span></code> package, which provides a unified
+interface for most types of region-based genomic data. We highly recommend
+<a class="reference external" href="https://github.com/vaquerizaslab/genomic_regions">reading the documentation</a>
+of that package before going into the details of FAN-C, as many of the concepts discussed
+therein are central to the handling of data in FAN-C.</p>
+<p>You can check whether a FAN-C object supports the <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionBased</span></code>
+interface with</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">genomic_regions</span> <span class="k">as</span> <span class="nn">gr</span>
+<span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">gr</span><span class="o">.</span><span class="n">RegionBased</span><span class="p">)</span>  <span class="c1"># True for objects supporting the regions interface</span>
+</pre></div>
+</div>
+<p>The current list of FAN-C objects supporting the <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionBased</span></code>
+interface is:
+<a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.InsulationScore" title="fanc.architecture.domains.InsulationScore"><code class="xref py py-class docutils literal notranslate"><span class="pre">InsulationScore</span></code></a>,
+<a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.DirectionalityIndex" title="fanc.architecture.domains.DirectionalityIndex"><code class="xref py py-class docutils literal notranslate"><span class="pre">DirectionalityIndex</span></code></a>,
+<a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.Boundaries" title="fanc.architecture.domains.Boundaries"><code class="xref py py-class docutils literal notranslate"><span class="pre">Boundaries</span></code></a>,
+<a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.InsulationScores" title="fanc.architecture.domains.InsulationScores"><code class="xref py py-class docutils literal notranslate"><span class="pre">InsulationScores</span></code></a>,
+<a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.DirectionalityIndexes" title="fanc.architecture.domains.DirectionalityIndexes"><code class="xref py py-class docutils literal notranslate"><span class="pre">DirectionalityIndexes</span></code></a>,
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.FoldChangeScores" title="fanc.architecture.comparisons.FoldChangeScores"><code class="xref py py-class docutils literal notranslate"><span class="pre">FoldChangeScores</span></code></a>,
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.DifferenceScores" title="fanc.architecture.comparisons.DifferenceScores"><code class="xref py py-class docutils literal notranslate"><span class="pre">DifferenceScores</span></code></a>,
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.DifferenceRegions" title="fanc.architecture.comparisons.DifferenceRegions"><code class="xref py py-class docutils literal notranslate"><span class="pre">DifferenceRegions</span></code></a>,
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.FoldChangeRegions" title="fanc.architecture.comparisons.FoldChangeRegions"><code class="xref py py-class docutils literal notranslate"><span class="pre">FoldChangeRegions</span></code></a>,
+<a class="reference internal" href="../modules/compatibility/cooler.html#fanc.compatibility.cooler.CoolerHic" title="fanc.compatibility.cooler.CoolerHic"><code class="xref py py-class docutils literal notranslate"><span class="pre">CoolerHic</span></code></a>,
+<a class="reference internal" href="../modules/compatibility/juicer.html#fanc.compatibility.juicer.JuicerHic" title="fanc.compatibility.juicer.JuicerHic"><code class="xref py py-class docutils literal notranslate"><span class="pre">JuicerHic</span></code></a>,
+<a class="reference internal" href="../modules/hic.html#fanc.hic.Hic" title="fanc.hic.Hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code></a>,
+<a class="reference internal" href="../modules/architecture/compartments.html#fanc.architecture.compartments.ABCompartmentMatrix" title="fanc.architecture.compartments.ABCompartmentMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">ABCompartmentMatrix</span></code></a>,
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.DifferenceMatrix" title="fanc.architecture.comparisons.DifferenceMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">DifferenceMatrix</span></code></a>,
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.FoldChangeMatrix" title="fanc.architecture.comparisons.FoldChangeMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">FoldChangeMatrix</span></code></a>,
+<a class="reference internal" href="../modules/peaks.html#fanc.peaks.PeakInfo" title="fanc.peaks.PeakInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">PeakInfo</span></code></a>,
+and
+<a class="reference internal" href="../modules/peaks.html#fanc.peaks.RaoPeakInfo" title="fanc.peaks.RaoPeakInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">RaoPeakInfo</span></code></a>.</p>
+<p>Any object built on that foundation supports, for example, region iterators:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">region</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">regions</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">region</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">region</span><span class="o">.</span><span class="n">chromosome</span><span class="p">,</span> <span class="n">region</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">region</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="n">region</span><span class="o">.</span><span class="n">strand</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">region</span><span class="o">.</span><span class="n">is_forward</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">region</span><span class="o">.</span><span class="n">center</span><span class="p">)</span>
+    <span class="c1"># ...</span>
+</pre></div>
+</div>
+<p>Range queries:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">region</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">regions</span><span class="p">(</span><span class="s1">&#39;chr1:3mb-12mb&#39;</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">region</span><span class="o">.</span><span class="n">chromosome</span><span class="p">)</span>  <span class="c1"># chr1</span>
+    <span class="c1"># ...</span>
+</pre></div>
+</div>
+<p>and many more convenient features. The object type returned by all of those queries
+is <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>, which has many convenient functions to
+deal with region properties and operations.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">len</span><span class="p">(</span><span class="n">region</span><span class="p">)</span>  <span class="c1"># returns the size of the region in base pairs</span>
+<span class="n">region</span><span class="o">.</span><span class="n">center</span>  <span class="c1"># returns the base (or fraction of base) at the center of the region</span>
+<span class="n">region</span><span class="o">.</span><span class="n">five_prime</span>  <span class="c1"># returns the starting base at the 5&#39; end of the region</span>
+<span class="n">region</span><span class="o">.</span><span class="n">three_prime</span>  <span class="c1"># returns the starting base at the 3&#39; end of the region</span>
+<span class="n">region</span><span class="o">.</span><span class="n">is_forward</span><span class="p">()</span>  <span class="c1"># True if strand is &#39;+&#39; or &#39;+1&#39;</span>
+<span class="n">region</span><span class="o">.</span><span class="n">is_reverse</span><span class="p">()</span>  <span class="c1"># True if strand is &#39;-&#39; or &#39;-1&#39;</span>
+<span class="n">region</span><span class="o">.</span><span class="n">attributes</span>  <span class="c1"># return all attribute names in this region object</span>
+<span class="n">region</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="c1"># return a shallow copy of this region</span>
+<span class="n">region</span><span class="o">.</span><span class="n">to_string</span><span class="p">()</span>  <span class="c1"># return a region identifier string describing the region</span>
+
+<span class="n">region</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">as_region</span><span class="p">(</span><span class="s1">&#39;chr12:12.5Mb-18Mb&#39;</span><span class="p">)</span>
+<span class="n">region</span><span class="o">.</span><span class="n">overlaps</span><span class="p">(</span><span class="s1">&#39;chr12:11Mb-13Mb&#39;</span><span class="p">)</span>  <span class="c1"># True</span>
+<span class="n">region</span><span class="o">.</span><span class="n">overlaps</span><span class="p">(</span><span class="s1">&#39;chr12:11Mb-11.5Mb&#39;</span><span class="p">)</span>  <span class="c1"># False</span>
+<span class="n">region</span><span class="o">.</span><span class="n">overlaps</span><span class="p">(</span><span class="s1">&#39;chr1:11Mb-13Mb&#39;</span><span class="p">)</span>  <span class="c1"># False</span>
+</pre></div>
+</div>
+<p>Refer to the
+<a class="reference external" href="https://github.com/vaquerizaslab/genomic_regions">genomic_regions documentation</a> for
+all the details.</p>
+<p>Similarly to the <code class="code docutils literal notranslate"><span class="pre">regions</span></code> interface for handling collections of genomic regions,
+FAN-C implements interfaces for working with pairs of genomic regions (<code class="code docutils literal notranslate"><span class="pre">edges</span></code>)
+and matrix operations (<code class="code docutils literal notranslate"><span class="pre">matrix</span></code>). These work in exactly the same way for FAN-C,
+Cooler, and Juicer files. Hence, all of these are directly compatible with FAN-C architectural
+functions such as the insulation score or AB compartment analyses, …</p>
+<p>These interfaces will be introduced in the following sections, starting with <a class="reference internal" href="edges_interface.html#edges-interface"><span class="std std-ref">RegionPairsContainer</span></a>.</p>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="edges_interface.html" class="btn btn-neutral float-right" title="RegionPairsContainer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../interfaces.html" class="btn btn-neutral float-left" title="Common interfaces" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,315 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>FAN-C documentation &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting started" href="getting_started.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="#" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="#">Docs</a> &raquo;</li>
+        
+      <li>FAN-C documentation</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="fan-c-documentation">
+<h1>FAN-C documentation<a class="headerlink" href="#fan-c-documentation" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting started with FAN-C</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#installation">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#prerequisite-hdf5">Prerequisite: HDF5</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#building-this-documentation">Building this documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#example-analysis">Example analysis</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#plotting">Plotting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started.html#next-steps">Next steps</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="fanc.html">fanc: command line tools</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="fanc-executable/fanc_basic.html"> Overview and shared parameters</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc_basic.html#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc_basic.html#logging">Logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc_basic.html#email-notifications">Email notifications</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc_basic.html#temporary-files">Temporary files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc_basic.html#fan-c-config-files">FAN-C config files</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="fanc-executable/fanc_generate_hic.html"> Generate Hi-C matrices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc-generate-hic/fanc_auto.html"> fanc auto: Automated generation of Hi-C matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc-generate-hic/fanc_modular_steps.html"> Individual pipeline steps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc-generate-hic/fanc_helpers.html"> Helper tools</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc-generate-hic/fanc_config.html"> Configuration options</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="fanc-executable/fanc_analyse_hic.html"> Analyse Hi-C matrices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc-analyse-hic/oe.html"> Expected values and O/E matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc-analyse-hic/ab_compartments.html"> AB compartments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc-analyse-hic/pca.html"> PCA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc-analyse-hic/domains.html"> TADs and TAD boundaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc-analyse-hic/comparisons.html"> Matrix and score comparisons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc-analyse-hic/aggregate_hic.html"> Aggregate Hi-C matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc-executable/fanc-analyse-hic/loops.html"> Loop calling</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="fancplot.html">fancplot: plotting from the command line</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="fancplot-executable/fancplot_basic.html"> Overview and basic usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="fancplot-executable/fancplot_basic.html#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fancplot-executable/fancplot_basic.html#setting-up-the-figure-and-plotting-regions">Setting up the figure and plotting regions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fancplot-executable/fancplot_basic.html#adding-panels">Adding panels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fancplot-executable/fancplot_basic.html#common-parameters">Common parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="fancplot-executable/panel_types.html"> Panel types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="fancplot-executable/matrix_panel_types.html"> Matrix panels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fancplot-executable/region_panel_types.html"> Region and score panels</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/api.html">Python API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/quickstart.html">Quickstart</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/quickstart.html#loading-datasets">Loading datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/quickstart.html#logging">Logging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/interfaces.html">Interfaces</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/interfaces/regions_interface.html">Genomic regions (RegionBased interface)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/interfaces/edges_interface.html">Edges (contacts, pixels, ...) (RegionPairsContainer interface)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/interfaces/matrix_interface.html">Matrices (RegionMatrixContainer interface)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/generate.html">Generate Hi-C matrices (API)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/generate/map.html">Mapping FASTQ files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/generate/pairs.html">Generating and filtering ReadPairs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/generate/hic.html">Generating, binning, and filtering Hic objects</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/analyse.html">Analyse Hi-C matrices (API)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/analyse/oe.html">Expected values and O/E matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/analyse/compartments.html">AB compartments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/analyse/compartments.html#eigenvectors">Eigenvectors</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/modules.html">Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/modules/init.html">init</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules/map.html">map</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules/regions.html">regions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules/pairs.html">pairs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules/matrix.html">matrix</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules/hic.html">hic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules/peaks.html">peaks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules/compatibility.html">compatibility</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules/architecture.html">architecture</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules/plotting.html">plotting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules/tools.html">tools</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="indices-and-tables">
+<h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="getting_started.html" class="btn btn-neutral float-right" title="Getting started" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,372 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Getting started &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="FAN-C command line tools" href="fanc.html" />
+    <link rel="prev" title="FAN-C documentation" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting started with FAN-C</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#prerequisite-hdf5">Prerequisite: HDF5</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#fan-c">FAN-C</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#building-this-documentation">Building this documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-analysis">Example analysis</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#plotting">Plotting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#next-steps">Next steps</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Getting started</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/getting_started.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="getting-started">
+<h1><a class="toc-backref" href="#id1">Getting started</a><a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h1>
+<div class="contents topic" id="contents">
+<p class="topic-title first">Contents</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#getting-started" id="id1">Getting started</a></p>
+<ul>
+<li><p><a class="reference internal" href="#overview" id="id2">Overview</a></p></li>
+<li><p><a class="reference internal" href="#installation" id="id3">Installation</a></p></li>
+<li><p><a class="reference internal" href="#building-this-documentation" id="id4">Building this documentation</a></p></li>
+<li><p><a class="reference internal" href="#example-analysis" id="id5">Example analysis</a></p></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="overview">
+<h2><a class="toc-backref" href="#id2">Overview</a><a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>FAN-C is a Python (3.6+) toolkit for the analysis and visualisation of Hi-C data.
+For common tasks, you can use the <code class="docutils literal notranslate"><span class="pre">fanc</span></code> executable. For more advanced analyses, FAN-C
+can be imported as a powerful Python module.</p>
+<p>Beyond objects generated within FAN-C, the toolkit is largely compatible with Hi-C files from
+<a class="reference external" href="https://github.com/mirnylab/cooler">Cooler</a> and <a class="reference external" href="https://github.com/aidenlab/juicer">Juicer</a>.</p>
+</div>
+<div class="section" id="installation">
+<span id="fanc-installation"></span><h2><a class="toc-backref" href="#id3">Installation</a><a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>Before installing FAN-C, make sure you have all the prerequisites installed on your system.
+Specifically, FAN-C uses the HDF5 file format internally (via PyTables) to handle the large
+amount of data typically generated in Hi-C experiments. The minimum required version of HDF5
+is 1.8.4, which may already be installed on your machine.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It is generally not necessary to install HDF5 manually, as some version will typically be
+installed on any current Unix system, including macOS. If you can install FAN-C via pip
+(see below) and <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">--version</span></code> returns a version number, you are most likely good to go.</p>
+</div>
+<div class="section" id="prerequisite-hdf5">
+<h3>Prerequisite: HDF5<a class="headerlink" href="#prerequisite-hdf5" title="Permalink to this headline">¶</a></h3>
+<p>If you are on Linux, download the source code of the latest version from
+the <a class="reference external" href="https://www.hdfgroup.org/HDF5/">HDF5 website</a> and unpack it.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># make a new directory</span>
+mkdir hdf5-build
+<span class="nb">cd</span> hdf5-build
+<span class="c1"># replace xx with current version number</span>
+wget https://support.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.8.xx.tar.gz
+<span class="c1"># unpack</span>
+tar xzf hdf5-1.8.xx.tar.gz
+<span class="nb">cd</span> hdf5-1.8.xx/
+<span class="c1"># use --prefix to set the folder in which HDF5 should be installed</span>
+<span class="c1"># alternatively, you can omit --prefix=... here and run</span>
+<span class="c1"># sudo make install to install globally (requires admin rights)</span>
+./configure --prefix<span class="o">=</span>/path/to/hdf5/dir
+make
+make install
+</pre></div>
+</div>
+<p>If you are on OS X or macOS, we highly recommend using the fantastic <a class="reference external" href="http://brew.sh/">Homebrew</a>.
+Then you can simply:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>brew install hdf5@1.8
+</pre></div>
+</div>
+<p>To ensure that PyTables, the Python library that uses HDF5, finds the correct HDF5 version, we
+need to set an environment variable pointing to the installation directory:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># on Linux, this is the same /path/to/hdf5/dir that you used above</span>
+<span class="c1"># on macOS, this is wherever brew installs its recipies (typically /usr/local/Cellar)</span>
+<span class="c1">#   - you can find this by running &#39;brew info hdf5&#39;</span>
+<span class="nb">export</span> <span class="nv">HDF5_DIR</span><span class="o">=</span>/path/to/hdf5/dir
+</pre></div>
+</div>
+<div class="section" id="fan-c">
+<h4>FAN-C<a class="headerlink" href="#fan-c" title="Permalink to this headline">¶</a></h4>
+<p>The simplest way to install FAN-C is via pip:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install fanc
+</pre></div>
+</div>
+<p>and that should be all you need! If you are not the owner of the Python installation,
+try:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install --user fanc
+</pre></div>
+</div>
+<p>You can also directly download the FAN-C source code from Github by cloning its repository.
+The installation is then done via setup.py:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone http://www.github.com/vaquerizaslab/fanc
+<span class="nb">cd</span> fanc
+pip install .
+</pre></div>
+</div>
+<p>FAN-C can now be accessed via command line (<code class="docutils literal notranslate"><span class="pre">fanc</span></code> for analysis, <code class="docutils literal notranslate"><span class="pre">fancplot</span></code> for plotting)
+or as a Python 3.6+ module (<code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">fanc</span></code>).</p>
+</div>
+</div>
+</div>
+<div class="section" id="building-this-documentation">
+<h2><a class="toc-backref" href="#id4">Building this documentation</a><a class="headerlink" href="#building-this-documentation" title="Permalink to this headline">¶</a></h2>
+<p>If you want to build this documentation on your local machine, first make sure to install the
+prerequisites by running</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install sphinx sphinx_rtd_theme sphinx-argparse
+</pre></div>
+</div>
+<p>Then navigate to the <code class="code docutils literal notranslate"><span class="pre">fanc-doc</span></code> folder (assuming your in the <code class="code docutils literal notranslate"><span class="pre">fanc</span></code> base folder:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> fanc-doc
+</pre></div>
+</div>
+<p>Type <code class="code docutils literal notranslate"><span class="pre">make</span></code> to get a list of possible documentation outputs, for HTML use:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make html
+</pre></div>
+</div>
+<p>You will find the html output in <code class="code docutils literal notranslate"><span class="pre">_build/html</span></code>.</p>
+</div>
+<div class="section" id="example-analysis">
+<span id="example-fanc-auto"></span><h2><a class="toc-backref" href="#id5">Example analysis</a><a class="headerlink" href="#example-analysis" title="Permalink to this headline">¶</a></h2>
+<p>For this example, we are going to use the command <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> (see <a class="reference internal" href="fanc-executable/fanc-generate-hic/fanc_auto.html#fanc-auto"><span class="std std-ref">Generating Hi-C matrices with fanc</span></a>) to
+construct a Hi-C map from a subset of a previously published adrenal tissue data set
+(<a class="reference external" href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM2322539">SRR4271982 of GSM2322539</a>).
+You can access the sample and all necessary files in the <code class="docutils literal notranslate"><span class="pre">examples/</span></code> folder on
+our <a class="reference external" href="http://www.github.com/vaquerizaslab/fanc">GitHub page</a>.</p>
+<p>From the examples folder, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_2.fastq.gzip output/ <span class="se">\</span>
+          -g hg19_chr18_19.fa -i hg19_chr18_19/hg19_chr18_19 -n fanc_example -t <span class="m">4</span> -r HindIII <span class="se">\</span>
+          --split-ligation-junction -q <span class="m">30</span> --run-with <span class="nb">test</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">--run-with</span> <span class="pre">test</span></code> argument causes <code class="docutils literal notranslate"><span class="pre">fanc</span></code> to only print the commands it would execute, but
+to exit before running any processing steps. Use this to review the pipeline and ensure you chose
+the right parameters and that there are no errors.</p>
+<p>When you remove the <code class="docutils literal notranslate"><span class="pre">--run-with</span> <span class="pre">test</span></code> argument, <code class="docutils literal notranslate"><span class="pre">fanc</span></code> will work through the pipeline.
+On a modern desktop computer with at least four computing cores the command should take less
+than 30 minutes to finish. It will generate several binned, bias-corrected Hi-C matrices from the
+FASTQ input.</p>
+<p>You can read details about <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> and all of its parameters in <a class="reference internal" href="fanc-executable/fanc-generate-hic/fanc_auto.html#fanc-auto"><span class="std std-ref">Generating Hi-C matrices with fanc</span></a>.</p>
+<div class="section" id="plotting">
+<h3>Plotting<a class="headerlink" href="#plotting" title="Permalink to this headline">¶</a></h3>
+<p>We can plot the newly generated Hi-C maps easily using the <code class="docutils literal notranslate"><span class="pre">fancplot</span></code> command. Simply execute</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:63mb-70mb -p triangular -vmax <span class="m">0</span>.05 output/hic/binned/fanc_example_100kb.hic
+</pre></div>
+</div>
+<p>This will plot the region 63-70Mb of chromosome 18 in the familiar Hi-C plot.
+Note that this dataset is very small and hence the quality of the matrix not
+particularly great - but TADs are clearly visible.</p>
+<img alt="_images/chr18_63-70Mb.png" src="_images/chr18_63-70Mb.png" />
+<p>You can find details about the plotting executable <code class="docutils literal notranslate"><span class="pre">fancplot</span></code> in <a class="reference internal" href="fancplot-executable/fancplot_basic.html#fancplot-executable"><span class="std std-ref">Basic usage</span></a>.</p>
+</div>
+<div class="section" id="next-steps">
+<h3>Next steps<a class="headerlink" href="#next-steps" title="Permalink to this headline">¶</a></h3>
+<p>Find out more about <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> and its parameters in <a class="reference internal" href="fanc-executable/fanc-generate-hic/fanc_auto.html#fanc-auto"><span class="std std-ref">Generating Hi-C matrices with fanc</span></a>. If you are interested
+in customising individual steps of the pipeline, or in exploring all of FAN-C’s analysis options,
+have a look at <a class="reference internal" href="fanc-executable/fanc-generate-hic/fanc_modular_steps.html#fanc-modular"><span class="std std-ref">Individual pipeline steps</span></a>. For more plotting functions, continue to <a class="reference internal" href="fancplot-executable/fancplot_basic.html#fancplot-executable"><span class="std std-ref">Basic usage</span></a>.
+To access FAN-C functionality from within Python, check out <a class="reference internal" href="api/api.html#fanc-api"><span class="std std-ref">fanc Python module</span></a>.</p>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="fanc.html" class="btn btn-neutral float-right" title="FAN-C command line tools" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="index.html" class="btn btn-neutral float-left" title="FAN-C documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,719 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Individual pipeline steps &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Helper tools in fanc" href="fanc_helpers.html" />
+    <link rel="prev" title="Generating Hi-C matrices with fanc" href="fanc_auto.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="fanc_auto.html"> fanc auto: Automated generation of Hi-C matrices</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#"> Individual pipeline steps</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#fanc-map-mapping-fastq-files">fanc map: Mapping FASTQ files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fanc-pairs-generating-and-filtering-read-pairs">fanc pairs: Generating and filtering read Pairs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fanc-hic-generating-binning-and-filtering-hic-objects">fanc hic: Generating, binning, and filtering Hic objects</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="fanc_helpers.html"> Helper tools</a></li>
+<li class="toctree-l3"><a class="reference internal" href="fanc_config.html"> Configuration options</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../fanc_analyse_hic.html"> Analyse Hi-C matrices</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../fanc.html">FAN-C command line tools</a> &raquo;</li>
+        
+          <li><a href="../fanc_generate_hic.html">Generate Hi-C matrices</a> &raquo;</li>
+        
+      <li>Individual pipeline steps</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/fanc-executable/fanc-generate-hic/fanc_modular_steps.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="individual-pipeline-steps">
+<span id="fanc-modular"></span><h1>Individual pipeline steps<a class="headerlink" href="#individual-pipeline-steps" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="fanc-map-mapping-fastq-files">
+<span id="fanc-map"></span><h2>fanc map: Mapping FASTQ files<a class="headerlink" href="#fanc-map-mapping-fastq-files" title="Permalink to this headline">¶</a></h2>
+<p>To (iteratively) map FASTQ files directly with FAN-C, use the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">map</span></code> command.</p>
+<p>Here is a minimal example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa <span class="se">\</span>
+         SRR4271982_chr18_19_1.sam
+</pre></div>
+</div>
+<p>This command will map the FASTQ file <code class="docutils literal notranslate"><span class="pre">SRR4271982_chr18_19_1.fastq.gzip</span></code> using the BWA
+index specified with <code class="docutils literal notranslate"><span class="pre">-i</span> <span class="pre">bwa-index/hg19_chr18_19.fa</span></code> and output the mapped reads
+to <code class="docutils literal notranslate"><span class="pre">SRR4271982_chr18_19_1.sam</span></code>. You can change the suffix of the output file to <code class="docutils literal notranslate"><span class="pre">.bam</span></code>
+and <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">map</span></code> will automatically convert the mapping output to BAM format.</p>
+<p>Importantly, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">map</span></code> will autodetect if you supply a BWA or Bowtie2 index, so
+the following command would use Bowtie2 as a mapper:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc map SRR4271982_chr18_19_1.fastq.gzip hg19_chr18_19/hg19_chr18_19 <span class="se">\</span>
+         SRR4271982_chr18_19_1.sam
+</pre></div>
+</div>
+<p>You can use additional parameters to control the mapping process:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="nb">map</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span> <span class="n">MIN_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STEP_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">trim</span><span class="o">-</span><span class="n">front</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RESTRICTION_ENZYME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">k</span> <span class="n">MAX_ALIGNMENTS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">a</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BATCH_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">fanc</span><span class="o">-</span><span class="n">parallel</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">fastq</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">memory</span><span class="o">-</span><span class="nb">map</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">iterative</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+                <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span> <span class="n">index</span> <span class="n">output</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>input</kbd></dt>
+<dd><p>File name of the input FASTQ file (or gzipped FASTQ)</p>
+</dd>
+<dt><kbd>index</kbd></dt>
+<dd><p>Bowtie 2 or BWA genome index base. Index type will be determined automatically.</p>
+</dd>
+<dt><kbd>output</kbd></dt>
+<dd><p>Output file or folder. When providing multiple input files, this must be the path to an output folder.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>-m, --min-size</kbd></dt>
+<dd><p>Minimum length of read before extension. Default 25.</p>
+</dd>
+<dt><kbd>-s, --step-size</kbd></dt>
+<dd><p>Number of base pairs to extend at each round of mapping. Default is 10.</p>
+</dd>
+<dt><kbd>--trim-front</kbd></dt>
+<dd><p>Trim reads from front instead of back.</p>
+</dd>
+<dt><kbd>-t, --threads</kbd></dt>
+<dd><p>Number of threads used for mapping</p>
+</dd>
+<dt><kbd>-q, --quality</kbd></dt>
+<dd><p>Mapping quality cutoff. Alignments with a quality score lower than this will be sent to another mapping iteration. Default: 3 (BWA), 30 (Bowtie2)</p>
+</dd>
+<dt><kbd>-r, --restriction-enzyme</kbd></dt>
+<dd><p>Name (case sensitive) of restriction enzyme used in Hi-C experiment. Will be used to split reads by predicted ligation junction before mapping. You can omit this if you do not want to split your reads by ligation junction.</p>
+</dd>
+<dt><kbd>-k, --max-alignments</kbd></dt>
+<dd><p>Maximum number of alignments per read to be reported.Default: 1</p>
+</dd>
+<dt><kbd>-a, --all-alignments</kbd></dt>
+<dd><p>Report all valid alignments of a read Warning: very slow!.</p>
+</dd>
+<dt><kbd>-b, --batch-size</kbd></dt>
+<dd><p>Number of reads processed (mapped and merged) in one go per worker. The default (100000) works well for large indexes (e.g. human, mouse). Smaller indexes (e.g. yeast) will finish individual bowtie2 processes very quickly - set this number higher to spawn new processes less frequently.</p>
+</dd>
+<dt><kbd>--fanc-parallel</kbd></dt>
+<dd><p>Use FAN-C parallelisation, which launches multiple mapper jobs. This may be faster in some cases than relying on the internal paralellisation of the mapper, but has potentially high disk I/O and memory usage.</p>
+</dd>
+<dt><kbd>--split-fastq</kbd></dt>
+<dd><p>Split FASTQ file into 10M chunks before mapping. Easier on tmp partitions.</p>
+</dd>
+<dt><kbd>--memory-map</kbd></dt>
+<dd><p>Map Bowtie2 index to memory. Enable if you you system has enough memory to hold the entire Bowtie2 index.</p>
+</dd>
+<dt><kbd>--no-iterative</kbd></dt>
+<dd><p>Do not use iterative mapping strategy. (much faster, less sensitive).</p>
+</dd>
+<dt><kbd>-tmp, --work-in-tmp</kbd></dt>
+<dd><p>Copy original file to temporary directory.Reduces network I/O.</p>
+</dd>
+</dl>
+</div>
+<p>Most importantly, assign more threads to the mapping process using the <code class="docutils literal notranslate"><span class="pre">-t</span></code> parameter.
+<code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> parallelises mapping by spawning multiple mapping processes internally.
+This can result in high disk I/O - if you have issues with poor performance,
+try using the <code class="docutils literal notranslate"><span class="pre">--mapper-parallel</span></code> option, which will instead use the multithreading
+of your chosen mapping software.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa <span class="se">\</span>
+         SRR4271982_chr18_19_1.sam -t <span class="m">16</span>
+</pre></div>
+</div>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> performs iterative mapping: Reads are initially trimmed to 25bp
+(change this with the <code class="docutils literal notranslate"><span class="pre">-m</span></code> option) before mapping, and then iteratively expanded by 10bp
+(change the step size with the <code class="docutils literal notranslate"><span class="pre">-s</span></code> option) until a unique, high quality mapping location
+can be found. The associated quality cutoff is 3 for BWA and 30 for Bowtie2, but can be
+changed with the <code class="docutils literal notranslate"><span class="pre">-q</span></code> parameter.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># expand by 5bp every iteration and be satisfied with lower quality</span>
+fanc map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa <span class="se">\</span>
+         SRR4271982_chr18_19_1.sam -t <span class="m">16</span> -s <span class="m">5</span> -q <span class="m">10</span>
+</pre></div>
+</div>
+<p>The iterative mapping process is slower than simple mapping, but can typically
+improve mapping efficiency by a few percent, as smaller reads have a lower likelihood of
+mismatches due to sequencing errors. Disable iterative mapping with the <code class="docutils literal notranslate"><span class="pre">--no-iterative</span></code>
+parameter.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># do not perform iterative mapping</span>
+fanc map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa <span class="se">\</span>
+         SRR4271982_chr18_19_1.sam -t <span class="m">16</span> --no-iterative
+</pre></div>
+</div>
+<p>BWA will automatically split chimeric reads and return both mapping locations. This is
+especially useful for Hi-C data, as reads are often sequenced through a ligation junction,
+which BWA can often detect automatically. Nonetheless, mapping may be improved by splitting
+reads at predicted ligation junctions from the start. To enable this, use the <code class="docutils literal notranslate"><span class="pre">-r</span></code> parameter
+and supply the name of a restriction enzyme (e.g. HindIII or MboI). The name will be used to
+look up the enzyme’s restriction pattern, predict the sequence of a ligation junction, and
+split reads at the predicted junction before mapping starts. Reads split in this manner will
+have an additional attribute in the SAM/BAM file <code class="docutils literal notranslate"><span class="pre">ZL:i:&lt;n&gt;</span></code> where &lt;n&gt; is an integer denoting
+the part of the split read.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Split reads at HindIII ligation junction before mapping</span>
+fanc map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa <span class="se">\</span>
+         SRR4271982_chr18_19_1.sam -t <span class="m">16</span> -r HindIII
+</pre></div>
+</div>
+<p>If you are using Bowtie2, you can additionally use the <code class="docutils literal notranslate"><span class="pre">--memory-map</span></code> option,
+which will load the entire Bowtie2 index into memory to be shared across all Bowtie2 processes. Use
+this option if your system has a lot of memory available to speed up the mapping. Finally, if you
+are using the <code class="docutils literal notranslate"><span class="pre">-tmp</span></code> option, which causes <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> to perform most pipeline steps in a
+temporary directory, you may want to use the <code class="docutils literal notranslate"><span class="pre">--split-fastq</span></code> option to split the FASTQ files into
+smaller chunks before mapping, so you can save space on your <code class="docutils literal notranslate"><span class="pre">tmp</span></code> partition.</p>
+</div>
+<div class="section" id="fanc-pairs-generating-and-filtering-read-pairs">
+<span id="fanc-pairs"></span><h2>fanc pairs: Generating and filtering read Pairs<a class="headerlink" href="#fanc-pairs-generating-and-filtering-read-pairs" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pairs</span></code> command handles the creation and modification of Pairs objects, which represent
+the mate pairs in a Hi-C library mapped to restriction fragments. Possible inputs are: two SAM/BAM
+files (paired-end reads, sorted by read name), a
+<a class="reference external" href="http://nservant.github.io/HiC-Pro/RESULTS.html#list-of-valid-interaction-products">HiC-Pro valid pairs file</a>,
+a <a class="reference external" href="https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md">4D Nucleome pairs file</a>,
+or an existing FAN-C Pairs object. For all but the latter, an output file is also required as last
+positional argument, for Pairs files the output file is optional. If omitted, filtering is performed
+in place.</p>
+<p>Here are example commands for the different options.</p>
+<p>SAM/BAM files:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc pairs output/sam/SRR4271982_chr18_19_1_sort.bam <span class="se">\</span>
+           output/sam/SRR4271982_chr18_19_2_sort.bam <span class="se">\</span>
+           output/pairs/SRR4271982_chr18_19.pairs <span class="se">\</span>
+           -g hg19_chr18_19_re_fragments.bed
+</pre></div>
+</div>
+<p>4D Nucleome pairs file:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc pairs 4d_nucleome.pairs output/pairs/4d_nucleome.pairs <span class="se">\</span>
+           -g hg19_chr18_19_re_fragments.bed
+</pre></div>
+</div>
+<p>HiC-Pro valid pairs file:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc pairs hic_pro.validPairs output/pairs/hic_pro.pairs <span class="se">\</span>
+           -g hg19_chr18_19_re_fragments.bed
+</pre></div>
+</div>
+<p>Existing FAN-C Pairs object:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc pairs output/pairs/SRR4271982_chr18_19.pairs
+</pre></div>
+</div>
+<p>As you can see, the <code class="docutils literal notranslate"><span class="pre">-g</span></code> parameter is not necessary when proving an existing Pairs object,
+as this already has all the fragment information stored in the object. Neither do we need an
+output file, as further operations will be performed in place. This primarily applies to
+the filtering of read pairs according to various criteria.</p>
+<p>Additional parameters primarily control the filtering of read pairs:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">pairs</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span> <span class="n">GENOME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RESTRICTION_ENZYME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">u</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">us</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">CONTAMINANT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">INWARD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OUTWARD</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="nb">filter</span><span class="o">-</span><span class="n">ligation</span><span class="o">-</span><span class="n">auto</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">REDIST</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">DUP_THRESH</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STATS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">reset</span><span class="o">-</span><span class="n">filters</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">statistics</span><span class="o">-</span><span class="n">plot</span> <span class="n">STATS_PLOT</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">re</span><span class="o">-</span><span class="n">dist</span><span class="o">-</span><span class="n">plot</span> <span class="n">RE_DIST_PLOT</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">ligation</span><span class="o">-</span><span class="n">error</span><span class="o">-</span><span class="n">plot</span> <span class="n">LIGATION_ERROR_PLOT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BATCH_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">S</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">bwa</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+                  <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>input</kbd></dt>
+<dd><p>IMPORTANT: The last positional argument will be the output file, unless only a single Pairs object is provided. In that case, filtering and correcting will be done in place. Possible inputs are: two SAM/BAM files (paired-end reads, sorted by read name) and an output file; a HiC-Pro pairs file (format: nametchr1tpos1tstrand1tchr2tpos2tstrand2) and an output file; a pairs file in 4D Nucleome format (<a class="reference external" href="https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md">https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md</a>) and an output file, or an existing fanc Pairs object. In case of SAM/BAM, HiC-Pro, or 4D Nucleome you must also provide the –genome argument, and if –genome is not a file with restriction fragments (or Hi-C bins), you must also provide the –restriction-enzyme argument.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>-g, --genome</kbd></dt>
+<dd><p>Path to region-based file (BED, GFF, …) containing the non-overlapping regions to be used for Hi-C binning. Typically restriction-enzyme fragments. Alternatively: Path to genome file (FASTA, folder with FASTA, HDF5 file), which will be used in conjunction with the type of restriction enzyme to calculate fragments directly.</p>
+</dd>
+<dt><kbd>-r, --restriction_enzyme</kbd></dt>
+<dd><p>Name of the restriction enzyme used in the experiment, e.g. HindIII, or MboI. Case-sensitive, only necessary when –genome is provided as FASTA.</p>
+</dd>
+<dt><kbd>-m, --filter-unmappable</kbd></dt>
+<dd><p>Filter read pairs where one or both halves are unmappable. Only applies to SAM/BAM input!</p>
+</dd>
+<dt><kbd>-u, --filter-multimapping</kbd></dt>
+<dd><p>Filter reads that map multiple times. If the other mapping locations have a lower score than the best one, the best read is kept. Only applies to SAM/BAM input!</p>
+</dd>
+<dt><kbd>-us, --filter-multimapping-strict</kbd></dt>
+<dd><p>Strictly filter reads that map multiple times. Only applies to SAM/BAM input!</p>
+</dd>
+<dt><kbd>-q, --filter-quality</kbd></dt>
+<dd><p>Cutoff for the minimum mapping quality of a read. For numbers larger than 1, will filter on MAPQ. If a number between 0 and 1 is provided, will filter on the AS tag instead of mapping quality (only BWA). The quality cutoff is then interpreted as the fraction of bases that have to be matched for any given read. Only applies to SAM/BAM input!</p>
+</dd>
+<dt><kbd>-c, --filter-contaminant</kbd></dt>
+<dd><p>Filter contaminating reads from other organism. Path to mapped SAM/BAM file. Will filter out reads with the same name. Only applies to SAM/BAM input!</p>
+</dd>
+<dt><kbd>-i, --filter-inward</kbd></dt>
+<dd><p>Minimum distance for inward-facing read pairs</p>
+</dd>
+<dt><kbd>-o, --filter-outward</kbd></dt>
+<dd><p>Minimum distance for outward-facing read pairs</p>
+</dd>
+<dt><kbd>--filter-ligation-auto</kbd></dt>
+<dd><p>Auto-guess settings for inward/outward read pair filters. Overrides –filter-outward and –filter-inward if set.</p>
+</dd>
+<dt><kbd>-d, --filter-re-distance</kbd></dt>
+<dd><p>Maximum distance for a read to the nearest restriction site</p>
+</dd>
+<dt><kbd>-l, --filter-self-ligations</kbd></dt>
+<dd><p>Remove read pairs representing self-ligated fragments</p>
+</dd>
+<dt><kbd>-p, --filter-pcr-duplicates</kbd></dt>
+<dd><p>If specified, filter read pairs for PCR duplicates. Parameter determines distance between alignment starts below which they are considered starting at same position. Sensible values are between 1 and 5.</p>
+</dd>
+<dt><kbd>-s, --statistics</kbd></dt>
+<dd><p>Path for saving filter statistics</p>
+</dd>
+<dt><kbd>--reset-filters</kbd></dt>
+<dd><p>Remove all filters from the ReadPairs object.</p>
+</dd>
+<dt><kbd>--statistics-plot</kbd></dt>
+<dd><p>Path for saving filter statistics plot (PDF)</p>
+</dd>
+<dt><kbd>--re-dist-plot</kbd></dt>
+<dd><p>Plot the distribution of restriction site distances of all read pairs (sum left and right read).</p>
+</dd>
+<dt><kbd>--ligation-error-plot</kbd></dt>
+<dd><p>Plot the relative orientation of read pairs mapped to the reference genome as a fraction of reads oriented in the same direction. Allows the identification of ligation errors as a function of genomic distance.</p>
+</dd>
+<dt><kbd>-t, --threads</kbd></dt>
+<dd><p>Number of threads to use for extracting fragment information</p>
+</dd>
+<dt><kbd>-b, --batch-size</kbd></dt>
+<dd><p>Batch size for read pairs to be submitted to individual processes.</p>
+</dd>
+<dt><kbd>-S, --no-check-sorted</kbd></dt>
+<dd><p>Assume SAM files are sorted and do not check if that is actually the case</p>
+</dd>
+<dt><kbd>-f, --force-overwrite</kbd></dt>
+<dd><p>If the specified output file exists, it will be overwritten without warning.</p>
+</dd>
+<dt><kbd>--bwa</kbd></dt>
+<dd><p>Use filters appropriate for BWA and not Bowtie2. This will typically be identified automatically from the SAM/BAM header. Set this flag if you are having problems during filtering (typically 0 reads pass the filtering threshold).</p>
+</dd>
+<dt><kbd>-tmp, --work-in-tmp</kbd></dt>
+<dd><p>Work in temporary directory</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="filtering">
+<h3>Filtering<a class="headerlink" href="#filtering" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pairs</span></code> provides a lot of parameters for filtering read pairs according to different
+criteria. By default, if not specified otherwise, no filtering is performed on the read pairs
+(passthrough). Typically, however, you will at least want to filter out unmappable (<code class="docutils literal notranslate"><span class="pre">-m</span></code>)
+and multimapping reads (<code class="docutils literal notranslate"><span class="pre">-u</span></code> or <code class="docutils literal notranslate"><span class="pre">-us</span></code>). It is also a good idea to filter by alignment
+quality (<code class="docutils literal notranslate"><span class="pre">-q</span> <span class="pre">&lt;n&gt;</span></code>). Good cutoffs for Bowtie2 and BWA are 30 and 3, respectively. If you suspect
+your Hi-C library to be contaminated by DNA from a different organism, you can align your
+original reads to a different genome and pass the resulting SAM/BAM file to the <code class="docutils literal notranslate"><span class="pre">-c</span></code>
+parameter (ensure no unmappable reads are in the file!).
+This will filter out all reads that have a valid alignment in the putative
+contaminants genome (by qname). All of the above filters operate on single reads, but will
+filter out the pair if either of the reads is found to be invalid due to a filtering criterion.
+IMPORTANT: the <code class="docutils literal notranslate"><span class="pre">-u</span></code>, <code class="docutils literal notranslate"><span class="pre">-us</span></code>, <code class="docutils literal notranslate"><span class="pre">-q</span></code>, and <code class="docutils literal notranslate"><span class="pre">-c</span></code> filter MUST be applied when loading read pairs
+from SAM/BAM file, and cannot be added later!</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc pairs output/sam/SRR4271982_chr18_19_1_sort.bam <span class="se">\</span>
+           output/sam/SRR4271982_chr18_19_2_sort.bam <span class="se">\</span>
+           output/pairs/SRR4271982_chr18_19.pairs <span class="se">\</span>
+           -g hg19_chr18_19_re_fragments.bed <span class="se">\</span>
+           -us <span class="se">\</span>
+           -q <span class="m">3</span>
+</pre></div>
+</div>
+<p>An additional set of filters operates on the properties of the read pair. You may want to
+filter out self-ligated fragments, which provide no spatial information with the <code class="docutils literal notranslate"><span class="pre">-l</span></code>
+parameter. As Hi-C experiments generally rely on PCR amplification, it is expected to find
+a lot of PCR duplicates in the library. You can filter those with the <code class="docutils literal notranslate"><span class="pre">-p</span> <span class="pre">&lt;n&gt;</span></code> parameter,
+where <code class="docutils literal notranslate"><span class="pre">&lt;n&gt;</span></code> denotes the distance between the start of two alignments that would still be
+considered a duplicate. Normally you would use 1 or 2, but you can use higher values to be
+more strict with filtering.</p>
+<p>Example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc pairs output/pairs/SRR4271982_chr18_19.pairs <span class="se">\</span>
+           -l  <span class="c1"># filter self-ligated fragments \</span>
+           -p <span class="m">2</span>  <span class="c1"># filter PCR duplicates mapping within 2bp</span>
+</pre></div>
+</div>
+<p>Depending on the experimental setup, it is sometimes expected to find valid Hi-C alignments
+near restriction sites. You can filter read pairs for their (cumulative) distance to the
+nearest restriction sites using the <code class="docutils literal notranslate"><span class="pre">-d</span></code> parameter. To determine that cutoff, or to detect
+any issues with the Hi-C library, you can first use the <code class="docutils literal notranslate"><span class="pre">--re-dist-plot</span></code> parameter. Note
+that this will only plot a sample of 10,000 read pairs for a quick assessment:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">fanc</span> <span class="n">pairs</span> <span class="o">--</span><span class="n">re</span><span class="o">-</span><span class="n">dist</span><span class="o">-</span><span class="n">plot</span> <span class="n">re</span><span class="o">-</span><span class="n">dist</span><span class="o">.</span><span class="n">png</span> <span class="n">output</span><span class="o">/</span><span class="n">pairs</span><span class="o">/</span><span class="n">SRR4271982_chr18_19</span><span class="o">.</span><span class="n">pairs</span>
+</pre></div>
+</div>
+<img alt="../../_images/re-dist.png" src="../../_images/re-dist.png" />
+<p><a class="reference external" href="http://www.nature.com/nature/journal/v503/n7475/abs/nature12644.html">Jin et al. (2013)</a> have identified
+several errors that stem from incomplete digestion and which can be identified from different
+types of ligation products. You can filter these using the <code class="docutils literal notranslate"><span class="pre">-i</span> <span class="pre">&lt;n&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">-o</span> <span class="pre">&lt;n&gt;</span></code> parameters,
+for the inward and outward ligation errors, respectively. If you need help finding a good
+cutoff, you may use the <code class="docutils literal notranslate"><span class="pre">--ligation-error-plot</span></code> parameter.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">fanc</span> <span class="n">pairs</span> <span class="o">--</span><span class="n">ligation</span><span class="o">-</span><span class="n">error</span><span class="o">-</span><span class="n">plot</span> <span class="n">ligation</span><span class="o">-</span><span class="n">err</span><span class="o">.</span><span class="n">png</span> <span class="n">output</span><span class="o">/</span><span class="n">pairs</span><span class="o">/</span><span class="n">SRR4271982_chr18_19</span><span class="o">.</span><span class="n">pairs</span>
+</pre></div>
+</div>
+<img alt="../../_images/ligation-err.png" src="../../_images/ligation-err.png" />
+<p>Otherwise 1-10kb are often a reasonable cutoffs. You can also let FAN-C attempt to find suitable
+cutoffs based on the over-representation of certain ligation products using the
+<code class="docutils literal notranslate"><span class="pre">--filter-ligation-auto</span></code> parameter, but this is not always 100% reliable.</p>
+<p>Finally, you can output the filtering statistics to a file or plot using the <code class="docutils literal notranslate"><span class="pre">-s</span></code> and
+<code class="docutils literal notranslate"><span class="pre">--statistics-plot</span></code> parameters, respectively.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc pairs output/pairs/SRR4271982_chr18_19.pairs <span class="se">\</span>
+           --statistics-plot pairs.stats.png
+</pre></div>
+</div>
+<img alt="../../_images/pairs.stats.png" src="../../_images/pairs.stats.png" />
+</div>
+</div>
+<div class="section" id="fanc-hic-generating-binning-and-filtering-hic-objects">
+<span id="fanc-hic"></span><h2>fanc hic: Generating, binning, and filtering Hic objects<a class="headerlink" href="#fanc-hic-generating-binning-and-filtering-hic-objects" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span></code> command is used to generate fragment-level and binned Hi-C matrices.</p>
+<p>You can use FAN-C Pairs files as input for <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc hic output/pairs/SRR4271982_chr18_19.pairs output/hic/fragment_level.hic
+</pre></div>
+</div>
+<p>Without additional parameters, this will generate a fragment-level Hic object and exit.
+Multiple Pairs files will be converted into fragment-level Hic objects which are then merged
+into a single object.</p>
+<p>If you already have a fragment-level Hic file and you want to bin it, or perform filtering
+or matrix balancing, you can also use this as input:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc hic output/hic/fragment_level.hic output/hic/binned/example_1mb.hic -b 1mb
+</pre></div>
+</div>
+<p>You have to explicitly provide the binning, filtering and correcting parameters, otherwise
+the command will exit after it has obtained a single fragment-level Hic object. Here is an
+overview of all parameters:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">hic</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BIN_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span> <span class="n">FILTER_LOW_COVERAGE</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">FILTER_LOW_COVERAGE_RELATIVE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">a</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">FILTER_DIAGONAL</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">marginals</span><span class="o">-</span><span class="n">plot</span> <span class="n">MARGINALS_PLOT</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">reset</span><span class="o">-</span><span class="n">filters</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">downsample</span> <span class="n">DOWNSAMPLE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">k</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">only</span><span class="o">-</span><span class="n">inter</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STATS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">statistics</span><span class="o">-</span><span class="n">plot</span> <span class="n">STATS_PLOT</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">chromosomes</span> <span class="n">CHROMOSOMES</span> <span class="p">[</span><span class="n">CHROMOSOMES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+                <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>input</kbd></dt>
+<dd><dl class="simple">
+<dt>IMPORTANT: The last positional argument will be</dt><dd><p>the output file, unless only a single Hic object
+is provided. In that case, binning, filtering and
+correcting will be done in place.
+Input files. If these are FAN-C Pairs objects
+(see “fanc pairs”), they will be turned into
+Hic objects. Hic objects (also the ones converted
+from Pairs) will first be merged and the merged
+object will be binned, filtered and corrected as
+specified in the remaining parameters.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>-b, --bin-size</kbd></dt>
+<dd><dl class="simple">
+<dt>Bin size in base pairs. You can use human-readable formats,</dt><dd><p>such as 10k, or 1mb. If omitted, the command will
+end after the merging step.</p>
+</dd>
+</dl>
+</dd>
+<dt><kbd>-l, --filter-low-coverage</kbd></dt>
+<dd><dl class="simple">
+<dt>Filter bins with low coverage (lower than</dt><dd><p>specified absolute number of contacts)</p>
+</dd>
+</dl>
+</dd>
+<dt><kbd>-r, --filter-low-coverage-relative</kbd></dt>
+<dd><dl class="simple">
+<dt>Filter bins using a relative low coverage threshold</dt><dd><p>(lower than the specified fraction of the median contact count)</p>
+</dd>
+</dl>
+</dd>
+<dt><kbd>-a, --low-coverage-auto</kbd></dt>
+<dd><dl class="simple">
+<dt>Filter bins with “low coverage” (under</dt><dd><p>10% of median coverage for all non-zero bins)</p>
+</dd>
+</dl>
+</dd>
+<dt><kbd>-d, --diagonal</kbd></dt>
+<dd><dl class="simple">
+<dt>Filter bins along the diagonal up to this specified distance.</dt><dd><p>Use 0 for only filtering the diagonal.</p>
+</dd>
+</dl>
+</dd>
+<dt><kbd>--marginals-plot</kbd></dt>
+<dd><p>Plot Hi-C marginals to determine low coverage thresholds.</p>
+</dd>
+<dt><kbd>--reset-filters</kbd></dt>
+<dd><p>Remove all filters from the Hic object.</p>
+</dd>
+<dt><kbd>--downsample</kbd></dt>
+<dd><p>Downsample a binned Hi-C object before filtering and correcting. Sample size or reference Hi-C object. If sample size is &lt; 1,will be interpreted as a fraction of valid pairs.</p>
+</dd>
+<dt><kbd>-i, --ice-correct</kbd></dt>
+<dd><p>Use ICE iterative correction instead of Knight matrix balancing</p>
+</dd>
+<dt><kbd>-k, --kr-correct</kbd></dt>
+<dd><p>Use Knight-Ruiz matrix balancing to correct the binned Hic matrix</p>
+</dd>
+<dt><kbd>-w, --whole-matrix</kbd></dt>
+<dd><p>Correct the whole matrix at once, rather than individual chromosomes.</p>
+</dd>
+<dt><kbd>-c, --restore-coverage</kbd></dt>
+<dd><dl class="simple">
+<dt>Restore coverage to the original total number of reads.</dt><dd><p>Otherwise matrix entries will be contact probabilities.
+Only available for KR matrix balancing.</p>
+</dd>
+</dl>
+</dd>
+<dt><kbd>--only-inter</kbd></dt>
+<dd><p>Calculate bias vector only on inter-chromosomal contacts. Ignores all intra-chromosomal contacts. Always uses whole-matrix balancing, i.e. implicitly sets -w</p>
+</dd>
+<dt><kbd>-s, --statistics</kbd></dt>
+<dd><p>Path for saving filter statistics</p>
+</dd>
+<dt><kbd>--statistics-plot</kbd></dt>
+<dd><p>Path for saving filter statistics plot (PDF)</p>
+</dd>
+<dt><kbd>--chromosomes</kbd></dt>
+<dd><p>Limit output Hic object to these chromosomes. Only available in conjunction with “-b” option.</p>
+</dd>
+<dt><kbd>-f, --force-overwrite</kbd></dt>
+<dd><dl class="simple">
+<dt>If the specified output file exists, it will be</dt><dd><p>overwritten without warning.</p>
+</dd>
+</dl>
+</dd>
+<dt><kbd>-t, --threads</kbd></dt>
+<dd><p>Number of threads (currently used for binning only)</p>
+</dd>
+<dt><kbd>-tmp, --work-in-tmp</kbd></dt>
+<dd><p>Work in temporary directory</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="binning">
+<h3>Binning<a class="headerlink" href="#binning" title="Permalink to this headline">¶</a></h3>
+<p>You can use the <code class="docutils literal notranslate"><span class="pre">-b</span></code> parameter to bin the fragment-level Hi-C matrix. You can either use
+integers (1000000) or common abbreviations (1Mb). The filtering steps outlined below only
+apply to binned Hic matrices.</p>
+</div>
+<div class="section" id="filtering-and-balancing">
+<h3>Filtering and balancing<a class="headerlink" href="#filtering-and-balancing" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span></code> provides a few filtering options. Most likely you want to apply a coverage filter
+using <code class="docutils literal notranslate"><span class="pre">-l</span></code> to specify a coverage threshold in absolute number of pairs per bin, or <code class="docutils literal notranslate"><span class="pre">-r</span></code> to
+apply a coverage threshold based on a fraction of the median number of pairs pair bin. <code class="docutils literal notranslate"><span class="pre">-a</span></code> is
+simply a preset for <code class="docutils literal notranslate"><span class="pre">-r</span> <span class="pre">0.1</span></code>.</p>
+<p>For some applications it might be useful to remove the prominent Hi-C diagonal. You can use the
+<code class="docutils literal notranslate"><span class="pre">-d</span> <span class="pre">&lt;n&gt;</span></code> parameter to remove all pairs in pixels up to a distance of n from the diagonal.</p>
+<p>You can balance your Hi-C matrices using the <code class="docutils literal notranslate"><span class="pre">-k</span></code> or the <code class="docutils literal notranslate"><span class="pre">-i</span></code> parameters, which perform
+Knight-Ruiz (KR) and ICE balancing, respectively. We typically recommend KR balancing for
+performance reasons. Each chromosome in the matrix is corrected independently, unless you
+specify the <code class="docutils literal notranslate"><span class="pre">-w</span></code> option. By default the corrected matrix entries correspond to contact
+probabilities. You can use the <code class="docutils literal notranslate"><span class="pre">--restore-coverage</span></code> option to force matrix entries in a
+chromosome to sum up to the total number of reads before correction.</p>
+<p>Finally, you can output the filtering statistics to a file or plot using the <code class="docutils literal notranslate"><span class="pre">-s</span></code> and
+<code class="docutils literal notranslate"><span class="pre">--statistics-plot</span></code> parameters, respectively.</p>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="fanc_helpers.html" class="btn btn-neutral float-right" title="Helper tools in fanc" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="fanc_auto.html" class="btn btn-neutral float-left" title="Generating Hi-C matrices with fanc" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

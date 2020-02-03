@@ -1,0 +1,287 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Common interfaces &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="RegionBased" href="interfaces/regions_interface.html" />
+    <link rel="prev" title="Quickstart with the FAN-C API" href="quickstart.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="api.html">Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Interfaces</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="interfaces/regions_interface.html">Genomic regions (RegionBased interface)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="interfaces/edges_interface.html">Edges (contacts, pixels, ...) (RegionPairsContainer interface)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="interfaces/matrix_interface.html">Matrices (RegionMatrixContainer interface)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analyse.html">Analyse Hi-C matrices (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="api.html">fanc Python module</a> &raquo;</li>
+        
+      <li>Common interfaces</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/api/interfaces.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="common-interfaces">
+<span id="id1"></span><h1>Common interfaces<a class="headerlink" href="#common-interfaces" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Before we start introducing the neat little interface functions that FAN-C provides for
+interacting with genomic regions, region pairs and matrix data, we want to briefly discuss
+the terminology used by FAN-C:</p>
+<p>Chromosome conformation capture data describes associations between pairs of genomic regions.
+In the literature, you will see them called “bins”, or “loci”, FAN-C generally uses the term
+“regions” to describe stretches of DNA defined by a set of coordinates. Similarly, associations
+between genomic regions, such as produced by Hi-C, have been called “interactions”, “contacts”,
+or “proximity”. While these names are certainly appropriate in some situations, they can also
+be misleading by implying more than the ligation frequency measured in an experiment. Some studies
+and tools therefore use other terminology, such as “pixels”. FAN-C uses a term from network
+analysis: “<strong>edges</strong>”. In networks, edges connect “<strong>nodes</strong>” and can be assigned a <strong>weight</strong>.
+In a Hi-C “network”, nodes would correspond to regions, and the (normalised) ligation frequency
+(contact intensity, interaction frequency, proximity, …) is assigned as a weight on an “edge”
+connecting a pair of regions. Two regions in FAN-C are considered unconnected if their edge
+weight is 0. Instead of calling the regions connected by an edge “region1” and “region2” or
+something similar, they are called “source” and “sink” in FAN-C, again borrowing from network terminology.
+While the edge in Hi-C matrices has no directionality (we cannot say that region A interacts with
+region B but not vice versa), the convention in FAN-C is that the region index of the source
+region is smaller that that of the sink region.
+We believe this is a sufficiently neutral terminology for FAN-C data.</p>
+</div>
+<p>Being able to load different data types with the same command is the first convenient
+feature of <code class="xref py py-func docutils literal notranslate"><span class="pre">load()</span></code>. The second is that most objects returned by
+<code class="xref py py-func docutils literal notranslate"><span class="pre">load()</span></code> and supported by FAN-C in general share common interfaces
+that unify and greatly simply handling of different datasets. We will summarise them
+here to provide you with a rough overview, and the next sections will discuss each
+interface in detail.</p>
+<ul class="simple">
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionBased</span></code>: FAN-C builds heavily on the
+<code class="code docutils literal notranslate"><span class="pre">genomic_regions</span></code> <a class="reference external" href="https://github.com/vaquerizaslab/genomic_regions">package</a>,
+which provides a unified, powerful interface for region-based data. Its functionality
+includes iterators over regions that return the same type of object
+(<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>) regardless of data origin.
+You can query regions in a specific interval, bin scores
+associated with regions, and much more.
+This interface supports the following file types: BED, GFF, BigWig, Tabix, BEDPE, and most
+FAN-C files. Find out more in <a class="reference internal" href="interfaces/regions_interface.html#genomic-regions"><span class="std std-ref">RegionBased</span></a>.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code>: This interface extends
+<code class="xref py py-class docutils literal notranslate"><span class="pre">RegionBased</span></code> by adding properties and functions for pairs of
+genomic regions and their relationships (“edges”). You can use the powerful
+<code class="xref py py-func docutils literal notranslate"><span class="pre">fanc.RegionpairsContainer.edges()</span></code> function to iterate over all edges in an object,
+query only a subset, normalise edge weights on the fly, hide and reveal filtered
+edges, and more. This interface supports FAN-C files like <code class="xref py py-class docutils literal notranslate"><span class="pre">ReadPairs</span></code> and
+<code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code>, Cooler single and multi-resolution files and Juicer files.
+To find out everything about this interface, go to <a class="reference internal" href="interfaces/edges_interface.html#edges-interface"><span class="std std-ref">RegionPairsContainer</span></a>.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.RegionMatrixContainer</span></code>: In many cases, such as Hi-C data, edges and their
+associated scores (“weights”) can be represented as a matrix. This interface extends
+<code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code> with matrix-specific properties and functions,
+including a versatile <code class="xref py py-func docutils literal notranslate"><span class="pre">matrix()</span></code> function for retrieving
+whole-genome or subset matrices with support for on-the-fly normalisation and O/E
+transformation, masking of unmappable regions and more. This interface supports
+FAN-C files like <code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code> and  <code class="xref py py-class docutils literal notranslate"><span class="pre">ComparisonMatrix</span></code>, Cooler
+single and multi-resolution files and Juicer files. Go to <a class="reference internal" href="interfaces/matrix_interface.html#matrix-interface"><span class="std std-ref">RegionMatrixContainer</span></a>
+for all the details.</p></li>
+</ul>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="interfaces/regions_interface.html">Genomic regions (RegionBased interface)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interfaces/edges_interface.html">Edges (contacts, pixels, ...) (RegionPairsContainer interface)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interfaces/matrix_interface.html">Matrices (RegionMatrixContainer interface)</a></li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="interfaces/regions_interface.html" class="btn btn-neutral float-right" title="RegionBased" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="quickstart.html" class="btn btn-neutral float-left" title="Quickstart with the FAN-C API" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

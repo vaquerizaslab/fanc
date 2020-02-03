@@ -1,0 +1,303 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Quickstart with the FAN-C API &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Common interfaces" href="interfaces.html" />
+    <link rel="prev" title="fanc Python module" href="api.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="api.html">Python API</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Quickstart</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#loading-datasets">Loading datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#logging">Logging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="interfaces.html">Interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analyse.html">Analyse Hi-C matrices (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="api.html">fanc Python module</a> &raquo;</li>
+        
+      <li>Quickstart with the FAN-C API</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/api/quickstart.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="quickstart-with-the-fan-c-api">
+<span id="quickstart"></span><h1>Quickstart with the FAN-C API<a class="headerlink" href="#quickstart-with-the-fan-c-api" title="Permalink to this headline">¶</a></h1>
+<p>After you have installed FAN-C (see <a class="reference internal" href="../getting_started.html#fanc-installation"><span class="std std-ref">Installation</span></a>), you can import the module
+from a Python console or script:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
+</pre></div>
+</div>
+<p>The following tutorials will assume that you have loaded the <code class="code docutils literal notranslate"><span class="pre">fanc</span></code> module in this
+manner.</p>
+<div class="section" id="loading-datasets">
+<h2>Loading datasets<a class="headerlink" href="#loading-datasets" title="Permalink to this headline">¶</a></h2>
+<p>Any analysis typically begins with loading datasets into your workspace. FAN-C tries to make this
+as simple as possible with the <code class="xref py py-func docutils literal notranslate"><span class="pre">load()</span></code> function.
+If you already have processed Hi-C files, either from the <code class="code docutils literal notranslate"><span class="pre">fanc</span></code> command line
+application (see <a class="reference internal" href="../fanc-executable/fanc-generate-hic/fanc_auto.html#fanc-auto"><span class="std std-ref">Generating Hi-C matrices with fanc</span></a> or <a class="reference internal" href="../fanc-executable/fanc-generate-hic/fanc_modular_steps.html#fanc-modular"><span class="std std-ref">Individual pipeline steps</span></a>), or from a compatible Hi-C application
+(<code class="code docutils literal notranslate"><span class="pre">.cool</span></code> or <code class="code docutils literal notranslate"><span class="pre">.mcool</span></code> from <a class="reference external" href="https://github.com/mirnylab/cooler">Cooler</a> or <code class="code docutils literal notranslate"><span class="pre">.hic</span></code> from
+<a class="reference external" href="https://github.com/aidenlab/juicer">Juicer</a>), simply load them into your workspace
+using <code class="xref py py-func docutils literal notranslate"><span class="pre">load()</span></code> - no need to specify the type of file you are loading:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;/path/to/file.hic&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>When dealing with multi-resolution Hi-C files such as <code class="code docutils literal notranslate"><span class="pre">.mcool</span></code> from Cooler or <code class="code docutils literal notranslate"><span class="pre">.hic</span></code> from
+Juicer, you can load a specific resolution using the <code class="code docutils literal notranslate"><span class="pre">&#64;</span></code> notation:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;/path/to/file.mcool@25000&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">load()</span></code> is not limited to Hi-C files, but also works on any other file
+produced with FAN-C, such as <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairs</span></code> files, <a class="reference internal" href="modules/regions.html#fanc.regions.Genome" title="fanc.regions.Genome"><code class="xref py py-class docutils literal notranslate"><span class="pre">Genome</span></code></a>,
+analysis results like <a class="reference internal" href="modules/architecture/comparisons.html#fanc.architecture.comparisons.FoldChangeMatrix" title="fanc.architecture.comparisons.FoldChangeMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">FoldChangeMatrix</span></code></a> and generally most
+other FAN-C files.</p>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">load()</span></code> even works on most of the common file formats for genomic
+datasets, such as BED, GFF, BigWig, Tabix, BEDPE and more. Try it out on your dataset of choice and
+chances are <code class="xref py py-func docutils literal notranslate"><span class="pre">load()</span></code> can handle it. And if it does not, consider raising
+an issue on <a class="reference external" href="https://github.com/vaquerizaslab/fanc/issues">Github</a> to ask for support.</p>
+<p>Internally, <code class="xref py py-func docutils literal notranslate"><span class="pre">load()</span></code> finds a suitable class for the type of data
+in the supplied file, and opens the file using that class. For example, the result of</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">hic</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">Hic</span><span class="p">(</span><span class="s2">&quot;output/hic/binned/fanc_example_1mb.hic&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>is equivalent to</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">hic</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;output/hic/binned/fanc_example_1mb.hic&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>with the big advantage that you don’t need to worry about remembering class names or
+their location within the FAN-C module hierarchy. In both cases, the type of the
+returned object is <code class="code docutils literal notranslate"><span class="pre">fanc.hic.Hic</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># check the type fo the object</span>
+<span class="nb">type</span><span class="p">(</span><span class="n">hic</span><span class="p">)</span>  <span class="c1"># fanc.hic.Hic</span>
+</pre></div>
+</div>
+<p>Here are a few more examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cool</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;test.cool&quot;</span><span class="p">)</span>
+<span class="nb">type</span><span class="p">(</span><span class="n">cool</span><span class="p">)</span>  <span class="c1"># fanc.compatibility.cooler.CoolerHic</span>
+
+<span class="n">juicer</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;test_juicer.hic&quot;</span><span class="p">)</span>
+<span class="nb">type</span><span class="p">(</span><span class="n">juicer</span><span class="p">)</span>  <span class="c1"># fanc.compatibility.juicer.JuicerHic</span>
+
+<span class="n">fragments</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;hg19_chr18_19_re_fragments.bed&quot;</span><span class="p">)</span>
+<span class="nb">type</span><span class="p">(</span><span class="n">fragments</span><span class="p">)</span>  <span class="c1"># genomic_regions.regions.Bed</span>
+
+<span class="n">bam</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;test.bam&quot;</span><span class="p">)</span>
+<span class="nb">type</span><span class="p">(</span><span class="n">bam</span><span class="p">)</span>  <span class="c1"># pysam.libcalignmentfile.AlignmentFile</span>
+
+<span class="n">ins</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/domains/fanc_example_100kb.insulation&quot;</span><span class="p">)</span>
+<span class="nb">type</span><span class="p">(</span><span class="n">ins</span><span class="p">)</span>  <span class="c1"># fanc.architecture.domains.InsulationScores</span>
+
+<span class="c1"># and many other data types</span>
+</pre></div>
+</div>
+<p>The next section will discuss <a class="reference internal" href="interfaces.html#common-interfaces"><span class="std std-ref">Common interfaces</span></a> that make working with genomic data
+in general and FAN-C objects specifically straightforward and simple.</p>
+</div>
+<div class="section" id="logging">
+<h2>Logging<a class="headerlink" href="#logging" title="Permalink to this headline">¶</a></h2>
+<p>FAN-C uses the <code class="docutils literal notranslate"><span class="pre">logging</span></code> module. In a <code class="docutils literal notranslate"><span class="pre">python</span></code> session, use a statement like</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+                    <span class="n">format</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>to enable basic console logging. Have a look the
+<a class="reference external" href="https://docs.python.org/3/library/logging.html">logging documentation</a>
+for more information on log levels and handlers.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="interfaces.html" class="btn btn-neutral float-right" title="Common interfaces" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="api.html" class="btn btn-neutral float-left" title="fanc Python module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

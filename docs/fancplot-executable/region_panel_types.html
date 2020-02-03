@@ -1,0 +1,365 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Region and Score panel types &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="fanc Python module" href="../api/api.html" />
+    <link rel="prev" title="Matrix panel types" href="matrix_panel_types.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../fancplot.html">fancplot: plotting from the command line</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="fancplot_basic.html"> Overview and basic usage</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="panel_types.html"> Panel types</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="matrix_panel_types.html"> Matrix panels</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#"> Region and score panels</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#line">line</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scores">scores</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#bar">bar</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#layer">layer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#genes">genes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../fancplot.html">FAN-C command line plotting</a> &raquo;</li>
+        
+          <li><a href="panel_types.html">Panel types</a> &raquo;</li>
+        
+      <li>Region and Score panel types</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/fancplot-executable/region_panel_types.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="region-and-score-panel-types">
+<span id="region-pane-types"></span><h1>Region and Score panel types<a class="headerlink" href="#region-and-score-panel-types" title="Permalink to this headline">¶</a></h1>
+<p>This section will introduce the panel types for region-based data, such as genomic
+feature definitions or score tracks.</p>
+<div class="section" id="line">
+<h2>line<a class="headerlink" href="#line" title="Permalink to this headline">¶</a></h2>
+<p>To visualise a single track of continuous scores, a simple <code class="docutils literal notranslate"><span class="pre">line</span></code> plot generally works very
+well. This plot works on any file compatible with the <a class="reference internal" href="../api/interfaces/regions_interface.html#genomic-regions"><span class="std std-ref">RegionBased</span></a> interface, which
+includes most of the common genomic data containers (BED, GFF, BigWig, Tabix, …) and almost
+all FAN-C objects.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p line architecture/domains/fanc_example_100kb.insulation_1mb.bw
+</pre></div>
+</div>
+<img alt="../_images/fancplot_line.png" src="../_images/fancplot_line.png" />
+<p>When dealing with regions of variable size or if you want to emphasise that a value is assigned
+to an interval rather than a single point, you can change the line style to a stepwise
+representation using <code class="docutils literal notranslate"><span class="pre">-s</span> <span class="pre">step</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p line -s step architecture/domains/fanc_example_100kb.insulation_1mb.bw
+</pre></div>
+</div>
+<img alt="../_images/fancplot_line_step.png" src="../_images/fancplot_line_step.png" />
+<p>If you like, you can also fill the area between the horizontal line at 0 and the curve
+using <code class="docutils literal notranslate"><span class="pre">-f</span></code></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p line -f architecture/domains/fanc_example_100kb.insulation_1mb.bw
+</pre></div>
+</div>
+<img alt="../_images/fancplot_line_fill.png" src="../_images/fancplot_line_fill.png" />
+<p>Use <code class="docutils literal notranslate"><span class="pre">-y</span></code> to set the y axis limits</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p line -f -y -1 <span class="m">1</span> architecture/domains/fanc_example_100kb.insulation_1mb.bw
+</pre></div>
+</div>
+<img alt="../_images/fancplot_line_limit.png" src="../_images/fancplot_line_limit.png" />
+<p>You can control color and transparency of the line and its fill with <code class="docutils literal notranslate"><span class="pre">-c</span></code> and <code class="docutils literal notranslate"><span class="pre">--alpha</span></code>,
+respectively. By default, the alpha value is at <code class="docutils literal notranslate"><span class="pre">0.5</span></code>. Any custom value must be between
+<code class="docutils literal notranslate"><span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">1</span></code>. To make the colors fully opaque, for example, use:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p line -f -c cyan --alpha <span class="m">1</span>. architecture/domains/fanc_example_100kb.insulation_1mb.bw
+</pre></div>
+</div>
+<img alt="../_images/fancplot_line_color.png" src="../_images/fancplot_line_color.png" />
+<p>Transparency is especially useful when plotting multiple tracks in the same panels. You can
+do this by simply adding more datasets.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p line -f architecture/domains/fanc_example_100kb.insulation_1mb.bw architecture/domains/fanc_example_100kb.insulation_2mb.bw
+</pre></div>
+</div>
+<img alt="../_images/fancplot_line_multi.png" src="../_images/fancplot_line_multi.png" />
+<p>You can label datasets with <code class="docutils literal notranslate"><span class="pre">-l</span></code>, which will add a legend to your plot. By default,
+FAN-C will try to find a placement with minimum overlap to the plotted lines. If you prefer,
+you can position the legend somewhere else using the <code class="docutils literal notranslate"><span class="pre">--legend-location</span></code> parameter.
+Possible locations can be found
+<a class="reference external" href="https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.legend.html">here</a>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p line -l 1mb 2mb -f architecture/domains/fanc_example_100kb.insulation_1mb.bw architecture/domains/fanc_example_100kb.insulation_2mb.bw
+</pre></div>
+</div>
+<img alt="../_images/fancplot_line_labels.png" src="../_images/fancplot_line_labels.png" />
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p line -l 1mb 2mb -f architecture/domains/fanc_example_100kb.insulation_1mb.bw architecture/domains/fanc_example_100kb.insulation_2mb.bw
+</pre></div>
+</div>
+<img alt="../_images/fancplot_line_legend.png" src="../_images/fancplot_line_legend.png" />
+</div>
+<div class="section" id="scores">
+<h2>scores<a class="headerlink" href="#scores" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">scores</span></code> panel type is designed for genome-wide, region-based scores, such as
+the insulation score, that depend on a central parameter, such as a window size. It
+represents scores in a heatmap, where each line corresponds to a different parameter
+value, which allows a quick survey of scores without having to commit to a specific
+parameter choice. It currently supports the <a class="reference internal" href="../api/modules/architecture/domains.html#fanc.architecture.domains.InsulationScores" title="fanc.architecture.domains.InsulationScores"><code class="xref py py-class docutils literal notranslate"><span class="pre">InsulationScores</span></code></a>
+and <a class="reference internal" href="../api/modules/architecture/domains.html#fanc.architecture.domains.DirectionalityIndexes" title="fanc.architecture.domains.DirectionalityIndexes"><code class="xref py py-class docutils literal notranslate"><span class="pre">DirectionalityIndexes</span></code></a> objects, but can in
+principle be extended to other data containers.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p scores architecture/domains/fanc_example_100kb.insulation
+</pre></div>
+</div>
+<img alt="../_images/fancplot_scores_example.png" src="../_images/fancplot_scores_example.png" />
+<p>When your parameter represents a measure of base pairs, you can use the <code class="docutils literal notranslate"><span class="pre">--genomic-format</span></code>
+or <code class="docutils literal notranslate"><span class="pre">-g</span></code> parameter for a more abbreviated representation:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p scores -g architecture/domains/fanc_example_100kb.insulation
+</pre></div>
+</div>
+<img alt="../_images/fancplot_scores_genomic.png" src="../_images/fancplot_scores_genomic.png" />
+<p>As with regular matrix plots, you can control various plot parameters such as heatmap
+color and saturation limits:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p scores -g -c PiYG -vmin -0.4 -vmax <span class="m">0</span>.4 architecture/domains/fanc_example_100kb.insulation
+</pre></div>
+</div>
+<img alt="../_images/fancplot_scores_parameters.png" src="../_images/fancplot_scores_parameters.png" />
+</div>
+<div class="section" id="bar">
+<h2>bar<a class="headerlink" href="#bar" title="Permalink to this headline">¶</a></h2>
+<p>The bar plot can be used almost in exactly the same way as the line plot above, so we
+recommend you read about <code class="docutils literal notranslate"><span class="pre">line</span></code> first. Here is an example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p bar -l 1mb 2mb architecture/domains/fanc_example_100kb.insulation_1mb.bw architecture/domains/fanc_example_100kb.insulation_2mb.bw
+</pre></div>
+</div>
+<img alt="../_images/fancplot_bar_example.png" src="../_images/fancplot_bar_example.png" />
+<p>However, <code class="docutils literal notranslate"><span class="pre">bar</span></code> may be most useful when dealing with sparse data that does not cover every
+genomic interval. One example are domain boundaries. Here is a larger region of <code class="docutils literal notranslate"><span class="pre">chr18</span></code>
+showing all possible domain boundaries called from the insulation score (<code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">boundaries</span></code>).
+The bar height corresponds to the boundary score:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:20mb-30mb -p bar architecture/domains/fanc_example_100kb.insulation_boundaries_1mb.bed
+</pre></div>
+</div>
+<img alt="../_images/fancplot_bar_boundaries.png" src="../_images/fancplot_bar_boundaries.png" />
+<p>This is especially useful in combination with the <code class="docutils literal notranslate"><span class="pre">line</span></code> plot of the insulation score, where
+you can see exactly that each score minimum corresponds to a boundary call.:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:20mb-30mb -p line architecture/domains/fanc_example_100kb.insulation_1mb.bw -p bar architecture/domains/fanc_example_100kb.insulation_boundaries_1mb.bed
+</pre></div>
+</div>
+<img alt="../_images/fancplot_bar_combined.png" src="../_images/fancplot_bar_combined.png" />
+</div>
+<div class="section" id="layer">
+<h2>layer<a class="headerlink" href="#layer" title="Permalink to this headline">¶</a></h2>
+<p>When you have a set of feature locations without an associated score, you can use a <code class="docutils literal notranslate"><span class="pre">layer</span></code>
+panel to visualise them (this also works for feature with scores, but they will be ignored).
+Using the boundary locations above:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:20mb-30mb -p layer architecture/domains/fanc_example_100kb.insulation_boundaries_1mb.bed
+</pre></div>
+</div>
+<img alt="../_images/fancplot_layer.png" src="../_images/fancplot_layer.png" />
+<p>As you can see, this will only plot the location of the provided features as rectangles - the
+height is simply a consequence of the panel height and has no biological meaning. (Remember that
+you can control the plot height using the <code class="docutils literal notranslate"><span class="pre">--aspect-ratio</span></code> argument).</p>
+<p>Where the <code class="docutils literal notranslate"><span class="pre">layer</span></code> plot really shines, and where it gets its name from, is when dealing with
+different feature types simultaneously. As an example, we have created a BED file that contains
+both the domain boundaries called with a 1mb and a 2mb insulation score window. The 1mb boundaries
+have <code class="docutils literal notranslate"><span class="pre">1mb</span></code> in the BED “name” field, while the 2mb boundaries appropriately have <code class="docutils literal notranslate"><span class="pre">2mb</span></code>. The
+name field is used by <code class="docutils literal notranslate"><span class="pre">layer</span></code> to divide features into rows:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:20mb-30mb -p layer architecture/domains/fanc_example_100kb.insulation_boundaries_1mb_and_2mb.bed
+</pre></div>
+</div>
+<img alt="../_images/fancplot_layer_bed.png" src="../_images/fancplot_layer_bed.png" />
+</div>
+<div class="section" id="genes">
+<h2>genes<a class="headerlink" href="#genes" title="Permalink to this headline">¶</a></h2>
+<p>The feature plot is very versatile, but it cannot handle exon specifications and does not label
+individual features. For that purpose, <code class="docutils literal notranslate"><span class="pre">fancplot</span></code> proves the <code class="docutils literal notranslate"><span class="pre">genes</span></code> panel. It is intended for use
+with GFF files, such as can be obtained from Gencode, although it is in principle compatible with
+any <a class="reference internal" href="../api/interfaces/regions_interface.html#genomic-regions"><span class="std std-ref">RegionBased</span></a> file (untested). It is most efficient when the GFF files have been sorted
+by chromosome and start coordinate, bgzipped and indexed with Tabix
+(<a class="reference external" href="https://www.htslib.org/doc/tabix.html#EXAMPLE">here is an example</a> you can use for Tabix indexing)</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../api/api.html" class="btn btn-neutral float-right" title="fanc Python module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="matrix_panel_types.html" class="btn btn-neutral float-left" title="Matrix panel types" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

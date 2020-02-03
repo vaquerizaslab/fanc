@@ -1,0 +1,624 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Map module &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Regions module" href="regions.html" />
+    <link rel="prev" title="Map module" href="init.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../interfaces.html">Interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../analyse.html">Analyse Hi-C matrices (API)</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../modules.html">Reference</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="init.html">init</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">map</a></li>
+<li class="toctree-l3"><a class="reference internal" href="regions.html">regions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pairs.html">pairs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="matrix.html">matrix</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hic.html">hic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="peaks.html">peaks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="compatibility.html">compatibility</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html">architecture</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plotting.html">plotting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tools.html">tools</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../api.html">fanc Python module</a> &raquo;</li>
+        
+          <li><a href="../modules.html">FAN-C Python modules</a> &raquo;</li>
+        
+      <li>Map module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/api/modules/map.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-fanc.map">
+<span id="map-module"></span><h1>Map module<a class="headerlink" href="#module-fanc.map" title="Permalink to this headline">¶</a></h1>
+<p>This module performs iterative mapping of reads in FASTQ files to a reference genome.</p>
+<p>The main function is <a class="reference internal" href="#fanc.map.iterative_mapping" title="fanc.map.iterative_mapping"><code class="xref py py-func docutils literal notranslate"><span class="pre">iterative_mapping()</span></code></a>, which requires an input FASTQ file,
+an output SAM file, and a suitable mapper. Mapper options are <a class="reference internal" href="#fanc.map.Bowtie2Mapper" title="fanc.map.Bowtie2Mapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">Bowtie2Mapper</span></code></a>
+and <a class="reference internal" href="#fanc.map.BwaMapper" title="fanc.map.BwaMapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">BwaMapper</span></code></a> for the time being, but by subclassing <code class="xref py py-class docutils literal notranslate"><span class="pre">Mapper</span></code> a user
+can easily write their own mapper implementations that can fully leverage the iterative
+mapping capabilities of FAN-C. Take a look at the code of <a class="reference internal" href="#fanc.map.Bowtie2Mapper" title="fanc.map.Bowtie2Mapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">Bowtie2Mapper</span></code></a> for
+an example.</p>
+<p>Example usage:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
+<span class="n">mapper</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">BwaMapper</span><span class="p">(</span><span class="s2">&quot;bwa-index/hg19_chr18_19.fa&quot;</span><span class="p">,</span> <span class="n">min_quality</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">fanc</span><span class="o">.</span><span class="n">iterative_mapping</span><span class="p">(</span><span class="s2">&quot;SRR4271982_chr18_19_1.fastq.gzip&quot;</span><span class="p">,</span> <span class="s2">&quot;SRR4271982_chr18_19_1.bam&quot;</span><span class="p">,</span>
+                       <span class="n">mapper</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">restriction_enzyme</span><span class="o">=</span><span class="s2">&quot;HindIII&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="class">
+<dt id="fanc.map.Bowtie2Mapper">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.map.</code><code class="sig-name descname">Bowtie2Mapper</code><span class="sig-paren">(</span><em class="sig-param">bowtie2_index</em>, <em class="sig-param">min_quality=30</em>, <em class="sig-param">additional_arguments=()</em>, <em class="sig-param">threads=1</em>, <em class="sig-param">_bowtie2_path='bowtie2'</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.Bowtie2Mapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.map.Mapper</span></code></p>
+<p>Bowtie2 Mapper for aligning reads against a reference genome.</p>
+<p>Implements <code class="xref py py-class docutils literal notranslate"><span class="pre">Mapper</span></code> by calling the command line “bowtie2”
+program.</p>
+<dl class="attribute">
+<dt id="fanc.map.Bowtie2Mapper.bowtie2_index">
+<code class="sig-name descname">bowtie2_index</code><a class="headerlink" href="#fanc.map.Bowtie2Mapper.bowtie2_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path to the bowtie2 index of the reference genome of choice.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.Bowtie2Mapper.min_quality">
+<code class="sig-name descname">min_quality</code><a class="headerlink" href="#fanc.map.Bowtie2Mapper.min_quality" title="Permalink to this definition">¶</a></dt>
+<dd><p>Minimum MAPQ of an alignment so that it won’t be resubmitted in
+iterative mapping.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.Bowtie2Mapper.additional_arguments">
+<code class="sig-name descname">additional_arguments</code><a class="headerlink" href="#fanc.map.Bowtie2Mapper.additional_arguments" title="Permalink to this definition">¶</a></dt>
+<dd><p>Arguments passed to the “bowtie2” command in addition to
+-x, -U, –no-unal, –threads, and -S.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.Bowtie2Mapper.threads">
+<code class="sig-name descname">threads</code><a class="headerlink" href="#fanc.map.Bowtie2Mapper.threads" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of threads for this mapping process.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.map.Bowtie2Mapper.close">
+<code class="sig-name descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.Bowtie2Mapper.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Final operations after mapping completes.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.map.Bowtie2Mapper.map">
+<code class="sig-name descname">map</code><span class="sig-paren">(</span><em class="sig-param">input_file</em>, <em class="sig-param">output_folder=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.Bowtie2Mapper.map" title="Permalink to this definition">¶</a></dt>
+<dd><p>Map reads in the given FASTQ file using <code class="xref py py-func docutils literal notranslate"><span class="pre">_map()</span></code> implementation.</p>
+<p>Will internally map the FASTQ reads to a SAM file in a
+temporary folder (use output_folder to choose a specific folder),
+split the SAM output into (i) valid alignments according to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">_resubmit()</span></code> and (ii) invalid alignments that get
+caught by the resubmission filter. A FASTQ file will be constructed
+from the invalid alignments, extending the reads by a given step size,
+which can then be used to iteratively repeat the mapping process until
+a valid alignment is found or the full length of the read has been
+restored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_file</strong> – Path to FASTQ file</p></li>
+<li><p><strong>output_folder</strong> – (optional) path to temporary folder for SAM output</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>tuple, path to valid SAM alignments, path to resubmission FASTQ</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.map.Bowtie2Mapper.resubmit">
+<code class="sig-name descname">resubmit</code><span class="sig-paren">(</span><em class="sig-param">sam_fields</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.Bowtie2Mapper.resubmit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if an alignment should be resubmitted.</p>
+<p>Filters unmappable reads by default. Additional criteria can be
+implemented using the <code class="xref py py-func docutils literal notranslate"><span class="pre">_resubmit()</span></code> method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sam_fields</strong> – The individual fields in a SAM line (split by tab)</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True if read should be extended and aligned to the reference again,
+False if the read passes the validity criteria.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.map.BwaMapper">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.map.</code><code class="sig-name descname">BwaMapper</code><span class="sig-paren">(</span><em class="sig-param">bwa_index</em>, <em class="sig-param">min_quality=0</em>, <em class="sig-param">additional_arguments=()</em>, <em class="sig-param">threads=1</em>, <em class="sig-param">algorithm='mem'</em>, <em class="sig-param">memory_map=False</em>, <em class="sig-param">_bwa_path='bwa'</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.BwaMapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.map.Mapper</span></code></p>
+<p>BWA Mapper for aligning reads against a reference genome.</p>
+<p>Implements <code class="xref py py-class docutils literal notranslate"><span class="pre">Mapper</span></code> by calling the command line “bwa”
+program.</p>
+<dl class="attribute">
+<dt id="fanc.map.BwaMapper.bwa_index">
+<code class="sig-name descname">bwa_index</code><a class="headerlink" href="#fanc.map.BwaMapper.bwa_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path to the BWA index of the reference genome of choice.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.BwaMapper.min_quality">
+<code class="sig-name descname">min_quality</code><a class="headerlink" href="#fanc.map.BwaMapper.min_quality" title="Permalink to this definition">¶</a></dt>
+<dd><p>Minimum MAPQ of an alignment so that it won’t be resubmitted in
+iterative mapping.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.BwaMapper.additional_arguments">
+<code class="sig-name descname">additional_arguments</code><a class="headerlink" href="#fanc.map.BwaMapper.additional_arguments" title="Permalink to this definition">¶</a></dt>
+<dd><p>Arguments passed to the “bowtie2” command in addition to
+-t and -o.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.BwaMapper.threads">
+<code class="sig-name descname">threads</code><a class="headerlink" href="#fanc.map.BwaMapper.threads" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of threads for this mapping process.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.BwaMapper.algorithm">
+<code class="sig-name descname">algorithm</code><a class="headerlink" href="#fanc.map.BwaMapper.algorithm" title="Permalink to this definition">¶</a></dt>
+<dd><p>BWA algorithm to use for mapping. Uses “mem” by default.
+See <a class="reference external" href="http://bio-bwa.sourceforge.net/bwa.shtml">http://bio-bwa.sourceforge.net/bwa.shtml</a> for other options.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.map.BwaMapper.close">
+<code class="sig-name descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.BwaMapper.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Final operations after mapping completes.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.map.BwaMapper.map">
+<code class="sig-name descname">map</code><span class="sig-paren">(</span><em class="sig-param">input_file</em>, <em class="sig-param">output_folder=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.BwaMapper.map" title="Permalink to this definition">¶</a></dt>
+<dd><p>Map reads in the given FASTQ file using <code class="xref py py-func docutils literal notranslate"><span class="pre">_map()</span></code> implementation.</p>
+<p>Will internally map the FASTQ reads to a SAM file in a
+temporary folder (use output_folder to choose a specific folder),
+split the SAM output into (i) valid alignments according to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">_resubmit()</span></code> and (ii) invalid alignments that get
+caught by the resubmission filter. A FASTQ file will be constructed
+from the invalid alignments, extending the reads by a given step size,
+which can then be used to iteratively repeat the mapping process until
+a valid alignment is found or the full length of the read has been
+restored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_file</strong> – Path to FASTQ file</p></li>
+<li><p><strong>output_folder</strong> – (optional) path to temporary folder for SAM output</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>tuple, path to valid SAM alignments, path to resubmission FASTQ</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.map.BwaMapper.resubmit">
+<code class="sig-name descname">resubmit</code><span class="sig-paren">(</span><em class="sig-param">sam_fields</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.BwaMapper.resubmit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if an alignment should be resubmitted.</p>
+<p>Filters unmappable reads by default. Additional criteria can be
+implemented using the <code class="xref py py-func docutils literal notranslate"><span class="pre">_resubmit()</span></code> method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sam_fields</strong> – The individual fields in a SAM line (split by tab)</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True if read should be extended and aligned to the reference again,
+False if the read passes the validity criteria.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.map.SimpleBowtie2Mapper">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.map.</code><code class="sig-name descname">SimpleBowtie2Mapper</code><span class="sig-paren">(</span><em class="sig-param">bowtie2_index</em>, <em class="sig-param">additional_arguments=()</em>, <em class="sig-param">threads=1</em>, <em class="sig-param">_bowtie2_path='bowtie2'</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.SimpleBowtie2Mapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#fanc.map.Bowtie2Mapper" title="fanc.map.Bowtie2Mapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.map.Bowtie2Mapper</span></code></a></p>
+<p>Bowtie2 Mapper for aligning reads against a reference genome without resubmission.</p>
+<p>Implements <code class="xref py py-class docutils literal notranslate"><span class="pre">Mapper</span></code> by calling the command line “bowtie2”
+program. Does not resubmit reads under any circumstance.</p>
+<dl class="attribute">
+<dt id="fanc.map.SimpleBowtie2Mapper.bowtie2_index">
+<code class="sig-name descname">bowtie2_index</code><a class="headerlink" href="#fanc.map.SimpleBowtie2Mapper.bowtie2_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path to the bowtie2 index of the reference genome of choice.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.SimpleBowtie2Mapper.additional_arguments">
+<code class="sig-name descname">additional_arguments</code><a class="headerlink" href="#fanc.map.SimpleBowtie2Mapper.additional_arguments" title="Permalink to this definition">¶</a></dt>
+<dd><p>Arguments passed to the “bowtie2” command in addition to
+-x, -U, –no-unal, –threads, and -S.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.SimpleBowtie2Mapper.threads">
+<code class="sig-name descname">threads</code><a class="headerlink" href="#fanc.map.SimpleBowtie2Mapper.threads" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of threads for this mapping process.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.map.SimpleBowtie2Mapper.close">
+<code class="sig-name descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.SimpleBowtie2Mapper.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Final operations after mapping completes.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.map.SimpleBowtie2Mapper.map">
+<code class="sig-name descname">map</code><span class="sig-paren">(</span><em class="sig-param">input_file</em>, <em class="sig-param">output_folder=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.SimpleBowtie2Mapper.map" title="Permalink to this definition">¶</a></dt>
+<dd><p>Map reads in the given FASTQ file using <code class="xref py py-func docutils literal notranslate"><span class="pre">_map()</span></code> implementation.</p>
+<p>Will internally map the FASTQ reads to a SAM file in a
+temporary folder (use output_folder to choose a specific folder),
+split the SAM output into (i) valid alignments according to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">_resubmit()</span></code> and (ii) invalid alignments that get
+caught by the resubmission filter. A FASTQ file will be constructed
+from the invalid alignments, extending the reads by a given step size,
+which can then be used to iteratively repeat the mapping process until
+a valid alignment is found or the full length of the read has been
+restored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_file</strong> – Path to FASTQ file</p></li>
+<li><p><strong>output_folder</strong> – (optional) path to temporary folder for SAM output</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>tuple, path to valid SAM alignments, path to resubmission FASTQ</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.map.SimpleBowtie2Mapper.resubmit">
+<code class="sig-name descname">resubmit</code><span class="sig-paren">(</span><em class="sig-param">sam_fields</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.SimpleBowtie2Mapper.resubmit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if an alignment should be resubmitted.</p>
+<p>Filters unmappable reads by default. Additional criteria can be
+implemented using the <code class="xref py py-func docutils literal notranslate"><span class="pre">_resubmit()</span></code> method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sam_fields</strong> – The individual fields in a SAM line (split by tab)</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True if read should be extended and aligned to the reference again,
+False if the read passes the validity criteria.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.map.SimpleBwaMapper">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.map.</code><code class="sig-name descname">SimpleBwaMapper</code><span class="sig-paren">(</span><em class="sig-param">bwa_index</em>, <em class="sig-param">additional_arguments=()</em>, <em class="sig-param">threads=1</em>, <em class="sig-param">memory_map=False</em>, <em class="sig-param">_bwa_path='bwa'</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.SimpleBwaMapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#fanc.map.BwaMapper" title="fanc.map.BwaMapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.map.BwaMapper</span></code></a></p>
+<p>BWA Mapper for aligning reads against a reference genome without resubmission.</p>
+<p>Implements <code class="xref py py-class docutils literal notranslate"><span class="pre">Mapper</span></code> by calling the command line “bwa”
+program. Does not resubmit reads under any circumstance, i.e.
+does not perform iterative mapping.</p>
+<dl class="attribute">
+<dt id="fanc.map.SimpleBwaMapper.bwa_index">
+<code class="sig-name descname">bwa_index</code><a class="headerlink" href="#fanc.map.SimpleBwaMapper.bwa_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path to the BWA index of the reference genome of choice.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.SimpleBwaMapper.min_quality">
+<code class="sig-name descname">min_quality</code><a class="headerlink" href="#fanc.map.SimpleBwaMapper.min_quality" title="Permalink to this definition">¶</a></dt>
+<dd><p>Minimum MAPQ of an alignment so that it won’t be resubmitted in
+iterative mapping.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.SimpleBwaMapper.additional_arguments">
+<code class="sig-name descname">additional_arguments</code><a class="headerlink" href="#fanc.map.SimpleBwaMapper.additional_arguments" title="Permalink to this definition">¶</a></dt>
+<dd><p>Arguments passed to the “bowtie2” command in addition to
+-t and -o.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.SimpleBwaMapper.threads">
+<code class="sig-name descname">threads</code><a class="headerlink" href="#fanc.map.SimpleBwaMapper.threads" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of threads for this mapping process.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fanc.map.SimpleBwaMapper.algorithm">
+<code class="sig-name descname">algorithm</code><a class="headerlink" href="#fanc.map.SimpleBwaMapper.algorithm" title="Permalink to this definition">¶</a></dt>
+<dd><p>BWA algorithm to use for mapping. Uses “mem” by default.
+See <a class="reference external" href="http://bio-bwa.sourceforge.net/bwa.shtml">http://bio-bwa.sourceforge.net/bwa.shtml</a> for other options.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.map.SimpleBwaMapper.close">
+<code class="sig-name descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.SimpleBwaMapper.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Final operations after mapping completes.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.map.SimpleBwaMapper.map">
+<code class="sig-name descname">map</code><span class="sig-paren">(</span><em class="sig-param">input_file</em>, <em class="sig-param">output_folder=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.SimpleBwaMapper.map" title="Permalink to this definition">¶</a></dt>
+<dd><p>Map reads in the given FASTQ file using <code class="xref py py-func docutils literal notranslate"><span class="pre">_map()</span></code> implementation.</p>
+<p>Will internally map the FASTQ reads to a SAM file in a
+temporary folder (use output_folder to choose a specific folder),
+split the SAM output into (i) valid alignments according to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">_resubmit()</span></code> and (ii) invalid alignments that get
+caught by the resubmission filter. A FASTQ file will be constructed
+from the invalid alignments, extending the reads by a given step size,
+which can then be used to iteratively repeat the mapping process until
+a valid alignment is found or the full length of the read has been
+restored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_file</strong> – Path to FASTQ file</p></li>
+<li><p><strong>output_folder</strong> – (optional) path to temporary folder for SAM output</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>tuple, path to valid SAM alignments, path to resubmission FASTQ</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.map.SimpleBwaMapper.resubmit">
+<code class="sig-name descname">resubmit</code><span class="sig-paren">(</span><em class="sig-param">sam_fields</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.SimpleBwaMapper.resubmit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if an alignment should be resubmitted.</p>
+<p>Filters unmappable reads by default. Additional criteria can be
+implemented using the <code class="xref py py-func docutils literal notranslate"><span class="pre">_resubmit()</span></code> method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sam_fields</strong> – The individual fields in a SAM line (split by tab)</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True if read should be extended and aligned to the reference again,
+False if the read passes the validity criteria.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="fanc.map.iterative_mapping">
+<code class="sig-prename descclassname">fanc.map.</code><code class="sig-name descname">iterative_mapping</code><span class="sig-paren">(</span><em class="sig-param">fastq_file</em>, <em class="sig-param">sam_file</em>, <em class="sig-param">mapper</em>, <em class="sig-param">tmp_folder=None</em>, <em class="sig-param">threads=1</em>, <em class="sig-param">min_size=25</em>, <em class="sig-param">step_size=5</em>, <em class="sig-param">batch_size=200000</em>, <em class="sig-param">trim_front=False</em>, <em class="sig-param">restriction_enzyme=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.map.iterative_mapping" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iteratively map sequencing reads using the provided mapper.</p>
+<p>Will attempt to align a read using mapper. If unsuccessful, will
+truncate the read by step_size and attempt to align again. This is
+repeated until a successful alignment is found or the read gets
+truncated below min_size.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fastq_file</strong> – An input FASTQ file path with reds to align</p></li>
+<li><p><strong>sam_file</strong> – An output file path for sequencing results.
+If it ends with ‘.bam’ will compress output
+in bam format.</p></li>
+<li><p><strong>mapper</strong> – An instance of <code class="xref py py-class docutils literal notranslate"><span class="pre">Mapper</span></code>, e.g. <a class="reference internal" href="#fanc.map.Bowtie2Mapper" title="fanc.map.Bowtie2Mapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">Bowtie2Mapper</span></code></a>.
+Override <code class="xref py py-class docutils literal notranslate"><span class="pre">Mapper</span></code> for creating your own custom mappers.</p></li>
+<li><p><strong>tmp_folder</strong> – A temporary folder for outputting subsets of FASTQ files</p></li>
+<li><p><strong>threads</strong> – Number of mapper threads to use in parallel.</p></li>
+<li><p><strong>min_size</strong> – Minimum length of read for which an alignment is attempted.</p></li>
+<li><p><strong>step_size</strong> – Number of base pairs by which to truncate read.</p></li>
+<li><p><strong>batch_size</strong> – Maximum number of reads processed in one batch</p></li>
+<li><p><strong>trim_front</strong> – Trim bases from front of read instead of back</p></li>
+<li><p><strong>restriction_enzyme</strong> – If provided, will calculate the expected ligation
+junction between reads and split reads accordingly.
+Both ends will be attempted to map. Can be the name
+of a restriction enzyme or a restriction pattern
+(e.g. A^AGCT_T)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="regions.html" class="btn btn-neutral float-right" title="Regions module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="init.html" class="btn btn-neutral float-left" title="Map module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

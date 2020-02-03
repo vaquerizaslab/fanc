@@ -1,0 +1,543 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>RegionPairsContainer &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="RegionMatrixContainer" href="matrix_interface.html" />
+    <link rel="prev" title="RegionBased" href="regions_interface.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../interfaces.html">Interfaces</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="regions_interface.html">Genomic regions (RegionBased interface)</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Edges (contacts, pixels, ...) (RegionPairsContainer interface)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#the-edge-class">The Edge class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#the-edges-function">The edges function</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#other-functions">Other functions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="matrix_interface.html">Matrices (RegionMatrixContainer interface)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../analyse.html">Analyse Hi-C matrices (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules.html">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../api.html">fanc Python module</a> &raquo;</li>
+        
+          <li><a href="../interfaces.html">Common interfaces</a> &raquo;</li>
+        
+      <li>RegionPairsContainer</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/api/interfaces/edges_interface.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="regionpairscontainer">
+<span id="edges-interface"></span><h1>RegionPairsContainer<a class="headerlink" href="#regionpairscontainer" title="Permalink to this headline">¶</a></h1>
+<p>This interface provides common properties and functions to data based on pairs of regions.
+A typical example in this regard would be pairs of ligated fragments in a Hi-C library, as
+represented within FAN-C by the <a class="reference internal" href="../modules/pairs.html#fanc.pairs.ReadPairs" title="fanc.pairs.ReadPairs"><code class="xref py py-class docutils literal notranslate"><span class="pre">ReadPairs</span></code></a> class. But also matrix-based
+data, such as in <code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code> can be interpreted as scores between pairs of
+binned genomic regions, hence it also supports the <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code></a>
+interface. After loading a dataset using <a class="reference internal" href="../modules/tools/load.html#fanc.tools.load.load" title="fanc.tools.load.load"><code class="xref py py-func docutils literal notranslate"><span class="pre">load()</span></code></a>, you can check for
+support of the <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code></a> interface with:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hic</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;examples/output/hic/binned/fanc_example_500kb.hic&quot;</span><span class="p">)</span>
+<span class="nb">isinstance</span><span class="p">(</span><span class="n">hic</span><span class="p">,</span> <span class="n">fanc</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">RegionPairsContainer</span><span class="p">)</span>  <span class="c1"># True if interface supported</span>
+</pre></div>
+</div>
+<p>The current list of FAN-C classes supporting <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code></a> is:
+<a class="reference internal" href="../modules/pairs.html#fanc.pairs.ReadPairs" title="fanc.pairs.ReadPairs"><code class="xref py py-class docutils literal notranslate"><span class="pre">ReadPairs</span></code></a>,
+<a class="reference internal" href="../modules/compatibility/cooler.html#fanc.compatibility.cooler.CoolerHic" title="fanc.compatibility.cooler.CoolerHic"><code class="xref py py-class docutils literal notranslate"><span class="pre">CoolerHic</span></code></a>,
+<a class="reference internal" href="../modules/compatibility/juicer.html#fanc.compatibility.juicer.JuicerHic" title="fanc.compatibility.juicer.JuicerHic"><code class="xref py py-class docutils literal notranslate"><span class="pre">JuicerHic</span></code></a>,
+<a class="reference internal" href="../modules/hic.html#fanc.hic.Hic" title="fanc.hic.Hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code></a>,
+<a class="reference internal" href="../modules/architecture/compartments.html#fanc.architecture.compartments.ABCompartmentMatrix" title="fanc.architecture.compartments.ABCompartmentMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">ABCompartmentMatrix</span></code></a>,
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.DifferenceMatrix" title="fanc.architecture.comparisons.DifferenceMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">DifferenceMatrix</span></code></a>,
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.FoldChangeMatrix" title="fanc.architecture.comparisons.FoldChangeMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">FoldChangeMatrix</span></code></a>,
+<a class="reference internal" href="../modules/peaks.html#fanc.peaks.PeakInfo" title="fanc.peaks.PeakInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">PeakInfo</span></code></a>,
+and
+<a class="reference internal" href="../modules/peaks.html#fanc.peaks.RaoPeakInfo" title="fanc.peaks.RaoPeakInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">RaoPeakInfo</span></code></a>.</p>
+<div class="section" id="the-edge-class">
+<h2>The Edge class<a class="headerlink" href="#the-edge-class" title="Permalink to this headline">¶</a></h2>
+<p>In <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code></a> objects, the basic data type is
+<a class="reference internal" href="../modules/matrix.html#fanc.matrix.Edge" title="fanc.matrix.Edge"><code class="xref py py-class docutils literal notranslate"><span class="pre">Edge</span></code></a>. It “connects” two <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>
+objects, called “nodes” within the context of the edge, and supports arbitrary
+property annotations, which typically include an edge “weight”. Additionally,
+regions are typically associated with an index <code class="code docutils literal notranslate"><span class="pre">ix</span></code>, which refers to their
+position in the region list of the <code class="xref py py-class docutils literal notranslate"><span class="pre">genomic_regions.RegionBased</span></code> container.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># create a few regions</span>
+<span class="n">region1</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">GenomicRegion</span><span class="p">(</span><span class="n">chromosome</span><span class="o">=</span><span class="s1">&#39;chr1&#39;</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">ix</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">region2</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">GenomicRegion</span><span class="p">(</span><span class="n">chromosome</span><span class="o">=</span><span class="s1">&#39;chr1&#39;</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1001</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span> <span class="n">ix</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">region3</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">GenomicRegion</span><span class="p">(</span><span class="n">chromosome</span><span class="o">=</span><span class="s1">&#39;chr2&#39;</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">ix</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="c1"># connect regions with edges</span>
+<span class="n">edge1</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">Edge</span><span class="p">(</span><span class="n">region1</span><span class="p">,</span> <span class="n">region2</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">edge2</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">Edge</span><span class="p">(</span><span class="n">region1</span><span class="p">,</span> <span class="n">region3</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">foo</span><span class="o">=</span><span class="s1">&#39;test&#39;</span><span class="p">)</span>
+<span class="n">edge3</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">Edge</span><span class="p">(</span><span class="n">region2</span><span class="p">,</span> <span class="n">region3</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">bar</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>The underlying regions can be accessed using the <code class="code docutils literal notranslate"><span class="pre">source_node</span></code> and
+<code class="code docutils literal notranslate"><span class="pre">sink_node</span></code> properties:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">region1</span> <span class="o">=</span> <span class="n">edge1</span><span class="o">.</span><span class="n">source_node</span>
+<span class="n">region2</span> <span class="o">=</span> <span class="n">edge1</span><span class="o">.</span><span class="n">sink_node</span>
+</pre></div>
+</div>
+<p>Accessing regions in this way can be computationally inefficient (depending on the
+internal structure of the container), which is why the recommended way of accessing
+regions connected by an edge is through their region index. This is a number describing
+each region’s location in the list of regions in that container.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge1</span><span class="o">.</span><span class="n">source</span>  <span class="c1"># 0</span>
+<span class="n">edge1</span><span class="o">.</span><span class="n">sink</span>  <span class="c1"># 1</span>
+</pre></div>
+</div>
+<p>the corresponding regions can then be looked up in the region list:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">source_region</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="n">edge1</span><span class="o">.</span><span class="n">source</span><span class="p">]</span>
+<span class="n">sink_region</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="n">edge1</span><span class="o">.</span><span class="n">sink</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>of, if processing a large number of edges this way, it is more efficient to obtain
+the list of regions in advance:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">regions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">hic</span><span class="o">.</span><span class="n">regions</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">:</span>
+    <span class="n">region1</span> <span class="o">=</span> <span class="n">regions</span><span class="p">[</span><span class="n">edge</span><span class="o">.</span><span class="n">source</span><span class="p">]</span>
+    <span class="n">region2</span> <span class="o">=</span> <span class="n">regions</span><span class="p">[</span><span class="n">edge</span><span class="o">.</span><span class="n">sink</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>It is possible to create an edge using only region indexes, without directly
+linking it to a region object:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge_ix</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">Edge</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>A call to <code class="code docutils literal notranslate"><span class="pre">source_node</span></code> or <code class="code docutils literal notranslate"><span class="pre">sink_node</span></code> will then raise a <code class="code docutils literal notranslate"><span class="pre">ValueError</span></code>.</p>
+<p><code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code> object edges and many other objects have a “weight”
+property, describing, for example, their (normalised) ligation frequency or contact
+probability. This properties value is internally multiplied by the value of
+<code class="code docutils literal notranslate"><span class="pre">edge.bias</span></code> for correction on the fly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge1</span><span class="o">.</span><span class="n">weight</span>  <span class="c1"># returns &quot;raw&quot; edge weight multiplied by edge.bias</span>
+<span class="n">edge1</span><span class="o">.</span><span class="n">bias</span>  <span class="c1"># return the &quot;correction factor&quot; that is applied to weight</span>
+</pre></div>
+</div>
+<p>If, for example, an <a class="reference internal" href="../modules/matrix.html#fanc.matrix.Edge" title="fanc.matrix.Edge"><code class="xref py py-class docutils literal notranslate"><span class="pre">Edge</span></code></a> is created like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">Edge</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">edge</span><span class="p">)</span>  <span class="c1"># 0--3; bias: 1.0; weight: 10.0</span>
+<span class="k">print</span><span class="p">(</span><span class="n">edge</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>  <span class="c1"># 10.0</span>
+</pre></div>
+</div>
+<p>its weight will be as assigned at object creation time. We can modify that value
+indirectly by changing the bias:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="mf">0.5</span>
+<span class="k">print</span><span class="p">(</span><span class="n">edge</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>  <span class="c1"># 5.0</span>
+</pre></div>
+</div>
+<p>Other properties are unaffected by the bias value, and can be assigned arbitrarily:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge</span><span class="o">.</span><span class="n">foo</span> <span class="o">=</span> <span class="mf">1.</span>
+<span class="n">edge</span><span class="o">.</span><span class="n">bar</span> <span class="o">=</span> <span class="s1">&#39;test&#39;</span>
+<span class="n">edge</span><span class="o">.</span><span class="n">baz</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Note, however, that not all data types support saving those arbitrary properties in the
+container, and that most of the time you are working with copies of data stored in the
+container, which remains unmodified even if the edge object is changed. There are exemptions
+from this, which will be discussed below.</p>
+</div>
+<div class="section" id="the-edges-function">
+<h2>The edges function<a class="headerlink" href="#the-edges-function" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code></a> compatible objects are built on lists of
+regions, which can be accessed and queried using the <code class="xref py py-func docutils literal notranslate"><span class="pre">regions()</span></code>
+function (see <a class="reference internal" href="regions_interface.html#genomic-regions"><span class="std std-ref">RegionBased</span></a>), and lists of edges. This section shows how these
+edge lists can be queried using the <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.edges" title="fanc.matrix.RegionPairsContainer.edges"><code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></a>
+function.</p>
+<p>In its simplest form, <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.edges" title="fanc.matrix.RegionPairsContainer.edges"><code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></a> can simply be used as
+a property and returns an iterator over all edges in the object. We can use this, for example,
+to count the edges in the object (not the sum of weights):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge_counter</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">:</span>
+    <span class="n">edge_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>We can also do this much more simply (and efficiently) by using the built-in <code class="code docutils literal notranslate"><span class="pre">len</span></code> function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">len</span><span class="p">(</span><span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The real power of <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.edges" title="fanc.matrix.RegionPairsContainer.edges"><code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></a>, however, lies in its use as
+a function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge_counter</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">():</span>
+    <span class="n">edge_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>Note the <code class="code docutils literal notranslate"><span class="pre">()</span></code>. This works exactly as the above command without the function call, but now
+we can introduce additional arguments. For example, to only iterate over intra-chromosomal
+edges, simply do:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge_counter</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">inter_chromosomal</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="n">edge_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>To only return edges connected to chromosome 19, do:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge_counter</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="s1">&#39;chr19&#39;</span><span class="p">):</span>
+    <span class="n">edge_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>Importantly, this returns all edges where either source, or sink, or both connected nodes are
+on chromosome 19, including, for example, inter-chromosomal edges between chromosome 18 and 19.
+To only return edges within chromosome 19 (source and sink), you can combine this with
+the <code class="code docutils literal notranslate"><span class="pre">inter_chromosomal=False</span></code> parameter. However, it is generally more efficient to use
+2-dimensional selectors:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># only return intra-chromosomal edges on chromosome 19</span>
+<span class="n">edge_counter</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">((</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">)):</span>
+    <span class="n">edge_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+
+<span class="c1"># only return inter-chromosomal edges between chromosome 18 and 19</span>
+<span class="n">edge_counter</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">((</span><span class="s1">&#39;chr18&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">)):</span>
+    <span class="n">edge_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>Selectors support arbitrary region definitions and human-readable abbreviations:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge_counter</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">((</span><span class="s1">&#39;chr19:1mb-15mb&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19:30.5mb-45000000&#39;</span><span class="p">)):</span>
+    <span class="n">edge_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>Of course, selectors also directly support <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> objects:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge_counter</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">region</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">GenomicRegion</span><span class="p">(</span><span class="n">chromosome</span><span class="o">=</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">6000000</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="mi">18000000</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">((</span><span class="n">region</span><span class="p">,</span> <span class="n">region</span><span class="p">)):</span>
+    <span class="n">edge_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>When dealing with normalised data (such as balanced Hi-C matrices), the returned edge weights
+are already normalised. You can disable the normalisation on the fly using the
+<code class="code docutils literal notranslate"><span class="pre">norm=False</span></code> argument:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">valid_pairs</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="n">valid_pairs</span> <span class="o">+=</span> <span class="n">edge</span><span class="o">.</span><span class="n">weight</span>  <span class="c1"># here, the edge weight is an unnormalised integer</span>
+</pre></div>
+</div>
+<p>As shown above, this can be used to count the number of valid pairs in the object, for example.</p>
+<div class="section" id="lazy-evaluation">
+<span id="id1"></span><h3>Lazy evaluation<a class="headerlink" href="#lazy-evaluation" title="Permalink to this headline">¶</a></h3>
+<p>Hi-C datasets are often very large, with hundreds of millions, even billions of valid pairs
+in the matrix. The process of creating a unique <code class="xref py py-class docutils literal notranslate"><span class="pre">Edge</span></code> object for every
+matrix entry can thus cumulatively take a significant amount of time. For this reason, FAN-C
+offers <em>lazy</em> evaluation of edge properties. When enabled, edge data is only
+read when it is requested. This, for example, avoids reading from file when it is not absolutely
+necessary, and saves on time during object creation and population. Edge iterators support
+lazy evaluation through the <code class="code docutils literal notranslate"><span class="pre">lazy</span></code> argument:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">weights</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="n">weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">edge</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This is significantly faster than the default <code class="code docutils literal notranslate"><span class="pre">lazy=False</span></code> iteration. However, using
+lazy iterators it is easy to encounter confusing situations. Because data is only provided
+when explicitly requested from an edge, the following code does not work as intended:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># THIS IS WRONG!</span>
+<span class="n">edges</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="n">edges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">edge</span><span class="p">)</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">edges</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sink</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+<span class="c1"># (159, 248, 0.002386864930511163)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">edges</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">sink</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+<span class="c1"># (159, 248, 0.002386864930511163)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">edges</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">sink</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+<span class="c1"># (159, 248, 0.002386864930511163)</span>
+<span class="c1"># ...</span>
+</pre></div>
+</div>
+<p>All edges in the list are identical! This is because lazy iterations use only a single
+instance of the <a class="reference internal" href="../modules/matrix.html#fanc.matrix.LazyEdge" title="fanc.matrix.LazyEdge"><code class="xref py py-class docutils literal notranslate"><span class="pre">LazyEdge</span></code></a> object, which simply points to the
+data location in the edge in the current iteration. This pointer is replaced for the
+following edge in the next iteration, but the actual object remains the same. The result
+is a list of the same <a class="reference internal" href="../modules/matrix.html#fanc.matrix.LazyEdge" title="fanc.matrix.LazyEdge"><code class="xref py py-class docutils literal notranslate"><span class="pre">LazyEdge</span></code></a> object pointing to the same edge
+data.</p>
+<p>Here is the correct way of obtaining data using lazy iterators:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge_data</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="n">edge_data</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">edge</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">edge</span><span class="o">.</span><span class="n">sink</span><span class="p">,</span> <span class="n">edge</span><span class="o">.</span><span class="n">weight</span><span class="p">))</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">edge_data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
+<span class="c1"># 84 85 0.08227859035794333</span>
+<span class="k">print</span><span class="p">(</span><span class="n">edge_data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
+<span class="c1"># 48 56 0.012760965147510347</span>
+<span class="k">print</span><span class="p">(</span><span class="n">edge_data</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
+<span class="c1"># 10 153 0.0056418570804748725</span>
+<span class="c1"># ...</span>
+</pre></div>
+</div>
+<p>The example accesses the edge data in the loop and stores it independently of the
+<a class="reference internal" href="../modules/matrix.html#fanc.matrix.LazyEdge" title="fanc.matrix.LazyEdge"><code class="xref py py-class docutils literal notranslate"><span class="pre">LazyEdge</span></code></a> object. Lazy iterators can greatly speed up your analyses,
+but <strong>be very careful</strong> working with them!</p>
+<p>Another useful feature of lazy iterators is that they support data modification for
+native FAN-C objects. For example, you double the edge weight of each edge in the
+object like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="n">edge</span><span class="o">.</span><span class="n">weight</span> <span class="o">*=</span> <span class="mi">2</span>
+    <span class="n">edge</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>This only works for files opened in append mode (<code class="code docutils literal notranslate"><span class="pre">mode='a'</span></code>), and will throw an
+error for files opened in read-only mode. The <a class="reference internal" href="../modules/matrix.html#fanc.matrix.LazyEdge.update" title="fanc.matrix.LazyEdge.update"><code class="xref py py-func docutils literal notranslate"><span class="pre">update()</span></code></a> function
+ensures data is written to file after modifying it.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Modifying edges this way can come with unwanted consequences, and is highly discouraged.
+Potential issues include a bias vector that no longer matches, possible duplicate edges
+with unknown effect on analysis functions, messed up mappability calculations and more.
+We always recommend to create an object from scratch with the properties you want instead
+of modifying an existing one.</p>
+</div>
+</div>
+</div>
+<div class="section" id="other-functions">
+<h2>Other functions<a class="headerlink" href="#other-functions" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.edges" title="fanc.matrix.RegionPairsContainer.edges"><code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></a> iterator is the most versatile and useful
+function in the <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code></a> interface, but by far not the only one.
+We will briefly list the most useful other functions with a brief description and examples here.</p>
+<p>regions_identical
+edge_data</p>
+<p>mappable</p>
+<div class="section" id="regions-and-edges">
+<h3>regions_and_edges<a class="headerlink" href="#regions-and-edges" title="Permalink to this headline">¶</a></h3>
+<p>The <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.regions_and_edges" title="fanc.matrix.RegionPairsContainer.regions_and_edges"><code class="xref py py-func docutils literal notranslate"><span class="pre">regions_and_edges()</span></code></a> function returns three objects:
+a list of regions corresponding to the selected matrix rows; a list of regions corresponding to
+the selected matrix columns; and an edge iterator over the matrix subset spanned by the selector.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">row_regions</span><span class="p">,</span> <span class="n">col_regions</span><span class="p">,</span> <span class="n">edges_iter</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">regions_and_edges</span><span class="p">((</span><span class="s1">&#39;chr18&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">))</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">edges_iter</span><span class="p">:</span>
+    <span class="n">row_region</span> <span class="o">=</span> <span class="n">row_regions</span><span class="p">[</span><span class="n">edge</span><span class="o">.</span><span class="n">source</span><span class="p">]</span>
+    <span class="n">col_region</span> <span class="o">=</span> <span class="n">row_regions</span><span class="p">[</span><span class="n">edge</span><span class="o">.</span><span class="n">sink</span><span class="p">]</span>
+    <span class="c1"># ...</span>
+</pre></div>
+</div>
+<p>This is simpler and saves computation time over having separate function calls to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">regions()</span></code> and <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.edges" title="fanc.matrix.RegionPairsContainer.edges"><code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></a>.</p>
+</div>
+<div class="section" id="edge-data">
+<h3>edge_data<a class="headerlink" href="#edge-data" title="Permalink to this headline">¶</a></h3>
+<p>The function <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.edge_data" title="fanc.matrix.RegionPairsContainer.edge_data"><code class="xref py py-func docutils literal notranslate"><span class="pre">edge_data()</span></code></a> iterates over only a specific
+edge attribute for a selection of edges:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">weights</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">hic</span><span class="o">.</span><span class="n">edge_data</span><span class="p">(</span><span class="s1">&#39;weight&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">)))</span>
+
+<span class="c1"># is identical to</span>
+<span class="n">weights</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">weight</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edge_data</span><span class="p">(</span><span class="s1">&#39;weight&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">)):</span>
+    <span class="n">weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span>
+
+<span class="c1"># is identical to</span>
+<span class="n">weights</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="c1"># for edge in hic.edges((&#39;chr19&#39;, &#39;chr19&#39;), lazy=True):</span>
+<span class="c1">#     weights.append(edge.weight)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="mappable">
+<h3>mappable<a class="headerlink" href="#mappable" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.mappable" title="fanc.matrix.RegionPairsContainer.mappable"><code class="xref py py-func docutils literal notranslate"><span class="pre">mappable()</span></code></a> returns a boolean vector where each entry
+corresponds to a region in the object. If the vector entry is <code class="code docutils literal notranslate"><span class="pre">True</span></code>, the regions has
+at least one edge connected to it, i.e. a non-zero matrix entry, otherwise the entry is <code class="code docutils literal notranslate"><span class="pre">False</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">mappable</span><span class="p">()</span>
+<span class="c1"># or for a specific region</span>
+<span class="n">m_sub</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">mappable</span><span class="p">(</span><span class="s1">&#39;chr19&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The next interface builds on the <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-func docutils literal notranslate"><span class="pre">RegionPairsContainer()</span></code></a> structure to populate
+matrices with edge weights: <a class="reference internal" href="matrix_interface.html#matrix-interface"><span class="std std-ref">RegionMatrixContainer</span></a>.</p>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="matrix_interface.html" class="btn btn-neutral float-right" title="RegionMatrixContainer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="regions_interface.html" class="btn btn-neutral float-left" title="RegionBased" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

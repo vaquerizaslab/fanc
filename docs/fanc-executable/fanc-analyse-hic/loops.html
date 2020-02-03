@@ -1,0 +1,479 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Loop calling &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="FAN-C command line plotting" href="../../fancplot.html" />
+    <link rel="prev" title="Hi-C aggregate analysis" href="aggregate_hic.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../fanc_analyse_hic.html"> Analyse Hi-C matrices</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="oe.html"> Expected values and O/E matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ab_compartments.html"> AB compartments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pca.html"> PCA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="domains.html"> TADs and TAD boundaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparisons.html"> Matrix and score comparisons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aggregate_hic.html"> Aggregate Hi-C matrices</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#"> Loop calling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Positional Arguments">Positional Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Named Arguments">Named Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#annotating-pixels-for-loop-calling">Annotating pixels for loop calling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#filtering-annotated-pixels">Filtering annotated pixels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#merging-unfiltered-pixels-into-loops">Merging unfiltered pixels into loops</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#exporting-to-bedpe">Exporting to BEDPE</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/api.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../fanc.html">FAN-C command line tools</a> &raquo;</li>
+        
+          <li><a href="../fanc_analyse_hic.html">Analyse Hi-C matrices (API)</a> &raquo;</li>
+        
+      <li>Loop calling</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/fanc-executable/fanc-analyse-hic/loops.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="loop-calling">
+<span id="fanc-loops"></span><h1>Loop calling<a class="headerlink" href="#loop-calling" title="Permalink to this headline">¶</a></h1>
+<p>Loops frequently form between two genomic regions, and are visible in the Hi-C matrix as
+patches of increased contact intensity:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/loops/rao2014.chr11_77400000_78600000.png <span class="se">\</span>
+     chr11:77400000-78600000 <span class="se">\</span>
+     -p triangular architecture/loops/rao2014.chr11_77400000_78600000.hic <span class="se">\</span>
+     -vmin <span class="m">0</span>.0 -vmax <span class="m">0</span>.05 -m <span class="m">600000</span>
+</pre></div>
+</div>
+<img alt="../../_images/rao2014.chr11_77400000_78600000.png" src="../../_images/rao2014.chr11_77400000_78600000.png" />
+<p>We can use <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">loops</span></code> to call loops in Hi-C matrices using the HICCUPS algorithm
+(<a class="reference external" href="http://dx.doi.org/10.1016/j.cell.2014.11.021">Rao and Huntley et al., 2014</a>).
+Please refer to the original paper for details on the algorithm, specifically the
+different types of local neighborhoods defined to make loop calling robust.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">loops</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">CHROMOSOMES</span> <span class="p">[</span><span class="n">CHROMOSOMES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">PEAK_SIZE</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WIDTH</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">MIN_DIST</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">-</span><span class="n">m</span> <span class="n">MAPPABILITY_GLOBAL_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">mappability</span><span class="o">-</span><span class="n">donut</span> <span class="n">MAPPABILITY_DONUT_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">mappability</span><span class="o">-</span><span class="n">horizontal</span> <span class="n">MAPPABILITY_HORIZONTAL_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">mappability</span><span class="o">-</span><span class="n">vertical</span> <span class="n">MAPPABILITY_VERTICAL_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">mappability</span><span class="o">-</span><span class="n">lower</span><span class="o">-</span><span class="n">left</span> <span class="n">MAPPABILITY_LOWER_LEFT_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">FDR_GLOBAL_CUTOFF</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">fdr</span><span class="o">-</span><span class="n">donut</span> <span class="n">FDR_DONUT_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">fdr</span><span class="o">-</span><span class="n">horizontal</span> <span class="n">FDR_HORIZONTAL_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">fdr</span><span class="o">-</span><span class="n">vertical</span> <span class="n">FDR_VERTICAL_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">fdr</span><span class="o">-</span><span class="n">lower</span><span class="o">-</span><span class="n">left</span> <span class="n">FDR_LOWER_LEFT_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">-</span><span class="n">e</span> <span class="n">ENRICHMENT_GLOBAL_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">enrichment</span><span class="o">-</span><span class="n">donut</span> <span class="n">ENRICHMENT_DONUT_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">enrichment</span><span class="o">-</span><span class="n">horizontal</span> <span class="n">ENRICHMENT_HORIZONTAL_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">enrichment</span><span class="o">-</span><span class="n">vertical</span> <span class="n">ENRICHMENT_VERTICAL_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">enrichment</span><span class="o">-</span><span class="n">lower</span><span class="o">-</span><span class="n">left</span> <span class="n">ENRICHMENT_LOWER_LEFT_CUTOFF</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OBSERVED</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">rh</span><span class="o">-</span><span class="nb">filter</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">sge</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">batch</span><span class="o">-</span><span class="n">size</span> <span class="n">BATCH_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">j</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">merge</span><span class="o">-</span><span class="n">distance</span> <span class="n">MERGE_DISTANCE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">fdr</span><span class="o">-</span><span class="nb">sum</span> <span class="n">FDR_SUM</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BEDPE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+                  <span class="nb">input</span> <span class="p">[</span><span class="n">output</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h2>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h2>
+<dl class="option-list">
+<dt><kbd>input</kbd></dt>
+<dd><p>Input Hic file</p>
+</dd>
+<dt><kbd>output</kbd></dt>
+<dd><p>Output file. If input file is already a FAN-C compatible loops object, filtering can also be done in place.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h2>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h2>
+<dl class="option-list">
+<dt><kbd>-c, --chromosomes</kbd></dt>
+<dd><p>Chromosomes to be investigated.</p>
+</dd>
+<dt><kbd>-p, --peak-size</kbd></dt>
+<dd><p>Size of the expected peak in pixels. If not set, will be estimated to correspond to ~ 25kb.</p>
+</dd>
+<dt><kbd>-w, --neighborhood-width</kbd></dt>
+<dd><p>Width of the investigated area surrounding pixels. If not set, will be estimated at p+3</p>
+</dd>
+<dt><kbd>-t, --threads</kbd></dt>
+<dd><p>Number of threads for parallel processing. Default: 1 - it is advised to set this as high as possible, since loop calling is very computationally expensive!</p>
+</dd>
+<dt><kbd>-d, --min-distance</kbd></dt>
+<dd><p>Minimum distance in bins for two loci to be considered as loops. Default: peak size. Set this value higher to exclude loops close to the diagonal.</p>
+</dd>
+<dt><kbd>-m, --mappability</kbd></dt>
+<dd><p>Global mappability filter for all neighborhoods.Minimum mappable fraction of a pixel neighborhood to consider pixel as loop. Can be overridden by filters for local neighborhoods.</p>
+</dd>
+<dt><kbd>--mappability-donut</kbd></dt>
+<dd><p>Mappability filter for donut neighborhood. Value between 0 and 1.</p>
+</dd>
+<dt><kbd>--mappability-horizontal</kbd></dt>
+<dd><p>Mappability filter for horizontal neighborhood. Value between 0 and 1.</p>
+</dd>
+<dt><kbd>--mappability-vertical</kbd></dt>
+<dd><p>Mappability filter for vertical neighborhood. Value between 0 and 1.</p>
+</dd>
+<dt><kbd>--mappability-lower-left</kbd></dt>
+<dd><p>Mappability filter for lower-left neighborhood. Value between 0 and 1.</p>
+</dd>
+<dt><kbd>-q, --fdr</kbd></dt>
+<dd><p>Global FDR filter all neighborhoods. Individual neighborhood filters can override this global setting. Value between 0 and 1.</p>
+</dd>
+<dt><kbd>--fdr-donut</kbd></dt>
+<dd><p>FDR filter for donut neighborhood. Value between 0 and 1.</p>
+</dd>
+<dt><kbd>--fdr-horizontal</kbd></dt>
+<dd><p>FDR filter for horizontal neighborhood. Value between 0 and 1.</p>
+</dd>
+<dt><kbd>--fdr-vertical</kbd></dt>
+<dd><p>FDR filter for vertical neighborhood. Value between 0 and 1.</p>
+</dd>
+<dt><kbd>--fdr-lower-left</kbd></dt>
+<dd><p>FDR filter for lower-left neighborhood. Value between 0 and 1.</p>
+</dd>
+<dt><kbd>-e, --enrichment</kbd></dt>
+<dd><p>Global observed/expected filter all neighborhoods. Individual neighborhood filters can override this global setting.</p>
+</dd>
+<dt><kbd>--enrichment-donut</kbd></dt>
+<dd><p>Observed/expected enrichment filter for donut neighborhood.</p>
+</dd>
+<dt><kbd>--enrichment-horizontal</kbd></dt>
+<dd><p>Observed/expected enrichment filter for horizontal neighborhood.</p>
+</dd>
+<dt><kbd>--enrichment-vertical</kbd></dt>
+<dd><p>Observed/expected enrichment filter for vertical neighborhood.</p>
+</dd>
+<dt><kbd>--enrichment-lower-left</kbd></dt>
+<dd><p>Observed/expected enrichment filter for lower-left neighborhood.</p>
+</dd>
+<dt><kbd>-o, --observed</kbd></dt>
+<dd><p>Minimum observed value (integer, uncorrected). Default: 1</p>
+</dd>
+<dt><kbd>--rh-filter</kbd></dt>
+<dd><p>Filter peaks as in Rao, Huntley et al. (2014), Cell. It only retains peaks that are at least 2-fold enriched over either the donut or lower-left neighborhood, at least 1.5-fold enriched over the horizontal and vertical neighborhoods, at least 1.75-fold enriched over both the donut and lower-left neighborhood, and have an FDR &lt;= 0.1 in every neighborhood</p>
+</dd>
+<dt><kbd>--sge</kbd></dt>
+<dd><p>Run on SGE cluster. This option is highly recommended if you are running “fanc loops” on a Sun/Oracle Grid Engine Cluster. The “-t” option specifies the number of SGE slots if this flag is set. The main process will then submit jobs to the grid using “gridmap” and collect the results. (<a class="reference external" href="https://gridmap.readthedocs.io/">https://gridmap.readthedocs.io/</a>)</p>
+</dd>
+<dt><kbd>--batch-size</kbd></dt>
+<dd><p>Width of submatrix examined per process. Default: 200</p>
+</dd>
+<dt><kbd>-j, --merge-pixels</kbd></dt>
+<dd><p>Merge individual pixels into peaks after filtering.</p>
+</dd>
+<dt><kbd>--merge-distance</kbd></dt>
+<dd><p>Maximum distance in base pairs at which to merge two pixels. Default 20000</p>
+</dd>
+<dt><kbd>-s, --remove-singlets</kbd></dt>
+<dd><p>Remove isolated pixels after merging step.</p>
+</dd>
+<dt><kbd>--fdr-sum</kbd></dt>
+<dd><p>FDR sum filter for merged peaks. Merged peaks where the sum of donut FDR values of all constituent pixels is larger than the specified cutoff are filtered.</p>
+</dd>
+<dt><kbd>-b, --bedpe</kbd></dt>
+<dd><p>BEDPE output file. When set, merged loops will be written to this file after all filtering steps have completed.</p>
+</dd>
+<dt><kbd>-f, --force-overwrite</kbd></dt>
+<dd><dl class="simple">
+<dt>If the specified output file exists, it will be</dt><dd><p>overwritten without warning.</p>
+</dd>
+</dl>
+</dd>
+<dt><kbd>-tmp, --work-in-tmp</kbd></dt>
+<dd><p>Work in temporary directory</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="annotating-pixels-for-loop-calling">
+<h2>Annotating pixels for loop calling<a class="headerlink" href="#annotating-pixels-for-loop-calling" title="Permalink to this headline">¶</a></h2>
+<p>The first step in HICCUPS consists of annotating each pixel with various measures
+related to their loop probability. The most important ones are</p>
+<ul class="simple">
+<li><p>Enrichment over expected values in the local neighborhood</p></li>
+<li><p>FDR of the local enrichment</p></li>
+<li><p>Mappability of the local neighborhood</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc loops architecture/loops/rao2014.chr11_77400000_78600000.hic <span class="se">\</span>
+           architecture/loops/rao2014.chr11_77400000_78600000.loops <span class="se">\</span>
+           -t <span class="m">2</span>
+</pre></div>
+</div>
+<p>When run like this, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">loops</span></code> does not actually call any loops, but merely returns
+a matrix object where every pixel is annotated with the above properties. Importantly,
+as this is the most computationally expensive step, you are strongly advised to choose
+a large number of threads using the <code class="docutils literal notranslate"><span class="pre">-t</span></code> option. Even better, if you have access to
+a computational cluster running Sun/Oracle Grid Engine, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">loops</span></code> can automatically
+submit annotation jobs to the cluster if you set the <code class="docutils literal notranslate"><span class="pre">--sge</span></code> flag. The <code class="docutils literal notranslate"><span class="pre">-t</span></code> option
+then specifies the number of jobs allowed to run in parallel instead of the number of
+local threads used for multiprocessing.</p>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">loops</span></code> assumes a loop size of 25kb. This determines the area around
+a pixel that is not included in the local neighborhood calculations. If this is chosen
+too small, the neighborhood will lie within the peak region, and enrichments are going
+to be lower. If this is chosen too big, the neighborhood will no longer be local. If you
+have reason to believe your loops size differes from the default, you can set it explicitly
+with <code class="docutils literal notranslate"><span class="pre">-p</span></code>.</p>
+<p>Similarly, the width of the neighborhood is determined as <code class="docutils literal notranslate"><span class="pre">p</span> <span class="pre">+</span> <span class="pre">3</span></code> by default. If you want
+to in- or decrease the neighborhood width, use the <code class="docutils literal notranslate"><span class="pre">-w</span></code> parameter. You should know,
+however, that this is just a starting value, and the neighbborhood width might be increased
+on demand internally.</p>
+<p>Finally, you can control the size of the submatrices sent to each thread using the
+<code class="docutils literal notranslate"><span class="pre">--batch-size</span></code> parameter. The default, 200, should suit most purposes, but if your
+individual jobs are taking too long, you should reduce this number.</p>
+<p>We can now use the output object with annotated pixels for downstream processing.</p>
+</div>
+<div class="section" id="filtering-annotated-pixels">
+<h2>Filtering annotated pixels<a class="headerlink" href="#filtering-annotated-pixels" title="Permalink to this headline">¶</a></h2>
+<p>We need to apply filters to the annotated pixel object that remove all pixels with
+a low probability of being a loop. These filters typically consist of enrichment filters,
+FDR filters, and mappability filters. Additionally, there are filters for minimum distance
+between regions, and the minimum number of unnormalised valid pairs in a pixel.</p>
+<p>You can either set a global enrichment filter that acts on all neighborhoods
+using <code class="docutils literal notranslate"><span class="pre">-e</span></code>, or choose individual thresholds for each local neighborhood with
+<code class="docutils literal notranslate"><span class="pre">--enrichment-donut</span></code>, <code class="docutils literal notranslate"><span class="pre">--enrichment-vertical</span></code>, <code class="docutils literal notranslate"><span class="pre">--enrichment-horizontal</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">--enrichment-lower-left</span></code>. You usually want to set  at least the
+<code class="docutils literal notranslate"><span class="pre">--enrichment-donut</span></code> cutoff to something like 2.</p>
+<p>For FDR values, also called q-values, you can set a global filter using <code class="docutils literal notranslate"><span class="pre">-q</span></code>. Control
+the filtering of individual neighborhoods using <code class="docutils literal notranslate"><span class="pre">--fdr-donut</span></code>, <code class="docutils literal notranslate"><span class="pre">--fdr-vertical</span></code>,
+<code class="docutils literal notranslate"><span class="pre">--fdr-horizontal</span></code>, and <code class="docutils literal notranslate"><span class="pre">--fdr-lower-left</span></code>. Typical values for each neighborhood
+are around 0.1.</p>
+<p>Mappability filters act on pixels where a certain fraction of pixels in their local
+neighborhoods is unmappable. To set a global mappability cutoff for all neighborhoods,
+use the <code class="docutils literal notranslate"><span class="pre">-m</span></code> option. Again, local neighborhood mappability filters can be fine-tuned
+using the <code class="docutils literal notranslate"><span class="pre">--mappability-donut</span></code>, <code class="docutils literal notranslate"><span class="pre">--mappability-vertical</span></code>, <code class="docutils literal notranslate"><span class="pre">--mappability-horizontal</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">--mappability-lower-left</span></code> options.</p>
+<p>It is generally a good idea to filter on the minimum distance between regions to
+consider forming a loop, as a lot of false positive loops will be close to the diagonal.
+You can use the <code class="docutils literal notranslate"><span class="pre">-d</span> <span class="pre">&lt;b&gt;</span></code> parameter to set a threshold on the minimum distance, where
+<em>b</em> is expressed in number of bins.</p>
+<p>In addition, we highly recommend applying a filter on the minimum number of valid pairs
+in a pixel (<code class="docutils literal notranslate"><span class="pre">-o</span></code>), so that false-positive loops due to noise are avoided.</p>
+<p>Finally, we have included the filter applied by Rao and Huntley et al. in their original
+HICCUPS algorithm as a convenient preset <code class="docutils literal notranslate"><span class="pre">--rh-filter</span></code>. It only retains peaks that are
+at least 2-fold enriched over either the donut or lower-left neighborhood, at least
+1.5-fold enriched over the horizontal and vertical neighborhoods, at least 1.75-fold
+enriched over both the donut and lower-left neighborhood, and have an FDR &lt;= 0.1 in
+every neighborhood.</p>
+<p>An example command could look like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc loops architecture/loops/rao2014.chr11_77400000_78600000.loops <span class="se">\</span>
+           architecture/loops/rao2014.chr11_77400000_78600000_filtered.loops <span class="se">\</span>
+           --rh-filter -d <span class="m">5</span> -o <span class="m">5</span>
+</pre></div>
+</div>
+<p>This filters the vast majority of pixels in the matrix.</p>
+</div>
+<div class="section" id="merging-unfiltered-pixels-into-loops">
+<h2>Merging unfiltered pixels into loops<a class="headerlink" href="#merging-unfiltered-pixels-into-loops" title="Permalink to this headline">¶</a></h2>
+<p>Pixels that pass all filtering steps are good candidates for loops. Often, these pixels
+appear in clusters, which we merge/join in this step. Pixels that do not form a cluster
+are generally false-positives, so we filter them using <code class="docutils literal notranslate"><span class="pre">--remove-singlets</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc loops architecture/loops/rao2014.chr11_77400000_78600000_filtered.loops <span class="se">\</span>
+           architecture/loops/rao2014.chr11_77400000_78600000_merged.loops <span class="se">\</span>
+           -j --remove-singlets
+</pre></div>
+</div>
+</div>
+<div class="section" id="exporting-to-bedpe">
+<h2>Exporting to BEDPE<a class="headerlink" href="#exporting-to-bedpe" title="Permalink to this headline">¶</a></h2>
+<p>Finally, we can export all the merged loops to BEDPE using <code class="docutils literal notranslate"><span class="pre">-b</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc loops architecture/loops/rao2014.chr11_77400000_78600000_merged.loops <span class="se">\</span>
+           -b architecture/loops/rao2014.chr11_77400000_78600000_merged.bedpe
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../../fancplot.html" class="btn btn-neutral float-right" title="FAN-C command line plotting" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="aggregate_hic.html" class="btn btn-neutral float-left" title="Hi-C aggregate analysis" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

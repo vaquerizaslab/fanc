@@ -1,0 +1,285 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>AB compartments &mdash; FAN-C 0.8.15-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="FAN-C Python modules" href="../modules.html" />
+    <link rel="prev" title="Expected and O/E calculations" href="oe.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.15
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../interfaces.html">Interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../analyse.html">Analyse Hi-C matrices (API)</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="oe.html">Expected values and O/E matrices</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">AB compartments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#eigenvectors">Eigenvectors</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules.html">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../api.html">fanc Python module</a> &raquo;</li>
+        
+          <li><a href="../analyse.html">Analyse Hi-C matrices using the API</a> &raquo;</li>
+        
+      <li>AB compartments</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/api/analyse/compartments.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="ab-compartments">
+<span id="api-compartments"></span><h1>AB compartments<a class="headerlink" href="#ab-compartments" title="Permalink to this headline">¶</a></h1>
+<p>The following steps assume that you ran the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> command in <a class="reference internal" href="../../getting_started.html#example-fanc-auto"><span class="std std-ref">Example analysis</span></a>.
+Additionally, we set up the Python session like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
+<span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">fancplot</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+
+<span class="n">hic_1mb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;output/hic/binned/fanc_example_1mb.hic&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>AB correlation matrices can very easily be obtained from Hi-C files using the
+<code class="xref py py-func docutils literal notranslate"><span class="pre">from_hic()</span></code> function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ab</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">ABCompartmentMatrix</span><span class="o">.</span><span class="n">from_hic</span><span class="p">(</span><span class="n">hic_1mb</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">ab</span></code> object acts like any FAN-C matrix (see <a class="reference internal" href="../interfaces/matrix_interface.html#matrix-interface"><span class="std std-ref">RegionMatrixContainer</span></a>), which means you
+can query and subset the data any way you like. For example, to get the correlation matrix
+of chromosome 18:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ab_chr18</span> <span class="o">=</span> <span class="n">ab</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr18&#39;</span><span class="p">,</span> <span class="s1">&#39;chr18&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>And to visualise the matrix:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="n">mp</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">SquareMatrixPlot</span><span class="p">(</span><span class="n">ab</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+                           <span class="n">norm</span><span class="o">=</span><span class="s1">&#39;lin&#39;</span><span class="p">,</span> <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;RdBu_r&#39;</span><span class="p">,</span>
+                           <span class="n">vmin</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                           <span class="n">draw_minor_ticks</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr18&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../../_images/ab_1mb_correlation.png" src="../../_images/ab_1mb_correlation.png" />
+</div>
+<div class="section" id="eigenvectors">
+<h1>Eigenvectors<a class="headerlink" href="#eigenvectors" title="Permalink to this headline">¶</a></h1>
+<p>The AB correlation matrix eigenvector (EV) is used to determine if a region is in the active or
+the inactive compartment. It’s calculation is very straightforward:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ev</span> <span class="o">=</span> <span class="n">ab</span><span class="o">.</span><span class="n">eigenvector</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">eigenvector()</span></code> returns a numpy
+array with one entry per region in the AB correlation matrix (you can retrieve a matching
+list of regions with <a class="reference internal" href="../modules/architecture/compartments.html#fanc.architecture.compartments.ABCompartmentMatrix.regions" title="fanc.architecture.compartments.ABCompartmentMatrix.regions"><code class="xref py py-func docutils literal notranslate"><span class="pre">regions()</span></code></a>).
+You can also retrieve only the EV entries for a specific region using the <code class="docutils literal notranslate"><span class="pre">sub_region</span></code>
+argument, but note that the calculation is always performed on the entire genome first
+to avoid biases from subsetting.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Positive EV entries do not automatically mean a region is in the A compartment. In fact,
+if positive or negative entries are representing the A compartment is dependent on
+the implementation of PCA on the platform you are using. Therefore we strongly recommend
+using additional biological information to determine the correspondence between EV entry
+sign and compartment.</p>
+<p>One option implemented in FAN-C is to use GC content as a proxy for activity, as GC-rich
+regions have been shown to be associated with the active compartment. FAN-C implements the
+use of a genomic FASTA file, to calculate GC content and then choose the EV sign so that
+positive entries correspond to A, and negative entries to the B compartment.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">gc_ev</span> <span class="o">=</span> <span class="n">ab</span><span class="o">.</span><span class="n">eigenvector</span><span class="p">(</span><span class="n">genome</span><span class="o">=</span><span class="s1">&#39;hg19_chr18_19.fa&#39;</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../modules.html" class="btn btn-neutral float-right" title="FAN-C Python modules" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="oe.html" class="btn btn-neutral float-left" title="Expected and O/E calculations" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
