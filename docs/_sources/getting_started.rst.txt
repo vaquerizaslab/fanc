@@ -116,11 +116,11 @@ prerequisites by running
 
    pip install sphinx sphinx_rtd_theme sphinx-argparse
 
-Then navigate to the :code:`fanc-doc` folder (assuming your in the :code:`fanc` base folder:
+Then navigate to the :code:`docsrc` folder (assuming your in the :code:`fanc` base folder:
 
 .. code:: bash
 
-   cd fanc-doc
+   cd docsrc
 
 Type :code:`make` to get a list of possible documentation outputs, for HTML use:
 

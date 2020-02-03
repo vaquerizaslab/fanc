@@ -6,7 +6,7 @@ RegionBased
 
 FAN-C builds extensively on the :code:`genomic_regions` package, which provides a unified
 interface for most types of region-based genomic data. We highly recommend
-`reading the documentation <https://github.com/vaquerizaslab/genomic_regions>`_
+`reading the documentation <https://vaquerizaslab.github.io/genomic_regions/>`_
 of that package before going into the details of FAN-C, as many of the concepts discussed
 therein are central to the handling of data in FAN-C.
 
