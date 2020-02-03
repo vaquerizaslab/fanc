@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.signal import savgol_filter
-from kaic.tools.matrix import delta_window
+from fanc.tools.matrix import delta_window
 import logging
 logger = logging.getLogger(__name__)
 

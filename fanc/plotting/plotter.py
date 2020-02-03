@@ -1,13 +1,13 @@
 from __future__ import division, print_function
-from kaic.config import config
+from fanc.config import config
 import matplotlib as mpl
 from matplotlib.ticker import NullLocator, MaxNLocator
-from kaic import load
+from fanc import load
 from genomic_regions import GenomicRegion, GenomicDataFrame, merge_overlapping_regions
-from kaic.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter, \
+from fanc.plotting.base_plotter import BasePlotter1D, ScalarDataPlot, BaseOverlayPlotter, \
                                        BasePlotter, BaseAnnotation
-from kaic.plotting.hic_plotter import BasePlotterMatrix
-from kaic.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
+from fanc.plotting.hic_plotter import BasePlotterMatrix
+from fanc.plotting.helpers import append_axes, style_ticks_whitegrid, get_region_field, \
                                   region_to_pbt_interval, absolute_wspace_hspace, \
                                   box_coords_abs_to_rel, figure_line, figure_rectangle, \
                                   parse_bedtool_input, get_region_based_object, \
@@ -28,8 +28,8 @@ import re
 import warnings
 from collections import defaultdict
 from future.utils import string_types
-import kaic
-from kaic.tools.general import human_format
+import fanc
+from fanc.tools.general import human_format
 import logging
 logger = logging.getLogger(__name__)
 
@@ -74,8 +74,8 @@ class GenomicFigure(object):
                  independent_x=False):
         """
         :param list plots: List of plot instances each will form a separate panel in the figure.
-                      Should inherit from :class:`~kaic.plotting.baseplotter.BasePlotter` or
-                      :class:`~kaic.plotting.baseplotter.BaseAnnotation`
+                      Should inherit from :class:`~fanc.plotting.baseplotter.BasePlotter` or
+                      :class:`~fanc.plotting.baseplotter.BaseAnnotation`
         :param float width: Width of the plots in inches. Height is automatically determined
                       from the specified aspect ratios of the Plots.
                       Default: 5.
@@ -189,14 +189,14 @@ class GenomicFigure(object):
         Make a plot of the specified region.
 
         :param region: A string describing a region "2L:10000000-12000000" or
-                       a :class:`~kaic.data.genomic.GenomicRegion`.
+                       a :class:`~fanc.data.genomic.GenomicRegion`.
                        If ``independent_x`` was set, a list of regions
                        equal to the length of plots + the length of
                        annotations (if present) must be supplied.
                        The order of the regions here must be the same
                        as the order in which the plots were supplied to
                        the GenomicFigure constructor.
-        :type region: string or ~kaic.data.genomic.GenomicRegion
+        :type region: string or ~fanc.data.genomic.GenomicRegion
         :return: A matplotlib Figure instance and a list of figure axes
         """
         if self._independent_x:
@@ -437,7 +437,7 @@ class RegionsValuesPlot(ScalarDataPlot):
                            and regex.
         :param title: Used as title for plot
         :param aspect: Default aspect ratio of the plot. Can be overriden by setting
-               the height_ratios in :class:`~kaic.plotting.GenomicFigure`
+               the height_ratios in :class:`~fanc.plotting.GenomicFigure`
         """
         kwargs.setdefault("axes_style", style_ticks_whitegrid)
         kwargs.setdefault("aspect", .2)
@@ -493,13 +493,13 @@ class RegionsValuesPlot(ScalarDataPlot):
 
 class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
     """
-    Plot matrix from a :class:`~kaic.architecture.hic_architecture.MultiVectorArchitecturalRegionFeature` object.
+    Plot matrix from a :class:`~fanc.architecture.hic_architecture.MultiVectorArchitecturalRegionFeature` object.
     """
 
     def __init__(self, array, parameters=None, y_coords=None, y_scale='linear',
                  plot_kwargs=None, genomic_format=False, **kwargs):
         """
-        :param array: :class:`~kaic.architecture.hic_architecture.MultiVectorArchitecturalRegionFeature`
+        :param array: :class:`~fanc.architecture.hic_architecture.MultiVectorArchitecturalRegionFeature`
         :param keys: keys for which vectors to use for array. None indicates all vectors will be used.
         :param y_coords: Matrices in the :class:`~GenomicTrack` object are
                          unitless. Can provide the coordinates for the
@@ -1126,7 +1126,7 @@ class BigWigPlot(ScalarDataPlot):
         self.bigwigs = []
         for bw in bigwigs:
             if isinstance(bw, string_types):
-                bw = kaic.load(bw)
+                bw = fanc.load(bw)
             self.bigwigs.append(bw)
         self.names = names
         self.bin_size = bin_size
@@ -1156,7 +1156,7 @@ class BigWigPlot(ScalarDataPlot):
 
     def _line_values(self, region):
         for i, b in enumerate(self.bigwigs):
-            if isinstance(b, kaic.data.genomic.RegionBased):
+            if isinstance(b, fanc.data.genomic.RegionBased):
                 intervals = b.region_intervals(region)
             else:
                 intervals = b.intervals(region.chromosome, region.start - 1, region.end)
@@ -1671,7 +1671,7 @@ class Virtual4CPlot(BasePlotter1D):
         self.hic = hic
 
         if isinstance(viewpoint, string_types):
-            viewpoint = kaic.GenomicRegion.from_string(viewpoint)
+            viewpoint = fanc.GenomicRegion.from_string(viewpoint)
 
         self.viewpoint = viewpoint
         self.lines = []

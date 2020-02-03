@@ -2,27 +2,27 @@
 Provide plotting functions for genomic data types.
 
 Many common data types used in genomics research are supported. Including, but
-not limited to, :class:`Hi-C <kaic.plotting.HicPlot>`,
-:class:`bed <kaic.plotting.GenomicFeaturePlot>`,
-:class:`bigwig <kaic.plotting.BigWigPlot>`
-and :class:`gene (GTF) <kaic.plotting.GenePlot>` file visualization.
+not limited to, :class:`Hi-C <fanc.plotting.HicPlot>`,
+:class:`bed <fanc.plotting.GenomicFeaturePlot>`,
+:class:`bigwig <fanc.plotting.BigWigPlot>`
+and :class:`gene (GTF) <fanc.plotting.GenePlot>` file visualization.
 The basic idea is that figures can be composed of multiple panels which are
 arranged vertically and share a common x-axis representing genomic coordinates.
 
 Each panel is created separately and then combined into a single figure.
 For example, when analyzing Hi-C data it is often interesting to correlate
 features in the Hi-C map with ChIP-seq tracks. In that case, one would first
-create a :class:`~kaic.plotting.HicPlot` object, which visualizes
-Hi-C data, and then a :class:`~kaic.plotting.BigWigPlot` object, which
+create a :class:`~fanc.plotting.HicPlot` object, which visualizes
+Hi-C data, and then a :class:`~fanc.plotting.BigWigPlot` object, which
 can plot bigwig files that are used during ChIP-seq analysis. Finally, the two
-objects are used to create a :class:`~kaic.plotting.GenomicFigure`.
+objects are used to create a :class:`~fanc.plotting.GenomicFigure`.
 
 Example
 -------
 
 Kai-C comes with a few example datasets that can be used to explore the basic
 functionalities of the plotting module. The paths in this example are relative
-to the top-level kaic directory where the setup.py file is located.
+to the top-level fanc directory where the setup.py file is located.
 
 .. note::
     The paths to the example datasets can be accessed easily using the
@@ -30,35 +30,35 @@ to the top-level kaic directory where the setup.py file is located.
 
     .. code:: python
 
-        import kaic
-        print(kaic.example_data)
+        import fanc
+        print(fanc.example_data)
 
     Yields a dict with the user-specific path to the datasets:
 
     ::
 
-        {'chip_bedgraph': '/Users/example/kaic/kaic/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bedgraph.gz',
-         'chip_bigwig': '/Users/example/kaic/kaic/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig',
-         'chip_peak_bed': '/Users/example/kaic/kaic/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.peaks.bed.gz',
-         'gene_gtf': '/Users/example/kaic/kaic/test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz',
-         'hic': '/Users/example/kaic/kaic/test/data/test_network/rao2014.chr11_77400000_78600000.hic'}
+        {'chip_bedgraph': '/Users/example/fanc/fanc/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bedgraph.gz',
+         'chip_bigwig': '/Users/example/fanc/fanc/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig',
+         'chip_peak_bed': '/Users/example/fanc/fanc/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.peaks.bed.gz',
+         'gene_gtf': '/Users/example/fanc/fanc/test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz',
+         'hic': '/Users/example/fanc/fanc/test/data/test_network/rao2014.chr11_77400000_78600000.hic'}
 
 .. code:: python
 
-    import kaic.plotting as kplot
+    import fanc.plotting as kplot
 
     # Create Hic plot
-    hplot = kplot.HicPlot("kaic/test/data/test_network/rao2014.chr11_77400000_78600000.hic")
+    hplot = kplot.HicPlot("fanc/test/data/test_network/rao2014.chr11_77400000_78600000.hic")
 
     # Create plot showing some CTCF ChIP-seq data from ENCODE
-    bplot = kplot.BigWigPlot("kaic/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig",
+    bplot = kplot.BigWigPlot("fanc/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig",
                              title="CTCF ChIP", ylabel="fold enrichment")
 
     # Create plot of all genes in the region. The squash option in combination
     # with the group_by option causes all exons of each gene to be merged.
     # This is useful if the number of alternative transcripts is overwhelming
     # the plot.
-    gplot = kplot.GenePlot("kaic/test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz",
+    gplot = kplot.GenePlot("fanc/test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz",
                            group_by="gene_name", squash=True, show_labels=False,
                            title="mm10 genes")
 
@@ -73,7 +73,7 @@ to the top-level kaic directory where the setup.py file is located.
     # Open plot in an interactive window
     fig.show()
 
-.. figure:: ../../../kaic-doc/klot-executable/images/example_plot.png
+.. figure:: ../../../fanc-doc/klot-executable/images/example_plot.png
 
     Example rendering of the above code saved using
     ``fig.savefig("example.png", dpi=100)``.
@@ -81,14 +81,14 @@ to the top-level kaic directory where the setup.py file is located.
 Editing figure and axes
 -----------------------
 
-The :meth:`GenomicFigure.plot() <kaic.plotting.GenomicFigure.plot>`
+The :meth:`GenomicFigure.plot() <fanc.plotting.GenomicFigure.plot>`
 function returns standard matplotlib Figure and a list of Axes instances that
 can be further adjusted using standard matplotlib methods. The matplotlib axes
 instance associated with each plot is also accesible from the "ax" property of
 each plot.
 
 .. warning:: The Axes instances of the plot should only be edited after
-    :meth:`GenomicFigure.plot() <kaic.plotting.GenomicFigure.plot>`
+    :meth:`GenomicFigure.plot() <fanc.plotting.GenomicFigure.plot>`
     has been called. Otherwise any changes that were made may be overwritten
     when the plot() method is called.
 
@@ -115,7 +115,7 @@ Basic Plot types and options
 
     .. code::
 
-        import kaic.plotting as kplot
+        import fanc.plotting as kplot
         kplot.BigWigPlot? # Ipython/Jupyter
         help(kplot.BigWigPlot) # standard python
 
@@ -125,7 +125,7 @@ all plot classes. The aspect ratio parameter is a floating point number between
 0 and 1 that determines the height of the plot. A value of 1 results in a square
 plot, .5 represents a plot that is half as high as it is wide.
 
-The :class:`~kaic.plotting.GenomicFigure` provides a few convenience
+The :class:`~fanc.plotting.GenomicFigure` provides a few convenience
 parameters. Setting ``ticks_last=True`` for example removes tick labels from all
 panels but the last one which makes the overall plot more compact.
 
@@ -140,8 +140,8 @@ strand in some species and on the - strande, sometimes the x-axis also needs to
 be inverted to maintain correct orientation.
 
 In this situation the ``independent-x`` option should be set in the
-:class:`~kaic.plotting.GenomicFigure`. As a result, the
-:meth:`GenomicFigure.plot() <kaic.plotting.GenomicFigure.plot>` method
+:class:`~fanc.plotting.GenomicFigure`. As a result, the
+:meth:`GenomicFigure.plot() <fanc.plotting.GenomicFigure.plot>` method
 no longer expects a single region as argument, but a list of regions equal to
 the number of plots in the figure. We can modify the example above to illustrate
 this point:
@@ -165,7 +165,7 @@ datasets in the same panel, making comparisons easy:
     bplot = kplot.BigWigPlot(["dataset1.bigwig", "dataset2.bigwig"])
 
 Alternatively it is possible to synchronize y-axis limits across panels using
-:class:`~kaic.plotting.LimitGroup` instances. In this example the y-axis limits
+:class:`~fanc.plotting.LimitGroup` instances. In this example the y-axis limits
 are shared between bplot1 and bplot2 and seperately between bplot3 and bplot4:
 
 .. code:: python
@@ -184,13 +184,13 @@ the lower limit unconstrained.
 Programmatic plotting using loops
 ---------------------------------
 
-Kaic plotting is ideally suited for programmatic generation of many plots or
+fanc plotting is ideally suited for programmatic generation of many plots or
 dynamic assembly of multiple datasets in a single figure. In this example three
 Hi-C datasets are visualized in a single figure:
 
 .. code:: python
 
-    import kaic.plotting as kplot
+    import fanc.plotting as kplot
     hic_datasets = ["my_data1.hic", "my_data2.hic", my_data3.hic"]
     hic_plots = [kplot.HicPlot(h, max_dist=500000) for h in hic_datasets]
     gfig = kplot.GenomicFigure(hic_plots)
@@ -201,16 +201,16 @@ Hi-C datasets are visualized in a single figure:
 
 """
 
-from kaic.plotting.hic_plotter import HicPlot, HicPlot2D, HicComparisonPlot2D, \
+from fanc.plotting.hic_plotter import HicPlot, HicPlot2D, HicComparisonPlot2D, \
     HicSlicePlot, HicPeakPlot, TriangularMatrixPlot, SquareMatrixPlot, SplitMatrixPlot
-from kaic.plotting.plotter import VerticalSplitPlot, GenomicVectorArrayPlot, GenomicFeaturePlot, GenomicRegionsPlot, \
+from fanc.plotting.plotter import VerticalSplitPlot, GenomicVectorArrayPlot, GenomicFeaturePlot, GenomicRegionsPlot, \
     GenomicFeatureScorePlot, GenomicFigure, BigWigPlot, GenePlot, LinePlot, \
     FeatureLayerPlot, GenomicDataFramePlot, HighlightAnnotation, RegionsValuesPlot, \
     BarPlot, Virtual4CPlot, MirrorMatrixPlot
-from kaic.plotting.helpers import append_axes, absolute_wspace_hspace, SymmetricNorm, \
+from fanc.plotting.helpers import append_axes, absolute_wspace_hspace, SymmetricNorm, \
                                   style_ticks_whitegrid, LimitGroup
 
-from kaic.plotting.colormaps import *
+from fanc.plotting.colormaps import *
 import seaborn as sns
 import matplotlib.pyplot as plt
 

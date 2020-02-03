@@ -1,7 +1,7 @@
 Aggregate module
 ================
 
-.. automodule:: kaic.architecture.aggregate
+.. automodule:: fanc.architecture.aggregate
    :members:
    :inherited-members:
    :show-inheritance:

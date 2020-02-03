@@ -1,4 +1,4 @@
-.. _kaic-oe:
+.. _fanc-oe:
 
 ###############
 Expected values
@@ -10,12 +10,12 @@ Hi-C matrices, which can be approximated by a power law and forms an almost stra
 line in a log-log plot.
 
 To calculate the expected values of any Kai-C compatible matrix, you can use the
-``kaic expected`` command:
+``fanc expected`` command:
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
+   :module: fanc.commands.fanc_commands
    :func: expected_parser
-   :prog: kaic expected
+   :prog: fanc expected
    :nodescription:
    :nodefault:
 
@@ -33,9 +33,9 @@ Hi-C matrix of chromosome 19.
 
 The resulting plot (from ``-p``) looks like this:
 
-.. image:: images/kaic_example_500kb_expected.png
+.. image:: images/fanc_example_500kb_expected.png
 
-The actual expected values are stored in ``architecture/expected/kaic_example_500kb_expected.txt``:
+The actual expected values are stored in ``architecture/expected/fanc_example_500kb_expected.txt``:
 
 .. code::
 
@@ -68,7 +68,7 @@ expected values.
 Comparing expected values
 *************************
 
-When you are providing more than one matrix as input to ``kaic expected``, the expected values
+When you are providing more than one matrix as input to ``fanc expected``, the expected values
 for all matrices will be written to file and plotted if using the ``-p`` option:
 
 .. literalinclude:: code/oe_example_code
@@ -92,5 +92,5 @@ O/E matrix:
     :start-after: start snippet expected klot
     :end-before: end snippet expected klot
 
-.. image:: images/kaic_example_500kb_chr18_oe.png
+.. image:: images/fanc_example_500kb_chr18_oe.png
 

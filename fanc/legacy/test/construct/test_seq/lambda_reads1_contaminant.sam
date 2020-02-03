@@ -1,6 +1,6 @@
 @HD	VN:1.0	SO:unsorted
 @SQ	SN:gi|9626243|ref|NC_001416.1|	LN:48502
-@PG	ID:bowtie2	PN:bowtie2	VN:2.2.3	CL:"/Users/kkruse1/bin/bowtie2-align-s --wrapper basic-0 -x bowtie2-2.2.3/example/index/lambda_virus -S /Users/kkruse1/Development/mpi/HiC/kaic/test/construct/test_seq/lambda_reads1.sam -U bowtie2-2.2.3/example/reads/reads_1.fq"
+@PG	ID:bowtie2	PN:bowtie2	VN:2.2.3	CL:"/Users/kkruse1/bin/bowtie2-align-s --wrapper basic-0 -x bowtie2-2.2.3/example/index/lambda_virus -S /Users/kkruse1/Development/mpi/HiC/fanc/test/construct/test_seq/lambda_reads1.sam -U bowtie2-2.2.3/example/reads/reads_1.fq"
 r9	0	gi|9626243|ref|NC_001416.1|	46762	42	55M	*	0	0	CCCGATGCTTTTTGAAGTTCGCAGAATCGTATGTGTAGANAATTAAACAAANCCT	C,&7&@?7A%6;>=4'3:60A#F&DF!2!G9H7D!8<&',*1.,H!103=$>6?@	AS:i:-2	XN:i:0	XM:i:2	XO:i:0	XG:i:0	NM:i:2	MD:Z:39A11C3	YT:Z:UU
 r10	0	gi|9626243|ref|NC_001416.1|	3326	42	104M	*	0	0	TTTTCCGGACACAGTTCCGGATGGTCAGCCCGAAGCACATCAGCAACCCGAACAATACCGGCGACAGCCGGAACTGCCGTTCCGGTGTGCAGATTAATGACAGC	%/>%FA%+"G&5?0(/$34"CG)*E,-4GA5;@")%G<78E#5,'D$6:-11#!8H/B<9B+**6BG,!C7=)5H,H4<A5&($.37(26/87,D!C9':"F#5	AS:i:-9	XN:i:0	XM:i:2	XO:i:0	XG:i:0	NM:i:2	MD:Z:36G43G23	YT:Z:UU
 r11	4	*	0	0	*	*	0	0	TCGGNCGTCNNTNTGAAGCGGTTATAAATCTGCTCTTTCGCNGTATCCGTANCGATTTCGGTAAGGTAAACCCCG	*%!"(%)$)(#*+$&&)!%()#'&+*((('))"$''(&!(*!)*'!%+"!(%++(%+!%'*!*&#$#)"!+#!)*	YT:Z:UU

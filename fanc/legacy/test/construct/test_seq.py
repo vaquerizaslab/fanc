@@ -1,10 +1,10 @@
 import os.path
 import pytest
-from kaic.construct.seq import Reads, FragmentMappedReadPairs,\
+from fanc.construct.seq import Reads, FragmentMappedReadPairs,\
     FragmentRead, InwardPairsFilter, UnmappedFilter, OutwardPairsFilter,\
     ReDistanceFilter, FragmentReadPair, SelfLigationFilter, PCRDuplicateFilter,\
     LazyFragmentRead, ContaminantFilter, AccessOptimisedReadPairs
-from kaic.data.genomic import Genome, GenomicRegion, Chromosome
+from fanc.data.genomic import Genome, GenomicRegion, Chromosome
 import msgpack as pickle
 import numpy as np
 

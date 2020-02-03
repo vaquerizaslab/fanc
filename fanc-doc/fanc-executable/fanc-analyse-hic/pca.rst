@@ -1,4 +1,4 @@
-.. _kaic-pca:
+.. _fanc-pca:
 
 ############
 PCA analysis
@@ -10,9 +10,9 @@ information about potential experimental biases and whether samples from differe
 replicates can be safely merged.
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
+   :module: fanc.commands.fanc_commands
    :func: pca_parser
-   :prog: kaic pca
+   :prog: fanc pca
    :nodescription:
    :nodefault:
 
@@ -25,7 +25,7 @@ enzymes (MboI and HindIII), as well as different input cell numbers.
 
 .. code::
 
-    kaic pca -n "HindIII 100k" "HindIII 5M" "MboI 100k" "MboI 1M" "MboI 50k" \
+    fanc pca -n "HindIII 100k" "HindIII 5M" "MboI 100k" "MboI 1M" "MboI 50k" \
              -Z -s 100000 -r chr19 -p architecture/pca/lowc.pca.png \
              lowc_hindiii_100k_1mb.hic lowc_hindiii_5M_1mb.hic \
              lowc_mboi_100k_1mb.hic lowc_mboi_1M_1mb.hic \
@@ -43,7 +43,7 @@ Filters
 
 By default, PCA is run on the whole genome. In the example above, we have restricted the
 analysis to chromosome 19 using the ``-r chr19`` argument. ``-Z`` instructs
-``kaic pca`` to use only non-zero matrix entries for the PCA - this can help mitigate
+``fanc pca`` to use only non-zero matrix entries for the PCA - this can help mitigate
 the effect of very weak contacts on the variability.
 
 In the example, we are limiting the number of contacts used for the PCA to 100,000
@@ -56,7 +56,7 @@ prior selection of contacts.
 If you only want to include contacts up to (or above a) a certain distance, you can
 specify that distance using the ``--max-distance`` (or ``min-distance``) option.
 
-Finally, ``kaic pca`` offers two filters designed to remove uninformative contacts
+Finally, ``fanc pca`` offers two filters designed to remove uninformative contacts
 before PCA. The first, ``--expected-filter <f>``, removes all contacts in which all
 samples have a signal below *f* x *E(d)*, where E is the expected value function depending
 on the distance d. The second, ``--background-filter <f>`` removes contacts in which

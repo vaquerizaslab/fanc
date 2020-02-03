@@ -2,7 +2,7 @@
 Basic usage
 ===========
 
-``kaic`` uses subcommands to run all of its analyses. The ``kaic`` command itself can
+``fanc`` uses subcommands to run all of its analyses. The ``fanc`` command itself can
 be used to get an overview of available subcommands, to print the current Kai-C version,
 or to set logging and notification parameters that affect all subcommands.
 
@@ -11,9 +11,9 @@ Overview
 ********
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
-   :func: kaic_parser
-   :prog: kaic
+   :module: fanc.commands.fanc_commands
+   :func: fanc_parser
+   :prog: fanc
    :nodescription:
    :nodefault:
 
@@ -22,7 +22,7 @@ Overview
 Logging
 *******
 
-You can set the verbosity level of any ``kaic`` subcommand with the ``-v`` option. Use
+You can set the verbosity level of any ``fanc`` subcommand with the ``-v`` option. Use
 more or less ``v``s for more or less logging output. The default is ``-vv``, which
 corresponds to error, warning, and info messages. ``-vvv`` also displays debug messages,
 which might be helpful to identify issues with an analysis. ``-v`` only displays error
@@ -36,12 +36,12 @@ using ``-l <file name>``.
 Email notifications
 *******************
 
-Sometimes it is convenient to be notified by email if a ``kaic`` command finishes,
-especially for long-running commands such as ``kaic pairs`` or ``kaic map``. You can
-instruct ``kaic`` to send an email when a command finished using ``-m <email address>``.
+Sometimes it is convenient to be notified by email if a ``fanc`` command finishes,
+especially for long-running commands such as ``fanc pairs`` or ``fanc map``. You can
+instruct ``fanc`` to send an email when a command finished using ``-m <email address>``.
 You must also specify the SMTP server settings using the options
 ``--smtp-<server|username|password|sender-address>``, or you can pre-configure these using
-the :ref:`kaic-config-files`.
+the :ref:`fanc-config-files`.
 
 
 ***************
@@ -64,7 +64,7 @@ You can change the default temporary directory by setting the :code:`TMPDIR` env
 variable on your local system to a folder of your choice.
 
 
-.. _kaic-config-files:
+.. _fanc-config-files:
 
 ******************
 Kai-C config files
@@ -72,20 +72,20 @@ Kai-C config files
 
 Kai-C supports configuration files, which can be located (in descending order of priority)
 
-- in the current directory, named ``kaic.conf``
-- in a path specified by the Unix environment variable ``KAIC_CONF``
-- in the user's home folder (named ``kaic.conf`` or ``.kaic.conf``)
-- in the ``.config`` folder in a user's home directory, called ``kaic.conf``
-- in ``/etc/kaic/kaic.conf``
+- in the current directory, named ``fanc.conf``
+- in a path specified by the Unix environment variable ``fanc_CONF``
+- in the user's home folder (named ``fanc.conf`` or ``.fanc.conf``)
+- in the ``.config`` folder in a user's home directory, called ``fanc.conf``
+- in ``/etc/fanc/fanc.conf``
 
 Settings made in one config file are overridden by settings in a file with higher priority.
 
-You can write the default config file to a location of your choice using ``kaic write-config``.
+You can write the default config file to a location of your choice using ``fanc write-config``.
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
+   :module: fanc.commands.fanc_commands
    :func: write_config_parser
-   :prog: kaic write-config
+   :prog: fanc write-config
    :nodescription:
    :nodefault:
 

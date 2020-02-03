@@ -1,4 +1,4 @@
-.. _kaic-modules:
+.. _fanc-modules:
 
 ====================
 Kai-C Python modules

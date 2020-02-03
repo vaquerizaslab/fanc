@@ -27,8 +27,8 @@ Examples:
 
 :class:`~Hic` is the central class for working with Hi-C data. It provides
 matrix-like selectors and convenient access to specific genomic regions. In the
-kaic pipeline, a Hic object is assembled at the fragment level from
-:class:`~kaic.construct.seq.FragmentMappedReadPairs`. From there, it can be
+fanc pipeline, a Hic object is assembled at the fragment level from
+:class:`~fanc.construct.seq.FragmentMappedReadPairs`. From there, it can be
 binned to equi-distant genomic regions.
 
 .. code:: python
@@ -59,20 +59,20 @@ Example:
 """
 
 from __future__ import division, print_function
-from kaic.config import config
+from fanc.config import config
 import tables as t
 import pandas as p
 import numpy as np
 import pysam
 import pybedtools
-from kaic.tools.files import is_fasta_file, write_bigwig, write_bed, write_gff
-from kaic.tools.matrix import apply_sliding_func
-from kaic.tools.general import natural_sort, natural_cmp
+from fanc.tools.files import is_fasta_file, write_bigwig, write_bed, write_gff
+from fanc.tools.matrix import apply_sliding_func
+from fanc.tools.general import natural_sort, natural_cmp
 from Bio import SeqIO, Restriction, Seq
-from kaic.legacy.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
+from fanc.legacy.data.general import TableObject, Maskable, MaskedTable, MaskFilter, FileGroup
 from abc import abstractmethod, ABCMeta
 import os.path
-from kaic.tools.general import ranges, distribute_integer, create_col_index, \
+from fanc.tools.general import ranges, distribute_integer, create_col_index, \
     RareUpdateProgressBar, range_overlap, str_to_int
 try:
     from itertools import izip as zip
@@ -1865,7 +1865,7 @@ class RegionsTable(GenomicRegions, FileGroup):
     This class is inherited by objects working with lists of genomic
     regions, such as equi-distant bins along chromosomes in a genome
     (:class:`~Hic`) or restriction fragments of genomic DNA
-    (:class:`~kaic.construct.seq.FragmentMappedReadPairs`)
+    (:class:`~fanc.construct.seq.FragmentMappedReadPairs`)
     """
 
     _classid = 'REGIONSTABLE'
@@ -2117,7 +2117,7 @@ class RegionsTable(GenomicRegions, FileGroup):
         """
         Iterate over a subset of regions given the specified key.
 
-        :param key: A :class:`~kaic.data.genomic.GenomicRegion` object,
+        :param key: A :class:`~fanc.data.genomic.GenomicRegion` object,
                     or a list of the former. Also accepts slices and integers
         :return: Iterator over the specified subset of regions
         """
@@ -4237,7 +4237,7 @@ class RegionMatrixTable(RegionPairs):
             raise ValueError("hic_matrix must be a numpy masked array!")
 
         # here to avoid circular dependency
-        from kaic.architecture.hic_architecture import ExpectedContacts
+        from fanc.architecture.hic_architecture import ExpectedContacts
 
         if _expected_contacts is not None:
             ex = _expected_contacts
@@ -5028,12 +5028,12 @@ class Hic(RegionMatrixTable):
 
     def load_read_fragment_pairs(self, pairs):
         """
-        Load data from :class:`~kaic.construct.seq.FragmentMappedReadPairs`.
+        Load data from :class:`~fanc.construct.seq.FragmentMappedReadPairs`.
 
         This method automatically sums up reads mapping to the same
         fragment pairs and creates exactly one edge per fragment pair.
 
-        :param pairs: A :class:`~kaic.construct.seq.FragmentMappedReadPairs`
+        :param pairs: A :class:`~fanc.construct.seq.FragmentMappedReadPairs`
                       object.
         """
         # add regions
@@ -5489,7 +5489,7 @@ class Hic(RegionMatrixTable):
 
     @property
     def architecture(self):
-        import kaic.legacy.architecture.hic_architecture as ha
+        import fanc.legacy.architecture.hic_architecture as ha
         return ha.HicArchitecture(self)
 
     @classmethod

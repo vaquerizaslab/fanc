@@ -10,14 +10,14 @@ Overview
 ********
 
 Kai-C is a Python (3.6+) toolkit for the analysis and visualisation of Hi-C data.
-For common tasks, you can use the ``kaic`` executable. For more advanced analyses, Kai-C
+For common tasks, you can use the ``fanc`` executable. For more advanced analyses, Kai-C
 can be imported as a powerful Python module.
 
 Beyond objects generated within Kai-C, the toolkit is largely compatible with Hi-C files from
 `Cooler <https://github.com/mirnylab/cooler>`_ and `Juicer <https://github.com/aidenlab/juicer>`_.
 
 
-.. _kaic_installation:
+.. _fanc_installation:
 
 ************
 Installation
@@ -32,7 +32,7 @@ is 1.8.4, which may already be installed on your machine.
 
     It is generally not necessary to install HDF5 manually, as some version will typically be
     installed on any current Unix system, including macOS. If you can install Kai-C via pip
-    (see below) and ``kaic --version`` returns a version number, you are most likely good to go.
+    (see below) and ``fanc --version`` returns a version number, you are most likely good to go.
 
 Prerequisite: HDF5
 ==================
@@ -83,26 +83,26 @@ The simplest way to install Kai-C is via pip:
 
 .. code:: bash
 
-   pip install kaic
+   pip install fanc
 
 and that should be all you need! If you are not the owner of the Python installation,
 try:
 
 .. code:: bash
 
-   pip install --user kaic
+   pip install --user fanc
 
 You can also directly download the Kai-C source code from Github by cloning its repository.
 The installation is then done via setup.py:
 
 .. code:: bash
 
-   git clone http://www.github.com/vaquerizaslab/kaic
-   cd kaic
+   git clone http://www.github.com/vaquerizaslab/fanc
+   cd fanc
    pip install .
 
-Kai-C can now be accessed via command line (``kaic`` for analysis, ``klot`` for plotting)
-or as a Python 3.6+ module (``import kaic``).
+Kai-C can now be accessed via command line (``fanc`` for analysis, ``klot`` for plotting)
+or as a Python 3.6+ module (``import fanc``).
 
 
 ***************************
@@ -116,11 +116,11 @@ prerequisites by running
 
    pip install sphinx sphinx_rtd_theme sphinx-argparse
 
-Then navigate to the :code:`kaic-doc` folder (assuming your in the :code:`kaic` base folder:
+Then navigate to the :code:`fanc-doc` folder (assuming your in the :code:`fanc` base folder:
 
 .. code:: bash
 
-   cd kaic-doc
+   cd fanc-doc
 
 Type :code:`make` to get a list of possible documentation outputs, for HTML use:
 
@@ -131,36 +131,36 @@ Type :code:`make` to get a list of possible documentation outputs, for HTML use:
 You will find the html output in :code:`_build/html`.
 
 
-.. _example-kaic-auto:
+.. _example-fanc-auto:
 
 ****************
 Example analysis
 ****************
 
-For this example, we are going to use the command ``kaic auto`` (see :ref:`kaic-auto`) to
+For this example, we are going to use the command ``fanc auto`` (see :ref:`fanc-auto`) to
 construct a Hi-C map from a subset of a previously published adrenal tissue data set
 (`SRR4271982 of GSM2322539 <https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM2322539>`_).
 You can access the sample and all necessary files in the ``examples/`` folder on
-our `GitHub page <http://www.github.com/vaquerizaslab/kaic>`_.
+our `GitHub page <http://www.github.com/vaquerizaslab/fanc>`_.
 
 From the examples folder, run:
 
 .. code:: bash
 
-   kaic auto SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_2.fastq.gzip output/ \
-             -g hg19_chr18_19.fa -i hg19_chr18_19/hg19_chr18_19 -n kaic_example -t 4 -r HindIII \
+   fanc auto SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_2.fastq.gzip output/ \
+             -g hg19_chr18_19.fa -i hg19_chr18_19/hg19_chr18_19 -n fanc_example -t 4 -r HindIII \
              --split-ligation-junction -q 30 --run-with test
 
-The ``--run-with test`` argument causes ``kaic`` to only print the commands it would execute, but
+The ``--run-with test`` argument causes ``fanc`` to only print the commands it would execute, but
 to exit before running any processing steps. Use this to review the pipeline and ensure you chose
 the right parameters and that there are no errors.
 
-When you remove the ``--run-with test`` argument, ``kaic`` will work through the pipeline.
+When you remove the ``--run-with test`` argument, ``fanc`` will work through the pipeline.
 On a modern desktop computer with at least four computing cores the command should take less
 than 30 minutes to finish. It will generate several binned, bias-corrected Hi-C matrices from the
 FASTQ input.
 
-You can read details about ``kaic auto`` and all of its parameters in :ref:`kaic-auto`.
+You can read details about ``fanc auto`` and all of its parameters in :ref:`fanc-auto`.
 
 
 Plotting
@@ -170,20 +170,20 @@ We can plot the newly generated Hi-C maps easily using the ``klot`` command. Sim
 
 .. code:: bash
 
-   klot chr18:63mb-70mb -p triangular -vmax 0.05 output/hic/binned/kaic_example_100kb.hic
+   klot chr18:63mb-70mb -p triangular -vmax 0.05 output/hic/binned/fanc_example_100kb.hic
 
 This will plot the region 63-70Mb of chromosome 18 in the familiar Hi-C plot.
 Note that this dataset is very small and hence the quality of the matrix not
 particularly great - but TADs are clearly visible.
 
-.. image:: kaic-executable/kaic-generate-hic/images/chr18_63-70Mb.png
+.. image:: fanc-executable/fanc-generate-hic/images/chr18_63-70Mb.png
 
 You can find details about the plotting executable ``klot`` in :ref:`klot-executable`.
 
 Next steps
 ==========
 
-Find out more about ``kaic auto`` and its parameters in :ref:`kaic-auto`. If you are interested
+Find out more about ``fanc auto`` and its parameters in :ref:`fanc-auto`. If you are interested
 in customising individual steps of the pipeline, or in exploring all of Kai-C's analysis options,
-have a look at :ref:`kaic-modular`. For more plotting functions, continue to :ref:`klot-executable`.
-To access Kai-C functionality from within Python, check out :ref:`kaic-api`.
+have a look at :ref:`fanc-modular`. For more plotting functions, continue to :ref:`klot-executable`.
+To access Kai-C functionality from within Python, check out :ref:`fanc-api`.

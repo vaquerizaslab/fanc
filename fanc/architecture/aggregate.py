@@ -200,12 +200,12 @@ class AggregateMatrix(FileGroup):
 
         .. code::
 
-            import kaic
-            hic = kaic.load("/path/to/matrix.hic")
-            tad_boundaries = kaic.load("/path/to/tad_boundaries.bed")
+            import fanc
+            hic = fanc.load("/path/to/matrix.hic")
+            tad_boundaries = fanc.load("/path/to/tad_boundaries.bed")
 
             # run aggregate analysis
-            am = kaic.AggregateMatrix.from_center(hic, tad_boundaries.regions,
+            am = fanc.AggregateMatrix.from_center(hic, tad_boundaries.regions,
                                                   window=500000)
             # extract matrix when done
             m = am.matrix()
@@ -294,12 +294,12 @@ class AggregateMatrix(FileGroup):
 
         .. code::
 
-            import kaic
-            hic = kaic.load("/path/to/matrix.hic")
-            tads = kaic.load("/path/to/tads.bed")
+            import fanc
+            hic = fanc.load("/path/to/matrix.hic")
+            tads = fanc.load("/path/to/tads.bed")
 
             # run aggregate analysis
-            am = kaic.AggregateMatrix.from_regions(hic, tads.regions,
+            am = fanc.AggregateMatrix.from_regions(hic, tads.regions,
                                                    relative_extension=3.)
             # extract matrix when done
             m = am.matrix()  # 90x90 matrix with aggregate TAD in the centre

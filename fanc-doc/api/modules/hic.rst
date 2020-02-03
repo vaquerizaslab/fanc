@@ -1,7 +1,7 @@
 Hic module
 ==========
 
-.. automodule:: kaic.hic
+.. automodule:: fanc.hic
    :members:
    :inherited-members:
    :show-inheritance:

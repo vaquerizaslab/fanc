@@ -2,18 +2,18 @@
 
 import os.path
 import sys
-from kaic.commands import kaic_commands as commands
-from kaic.tools.signal_handling import enable_signal_traps, disable_signal_traps
-from kaic.config import config
+from fanc.commands import fanc_commands as commands
+from fanc.tools.signal_handling import enable_signal_traps, disable_signal_traps
+from fanc.config import config
 
 import logging
 logger = logging.getLogger('')
 
 
-class Kaic(object):
+class Fanc(object):
 
     def __init__(self):
-        parser = commands.kaic_parser()
+        parser = commands.fanc_parser()
 
         flag_increments = {
             '-l': 2, '--log-file': 2,
@@ -64,8 +64,8 @@ class Kaic(object):
 
         # get version info
         if args.print_version:
-            import kaic
-            print(kaic.__version__)
+            import fanc
+            print(fanc.__version__)
             exit()
 
         if args.command is None or not hasattr(commands, args.command.replace("-", "_")):
@@ -74,8 +74,8 @@ class Kaic(object):
             exit(1)
 
         # echo parameters back to user
-        kaic_command = " ".join(sys.argv)
-        logger.debug("Running '{}'".format(kaic_command))
+        fanc_command = " ".join(sys.argv)
+        logger.debug("Running '{}'".format(fanc_command))
 
         # use dispatch pattern to invoke method with same name
         from datetime import datetime
@@ -92,12 +92,12 @@ class Kaic(object):
         except Exception:
             if args.email_to_address is not None:
                 logger.info("Command failed, sending email...")
-                from kaic.tools import emails
+                from fanc.tools import emails
                 import traceback
 
                 exception_message = traceback.format_exc().replace("\n", "<br>")
                 message = "Kai-C command (start date: {}): " \
-                          "{}<br>failed with the following exception:<br>{}".format(start_date, kaic_command,
+                          "{}<br>failed with the following exception:<br>{}".format(start_date, fanc_command,
                                                                                     exception_message)
                 subject = "{} ({}) failed".format(start_date, sys.argv[option_ix])
                 emails.send_email(args.email_to_address, message, subject, from_address=args.email_from_address,
@@ -106,11 +106,11 @@ class Kaic(object):
 
         if args.email_to_address is not None:
             logger.info("Command completed, sending email...")
-            from kaic.tools import emails
+            from fanc.tools import emails
             import traceback
 
             message = "Kai-C command (start date: {}): " \
-                      "{}<br>executed successfully!".format(start_date, kaic_command)
+                      "{}<br>executed successfully!".format(start_date, fanc_command)
             subject = "{} ({}) completed".format(start_date, sys.argv[option_ix])
             emails.send_email(args.email_to_address, message, subject, from_address=args.email_from_address,
                               server=args.smtp_server, credentials=(args.smtp_username, args.smtp_password))
@@ -121,4 +121,4 @@ class Kaic(object):
 
 
 if __name__ == '__main__':
-    Kaic()
+    Fanc()

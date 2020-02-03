@@ -1,62 +1,62 @@
 # start snippet triangular basic
-klot chr18:6mb-10mb -p triangular output/hic/binned/kaic_example_50kb.hic
+klot chr18:6mb-10mb -p triangular output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular basic
 
 # start snippet triangular truncated
-klot chr18:6mb-10mb -p triangular -m 2mb output/hic/binned/kaic_example_50kb.hic
+klot chr18:6mb-10mb -p triangular -m 2mb output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular truncated
-klot -o ../kaic-doc/klot-executable/images/klot_triangular_example_truncated.png chr18:6mb-10mb -p triangular -m 2mb output/hic/binned/kaic_example_50kb.hic
+klot -o ../fanc-doc/klot-executable/images/klot_triangular_example_truncated.png chr18:6mb-10mb -p triangular -m 2mb output/hic/binned/fanc_example_50kb.hic
 
 # start snippet triangular range
-klot chr18:6mb-10mb -p triangular -r output/hic/binned/kaic_example_50kb.hic
+klot chr18:6mb-10mb -p triangular -r output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular range
-klot -o ../kaic-doc/klot-executable/images/klot_triangular_example_range.png chr18:6mb-10mb -p triangular -r output/hic/binned/kaic_example_50kb.hic
+klot -o ../fanc-doc/klot-executable/images/klot_triangular_example_range.png chr18:6mb-10mb -p triangular -r output/hic/binned/fanc_example_50kb.hic
 
 # start snippet triangular vminvmax
-klot chr18:6mb-10mb -p triangular -vmin 0 -vmax 0.03 output/hic/binned/kaic_example_50kb.hic
+klot chr18:6mb-10mb -p triangular -vmin 0 -vmax 0.03 output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular vminvmax
-klot -o ../kaic-doc/klot-executable/images/klot_triangular_example_vminvmax.png chr18:6mb-10mb -p triangular -vmin 0 -vmax 0.03 output/hic/binned/kaic_example_50kb.hic
+klot -o ../fanc-doc/klot-executable/images/klot_triangular_example_vminvmax.png chr18:6mb-10mb -p triangular -vmin 0 -vmax 0.03 output/hic/binned/fanc_example_50kb.hic
 
 # start snippet triangular log
-klot chr18:6mb-10mb -p triangular -l output/hic/binned/kaic_example_50kb.hic
+klot chr18:6mb-10mb -p triangular -l output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular log
-klot -o ../kaic-doc/klot-executable/images/klot_triangular_example_log.png chr18:6mb-10mb -p triangular -l output/hic/binned/kaic_example_50kb.hic
+klot -o ../fanc-doc/klot-executable/images/klot_triangular_example_log.png chr18:6mb-10mb -p triangular -l output/hic/binned/fanc_example_50kb.hic
 
 # start snippet triangular colormap
-klot chr18:6mb-10mb -p triangular -c Greens output/hic/binned/kaic_example_50kb.hic
+klot chr18:6mb-10mb -p triangular -c Greens output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular colormap
-klot -o ../kaic-doc/klot-executable/images/klot_triangular_example_colormap.png chr18:6mb-10mb -p triangular -c Greens output/hic/binned/kaic_example_50kb.hic
+klot -o ../fanc-doc/klot-executable/images/klot_triangular_example_colormap.png chr18:6mb-10mb -p triangular -c Greens output/hic/binned/fanc_example_50kb.hic
 
 
 # start snippet triangular nonorm
-klot chr18:6mb-10mb -p triangular -u output/hic/binned/kaic_example_50kb.hic
+klot chr18:6mb-10mb -p triangular -u output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular nonorm
-klot -o ../kaic-doc/klot-executable/images/klot_triangular_example_nonorm.png chr18:6mb-10mb -p triangular -u output/hic/binned/kaic_example_50kb.hic
+klot -o ../fanc-doc/klot-executable/images/klot_triangular_example_nonorm.png chr18:6mb-10mb -p triangular -u output/hic/binned/fanc_example_50kb.hic
 
 # start snippet triangular oe
-klot chr18:6mb-10mb -p triangular -e output/hic/binned/kaic_example_50kb.hic
+klot chr18:6mb-10mb -p triangular -e output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular oe
-klot -o ../kaic-doc/klot-executable/images/klot_triangular_example_oe.png chr18:6mb-10mb -p triangular -e output/hic/binned/kaic_example_50kb.hic
+klot -o ../fanc-doc/klot-executable/images/klot_triangular_example_oe.png chr18:6mb-10mb -p triangular -e output/hic/binned/fanc_example_50kb.hic
 
 
 # start snippet square basic
-klot chr18:6mb-10mb -p square output/hic/binned/kaic_example_50kb.hic
+klot chr18:6mb-10mb -p square output/hic/binned/fanc_example_50kb.hic
 # end snippet square basic
-klot -o ../kaic-doc/klot-executable/images/klot_square_example.png chr18:6mb-10mb -p square output/hic/binned/kaic_example_50kb.hic
+klot -o ../fanc-doc/klot-executable/images/klot_square_example.png chr18:6mb-10mb -p square output/hic/binned/fanc_example_50kb.hic
 
 # start snippet square flip
-klot chr18:6mb-10mb -p square -f output/hic/binned/kaic_example_50kb.hic
+klot chr18:6mb-10mb -p square -f output/hic/binned/fanc_example_50kb.hic
 # end snippet square flip
-klot -o ../kaic-doc/klot-executable/images/klot_square_example_flip.png chr18:6mb-10mb -p square -f output/hic/binned/kaic_example_50kb.hic
+klot -o ../fanc-doc/klot-executable/images/klot_square_example_flip.png chr18:6mb-10mb -p square -f output/hic/binned/fanc_example_50kb.hic
 
 # start snippet mirror basic
-klot chr18:6mb-10mb -p mirror -d 3mb output/hic/binned/kaic_example_50kb.hic output/hic/binned/kaic_example_100kb.hic
+klot chr18:6mb-10mb -p mirror -d 3mb output/hic/binned/fanc_example_50kb.hic output/hic/binned/fanc_example_100kb.hic
 # end snippet mirror basic
-klot -o ../kaic-doc/klot-executable/images/klot_square_example_mirror.png chr18:6mb-10mb -p mirror -d 3mb output/hic/binned/kaic_example_50kb.hic output/hic/binned/kaic_example_100kb.hic
+klot -o ../fanc-doc/klot-executable/images/klot_square_example_mirror.png chr18:6mb-10mb -p mirror -d 3mb output/hic/binned/fanc_example_50kb.hic output/hic/binned/fanc_example_100kb.hic
 
 # start snippet mirror oe
-klot chr18:6mb-10mb -p mirror -d 3mb -le -lvmin -2 -lvmax 2 output/hic/binned/kaic_example_50kb.hic output/hic/binned/kaic_example_50kb.hic
+klot chr18:6mb-10mb -p mirror -d 3mb -le -lvmin -2 -lvmax 2 output/hic/binned/fanc_example_50kb.hic output/hic/binned/fanc_example_50kb.hic
 # end snippet mirror oe
-klot -o ../kaic-doc/klot-executable/images/klot_square_example_mirror_oe.png chr18:6mb-10mb -p mirror -d 3mb -le -lvmin -2 -lvmax 2 output/hic/binned/kaic_example_50kb.hic output/hic/binned/kaic_example_50kb.hic
+klot -o ../fanc-doc/klot-executable/images/klot_square_example_mirror_oe.png chr18:6mb-10mb -p mirror -d 3mb -le -lvmin -2 -lvmax 2 output/hic/binned/fanc_example_50kb.hic output/hic/binned/fanc_example_50kb.hic
 
 

@@ -1,7 +1,7 @@
 Regions module
 ==============
 
-.. automodule:: kaic.regions
+.. automodule:: fanc.regions
    :members:
    :inherited-members:
    :show-inheritance:

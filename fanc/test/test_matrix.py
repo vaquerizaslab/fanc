@@ -1,15 +1,15 @@
 import os
 import numpy as np
-from kaic.compatibility.cooler import to_cooler
+from fanc.compatibility.cooler import to_cooler
 from genomic_regions import GenomicRegion
-from kaic.matrix import Edge, RegionPairsTable, RegionMatrixTable, RegionMatrix
-from kaic.hic import Hic, _get_overlap_map, _edge_overlap_split_rao, kr_balancing, ice_balancing
-from kaic.regions import Chromosome, Genome
-from kaic.pairs import ReadPairs, SamBamReadPairGenerator
-from kaic.tools.matrix import is_symmetric
-from kaic.compatibility.juicer import JuicerHic
-from kaic.compatibility.cooler import CoolerHic
-from kaic.tools.load import load
+from fanc.matrix import Edge, RegionPairsTable, RegionMatrixTable, RegionMatrix
+from fanc.hic import Hic, _get_overlap_map, _edge_overlap_split_rao, kr_balancing, ice_balancing
+from fanc.regions import Chromosome, Genome
+from fanc.pairs import ReadPairs, SamBamReadPairGenerator
+from fanc.tools.matrix import is_symmetric
+from fanc.compatibility.juicer import JuicerHic
+from fanc.compatibility.cooler import CoolerHic
+from fanc.tools.load import load
 import tables
 import pytest
 
@@ -111,7 +111,7 @@ class RegionMatrixContainerTestFactory:
 
 class TestHic(RegionMatrixContainerTestFactory):
     def setup_method(self, method):
-        hic_file = os.path.join(test_dir, 'test_matrix', 'test_kaic.hic')
+        hic_file = os.path.join(test_dir, 'test_matrix', 'test_fanc.hic')
         self.matrix = Hic(hic_file, mode='r')
 
     def teardown_method(self, method):

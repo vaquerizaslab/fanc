@@ -120,7 +120,7 @@ class FileBased(with_metaclass(MetaFileBased, object)):
                     tmpdir = tempfile.gettempdir()
                 else:
                     tmpdir = os.path.expanduser(tmpdir)
-                self.tmp_file_name = tmp_file_name(tmpdir, prefix='tmp_kaic', extension='h5')
+                self.tmp_file_name = tmp_file_name(tmpdir, prefix='tmp_fanc', extension='h5')
                 logger.info("Temporary output file: {}".format(self.tmp_file_name))
                 if mode in ('r+', 'r'):
                     shutil.copyfile(file_name, self.tmp_file_name)

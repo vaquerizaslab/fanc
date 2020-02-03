@@ -16,7 +16,7 @@ Overview
 ********
 
 .. argparse::
-   :module: kaic.commands.klot_command_parsers
+   :module: fanc.commands.klot_command_parsers
    :func: klot_parser
    :prog: klot
    :nodefault:

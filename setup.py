@@ -3,7 +3,7 @@ from setuptools import setup, find_packages, Command, Extension
 
 
 __version__ = None
-exec(open('kaic/version.py').read())
+exec(open('fanc/version.py').read())
 
 
 class CleanCommand(Command):
@@ -23,15 +23,15 @@ class CleanCommand(Command):
 
 
 setup(
-    name='kaic',
+    name='fanc',
     version=__version__,
-    description='Hi-C data analysis tools.',
+    description='Framework for the ANalysis of C-data.',
     setup_requires=[
         'setuptools>=18.0',
         'cython'
     ],
     packages=find_packages(),
-    package_data={'kaic': ['test/data/*/*']},
+    package_data={'fanc': ['test/data/*/*']},
     install_requires=[
         'numpy>=1.16.0',
         'scipy',
@@ -59,14 +59,14 @@ setup(
         'cooler>=0.8.0',
         'h5py'
     ],
-    scripts=['bin/kaic', 'bin/klot'],
+    scripts=['bin/fanc', 'bin/fancplot'],
     cmdclass={
         'clean': CleanCommand
     },
     ext_modules=[
         Extension(
-            'kaic.tools.sambam',
-            sources=['kaic/tools/sambam.pyx', 'kaic/tools/natural_cmp.c'],
+            'fanc.tools.sambam',
+            sources=['fanc/tools/sambam.pyx', 'fanc/tools/natural_cmp.c'],
         ),
     ],
 )

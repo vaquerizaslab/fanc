@@ -1,16 +1,16 @@
 # start snippet expected basic
-kaic expected -p architecture/expected/kaic_example_500kb_expected.png \
+fanc expected -p architecture/expected/fanc_example_500kb_expected.png \
               -c chr19 \
-              output/hic/binned/kaic_example_500kb.hic \
-              architecture/expected/kaic_example_500kb_expected.txt
+              output/hic/binned/fanc_example_500kb.hic \
+              architecture/expected/fanc_example_500kb_expected.txt
 # end snippet expected basic
-kaic expected -p ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_500kb_expected.png \
+fanc expected -p ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_500kb_expected.png \
               -c chr19 \
-              output/hic/binned/kaic_example_500kb.hic \
-              architecture/expected/kaic_example_500kb_expected.txt
+              output/hic/binned/fanc_example_500kb.hic \
+              architecture/expected/fanc_example_500kb_expected.txt
 
 # start snippet expected multi
-kaic expected -l "HindIII 100k" "HindIII 5M" "MboI 100k" "MboI 1M" "MboI 50k" \
+fanc expected -l "HindIII 100k" "HindIII 5M" "MboI 100k" "MboI 1M" "MboI 50k" \
               -c chr19 -p architecture/expected/expected_multi.png \
               architecture/other-hic/lowc_hindiii_100k_1mb.hic \
               architecture/other-hic/lowc_hindiii_5M_1mb.hic \
@@ -19,8 +19,8 @@ kaic expected -l "HindIII 100k" "HindIII 5M" "MboI 100k" "MboI 1M" "MboI 50k" \
               architecture/other-hic/lowc_mboi_50k_1mb.hic \
               architecture/expected/expected_multi.txt
 # end snippet expected multi
-kaic expected -l "HindIII 100k" "HindIII 5M" "MboI 100k" "MboI 1M" "MboI 50k" \
-              -c chr19 -p ../kaic-doc/kaic-executable/kaic-analyse-hic/images/expected_multi.png \
+fanc expected -l "HindIII 100k" "HindIII 5M" "MboI 100k" "MboI 1M" "MboI 50k" \
+              -c chr19 -p ../fanc-doc/fanc-executable/fanc-analyse-hic/images/expected_multi.png \
               architecture/other-hic/lowc_hindiii_100k_1mb.hic \
               architecture/other-hic/lowc_hindiii_5M_1mb.hic \
               architecture/other-hic/lowc_mboi_100k_1mb.hic \
@@ -29,10 +29,10 @@ kaic expected -l "HindIII 100k" "HindIII 5M" "MboI 100k" "MboI 1M" "MboI 50k" \
               architecture/expected/expected_multi.txt
 
 # start snippet expected klot
-klot -o architecture/expected/kaic_example_500kb_chr18_oe.png \
-     chr18:1-78mb -p triangular -e output/hic/binned/kaic_example_500kb.hic \
+klot -o architecture/expected/fanc_example_500kb_chr18_oe.png \
+     chr18:1-78mb -p triangular -e output/hic/binned/fanc_example_500kb.hic \
      -vmin -2 -vmax 2
 # end snippet expected klot
-klot -o ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_500kb_chr18_oe.png \
-     chr18:1-78mb -p triangular -e output/hic/binned/kaic_example_500kb.hic \
+klot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_500kb_chr18_oe.png \
+     chr18:1-78mb -p triangular -e output/hic/binned/fanc_example_500kb.hic \
      -vmin -2 -vmax 2

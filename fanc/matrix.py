@@ -44,18 +44,18 @@ class Edge(object):
 
     .. attribute:: source_node
 
-        The first :class:`~kaic.GenomicRegion` in this contact
+        The first :class:`~fanc.GenomicRegion` in this contact
 
     .. attribute:: sink_node
 
-        The second :class:`~kaic.GenomicRegion` in this contact
+        The second :class:`~fanc.GenomicRegion` in this contact
     """
     def __init__(self, source, sink, _weight_field='weight', **kwargs):
         """
         :param source: The index of the "source" genomic region
-                       or :class:`~kaic.GenomicRegion` object.
+                       or :class:`~fanc.GenomicRegion` object.
         :param sink: The index of the "sink" genomic region
-                     or :class:`~kaic.GenomicRegion` object.
+                     or :class:`~fanc.GenomicRegion` object.
         :param kwargs: Other key, value pairs to be stored as
                        :class:`~Edge` attributes
         """
@@ -159,11 +159,11 @@ class LazyEdge(Edge):
 
     .. attribute:: source_node
 
-        The first :class:`~kaic.GenomicRegion` in this contact
+        The first :class:`~fanc.GenomicRegion` in this contact
 
     .. attribute:: sink_node
 
-        The second :class:`~kaic.GenomicRegion` in this contact
+        The second :class:`~fanc.GenomicRegion` in this contact
     """
     def __init__(self, row, regions_table=None, _weight_field='weight'):
         self._row = row
@@ -223,7 +223,7 @@ def as_edge(edge):
 
     :param edge: Can be :class:`~Edge`,
                  tuple or list of the form (source, sink, weight),
-                 tuple of the form (:class:`~kaic.GenomicRegion`, :class:`~kaic.GenomicRegion`),
+                 tuple of the form (:class:`~fanc.GenomicRegion`, :class:`~fanc.GenomicRegion`),
                  dict, or :class:`~Edge` equivalent
     :return: :class:`~Edge`
     """
@@ -274,7 +274,7 @@ class RegionPairsContainer(RegionBased):
 
     This is the basic interface for all pair and matrix classes in this module.
     It inherits all methods from :class:`~genomic_regions.RegionBased`, and is
-    therefore based on a list of genomic regions (:class:`~kaic.GenomicRegion`)
+    therefore based on a list of genomic regions (:class:`~fanc.GenomicRegion`)
     representing the underlying genome. You can use the
     :func:`~genomic_regions.RegionBased.regions` method to access genomic regions
     in a intuitive fashion, for example:
@@ -321,7 +321,7 @@ class RegionPairsContainer(RegionBased):
       :func:`~RegionPairsContainer.edges`. It is used to iterate over a subset of
       edges in this object. It receives as input a :code:`key` representing the requested
       subset (further described in :func:`~RegionPairsContainer.edges`), and
-      two lists of :class:`~kaic.GenomicRegion` objects, :code:`row_regions` and
+      two lists of :class:`~fanc.GenomicRegion` objects, :code:`row_regions` and
       :code:`col_regions` representing the two dimensions of regions selected
       by :code:`key`. It should return an iterator over :class:`~Edge` objects.
 
@@ -512,21 +512,21 @@ class RegionPairsContainer(RegionBased):
 
         :func:`~RegionPairsContainer.edges` is the central function of
         :class:`~RegionPairsContainer`. Here, we will use the
-        :class:`~kaic.Hic` implementation for demonstration purposes,
+        :class:`~fanc.Hic` implementation for demonstration purposes,
         but the usage is exactly the same for all compatible
         objects implementing :class:`~RegionPairsContainer`, including
-        :class:`~kaic.compatibility.juicer.JuicerHic` and
-        :class:`~kaic.compatibility.cooler.CoolerHic`.
+        :class:`~fanc.compatibility.juicer.JuicerHic` and
+        :class:`~fanc.compatibility.cooler.CoolerHic`.
 
         .. code ::
 
-            import kaic
+            import fanc
 
             # file from Kai-C examples
-            hic = kaic.load("output/hic/binned/kaic_example_1mb.hic")
+            hic = fanc.load("output/hic/binned/fanc_example_1mb.hic")
 
         We can easily find the number of edges in the sample
-        :class:`~kaic.Hic` object:
+        :class:`~fanc.Hic` object:
 
         .. code ::
 
@@ -562,9 +562,9 @@ class RegionPairsContainer(RegionBased):
                 # ...
 
         Rather than iterate over all edges in the object, we can select only a subset.
-        If the key is a string or a :class:`~kaic.GenomicRegion`, all non-zero edges connecting
+        If the key is a string or a :class:`~fanc.GenomicRegion`, all non-zero edges connecting
         the region described by the key to any other region are returned. If the key is a
-        tuple of strings or :class:`~kaic.GenomicRegion`, only edges between the two regions
+        tuple of strings or :class:`~fanc.GenomicRegion`, only edges between the two regions
         are returned.
 
         .. code ::
@@ -608,10 +608,10 @@ class RegionPairsContainer(RegionBased):
 
             for edge in hic.edges('chr18', lazy=True):
                 print(edge.source, edge.sink, edge.weight, edge)
-                # 42 42 0.12291311562018173 <kaic.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #0>
-                # 24 28 0.025205961072838057 <kaic.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #1>
-                # 5 76 0.00961709840049876 <kaic.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #2>
-                # 66 68 0.03876763316345468 <kaic.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #3>
+                # 42 42 0.12291311562018173 <fanc.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #0>
+                # 24 28 0.025205961072838057 <fanc.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #1>
+                # 5 76 0.00961709840049876 <fanc.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #2>
+                # 66 68 0.03876763316345468 <fanc.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #3>
                 # ...
 
         .. warning :: The lazy iterator reuses the :class:`~LazyEdge` object in every iteration,
@@ -840,7 +840,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
     Class representing matrices where pixels correspond to genomic region pairs.
 
     This is the common interface for all matrix-based classes, such as
-    :class:`~kaic.Hic` or :class:`~kaic.FoldChangeMatrix`. It provides
+    :class:`~fanc.Hic` or :class:`~fanc.FoldChangeMatrix`. It provides
     access to specialised matrix methods, most importantly
     :func:`~RegionMatrixContainer.matrix`, which assembles :mod:`numpy`
     arrays from the list of pairwise contacts stored in each object.
@@ -853,12 +853,12 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
     .. code ::
 
-        import kaic
-        hic = kaic.load("output/hic/binned/kaic_example_1mb.hic")
+        import fanc
+        hic = fanc.load("output/hic/binned/fanc_example_1mb.hic")
 
         # get the whole-genome matrix
         m = hic.matrix()
-        type(m)  # kaic.matrix.RegionMatrix
+        type(m)  # fanc.matrix.RegionMatrix
         isinstance(m, np.ndarray)  # True
         m.shape  # 139, 139
 
@@ -960,7 +960,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         """
         Assemble a :class:`~RegionMatrix` from region pairs.
 
-        :param key: Matrix selector. See :func:`~kaic.matrix.RegionPairsContainer.edges`
+        :param key: Matrix selector. See :func:`~fanc.matrix.RegionPairsContainer.edges`
                     for all supported key types
         :param log: If True, log-transform the matrix entries. Also see log_base
         :param log_base: Base of the log transformation. Default: 2; only used when
@@ -969,10 +969,10 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                               that have no associated edge/contact
         :param mask: If False, do not mask unmappable regions
         :param args: Positional arguments passed to
-                     :func:`~kaic.matrix.RegionMatrixContainer.regions_and_matrix_entries`
+                     :func:`~fanc.matrix.RegionMatrixContainer.regions_and_matrix_entries`
         :param kwargs: Keyword arguments passed to
-                       :func:`~kaic.matrix.RegionMatrixContainer.regions_and_matrix_entries`
-        :return: :class:`~kaic.matrix.RegionMatrix`
+                       :func:`~fanc.matrix.RegionMatrixContainer.regions_and_matrix_entries`
+        :return: :class:`~fanc.matrix.RegionMatrix`
         """
 
         if default_value is None:
@@ -1958,9 +1958,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
     def filter(self, edge_filter, queue=False, log_progress=not config.hide_progressbars):
         """
         Filter edges in this object by using a
-        :class:`~kaic.general.MaskFilter`.
+        :class:`~fanc.general.MaskFilter`.
 
-        :param edge_filter: Class implementing :class:`~kaic.general.MaskFilter`.
+        :param edge_filter: Class implementing :class:`~fanc.general.MaskFilter`.
         :param queue: If True, filter will be queued and can be executed
                       along with other queued filters using
                       :func:`~RegionPairsTable.run_queued_filters`
@@ -2167,7 +2167,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         :param kwargs: Supports
                        file_name: destination file name of subset Hic object;
                        tmpdir: if True works in tmp until object is closed
-        :return: :class:`~kaic.Hic`
+        :return: :class:`~fanc.Hic`
         """
         file_name = kwargs.get("file_name", None)
         tmpdir = kwargs.get('tmpdir', None)
@@ -2332,7 +2332,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
             except tables.FileModeError:
                 warnings.warn("Matrix file opened in read-only mode, "
                               "cannot save expected values to object. "
-                              "Run 'kaic expected <matrix_file>' on the "
+                              "Run 'fanc expected <matrix_file>' on the "
                               "command line or in Python "
                               "use mode 'a' to add expected values to "
                               "an existing object. The results of the current "
@@ -2483,19 +2483,19 @@ class RegionMatrix(np.ma.MaskedArray):
     Subclass of :class:`~np.ma.masked_array` with genomic region support.
 
     Objects of this type are returned by :class:`~RegionMatrixContainer.matrix`.
-    :class:`~RegionMatrix` supports subsetting by :class:`~kaic.GenomicRegion`
+    :class:`~RegionMatrix` supports subsetting by :class:`~fanc.GenomicRegion`
     and region strings of the form :code:`<chromosome>[:<start>-<end>]`.
 
     .. code::
 
-        import kaic
-        hic = kaic.load("output/hic/binned/kaic_example_1mb.hic")
+        import fanc
+        hic = fanc.load("output/hic/binned/fanc_example_1mb.hic")
 
         m = hic.matrix(('chr18', 'chr18'))
-        type(m)  # kaic.matrix.RegionMatrix
+        type(m)  # fanc.matrix.RegionMatrix
 
         m_sub = m['chr18:1-5mb', 'chr18:1-10mb']
-        type(m_sub)  # kaic.matrix.RegionMatrix
+        type(m_sub)  # fanc.matrix.RegionMatrix
         m.shape  # 5, 10
         m_sub.row_regions  # [chr18:1-1000000, chr18:1000001-2000000,
                            #  chr18:2000001-3000000, chr18:3000001-4000000,

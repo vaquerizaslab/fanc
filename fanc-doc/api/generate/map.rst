@@ -4,19 +4,19 @@
 Mapping FASTQ files
 ===================
 
-To map FASTQ files using the API, we will use the :mod:`kaic.map` module.
+To map FASTQ files using the API, we will use the :mod:`fanc.map` module.
 
 *******
 Mappers
 *******
 
 First, we need to decide which mapper to use, and under what circumstances an unaligned
-read should be truncated and re-mapped to the genome. The :class:`~kaic.map.SimpleBowtie2Mapper`,
+read should be truncated and re-mapped to the genome. The :class:`~fanc.map.SimpleBowtie2Mapper`,
 for example, only attempts to align a read once and does no iterative mapping. The
-:class:`~kaic.map.Bowtie2Mapper` resubmits unaligned reads and reads with a low score,
+:class:`~fanc.map.Bowtie2Mapper` resubmits unaligned reads and reads with a low score,
 There are equivalent mappers for BWA named
-:class:`~kaic.map.SimpleBWAMapper` and :class:`~kaic.map.BWAMapper`, but here we
-choose the :class:`~kaic.map.Bowtie2Mapper`. It requires only the path of the corresponding
+:class:`~fanc.map.SimpleBWAMapper` and :class:`~fanc.map.BWAMapper`, but here we
+choose the :class:`~fanc.map.Bowtie2Mapper`. It requires only the path of the corresponding
 ``bowtie2`` index:
 
 .. literalinclude:: code/generate_example_code.py
@@ -33,7 +33,7 @@ mapping automatically.
 Iterative mapping
 *****************
 
-Now we can use :func:`kaic.map.iterative_mapping` to start the actual mapping process:
+Now we can use :func:`fanc.map.iterative_mapping` to start the actual mapping process:
 
 .. literalinclude:: code/generate_example_code.py
     :language: python

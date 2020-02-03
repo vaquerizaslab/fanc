@@ -1,20 +1,20 @@
-import kaic
+import fanc
 
 # start snippet check
-hic = kaic.load("examples/output/hic/binned/kaic_example_500kb.hic")
-isinstance(hic, kaic.matrix.RegionPairsContainer)  # True if interface supported
+hic = fanc.load("examples/output/hic/binned/fanc_example_500kb.hic")
+isinstance(hic, fanc.matrix.RegionPairsContainer)  # True if interface supported
 # end snippet check
 
 # start snippet create
 # create a few regions
-region1 = kaic.GenomicRegion(chromosome='chr1', start=1, end=1000, ix=0)
-region2 = kaic.GenomicRegion(chromosome='chr1', start=1001, end=2000, ix=1)
-region3 = kaic.GenomicRegion(chromosome='chr2', start=1, end=1000, ix=2)
+region1 = fanc.GenomicRegion(chromosome='chr1', start=1, end=1000, ix=0)
+region2 = fanc.GenomicRegion(chromosome='chr1', start=1001, end=2000, ix=1)
+region3 = fanc.GenomicRegion(chromosome='chr2', start=1, end=1000, ix=2)
 
 # connect regions with edges
-edge1 = kaic.Edge(region1, region2, weight=10)
-edge2 = kaic.Edge(region1, region3, weight=1, foo='test')
-edge3 = kaic.Edge(region2, region3, weight=2, bar=[1, 2, 3, 4])
+edge1 = fanc.Edge(region1, region2, weight=10)
+edge2 = fanc.Edge(region1, region3, weight=1, foo='test')
+edge3 = fanc.Edge(region2, region3, weight=2, bar=[1, 2, 3, 4])
 # end snippet create
 
 # start snippet nodes
@@ -40,7 +40,7 @@ for edge in hic.edges:
 # end snippet fast region access
 
 # start snippet only index
-edge_ix = kaic.Edge(0, 1, weight=0.2)
+edge_ix = fanc.Edge(0, 1, weight=0.2)
 # end snippet only index
 
 # start snippet weight bias
@@ -49,7 +49,7 @@ edge1.bias  # return the "correction factor" that is applied to weight
 # end snippet weight bias
 
 # start snippet weight example
-edge = kaic.Edge(0, 3, weight=10)
+edge = fanc.Edge(0, 3, weight=10)
 print(edge)  # 0--3; bias: 1.0; weight: 10.0
 print(edge.weight)  # 10.0
 # end snippet weight example
@@ -118,7 +118,7 @@ for edge in hic.edges(('chr19:1mb-15mb', 'chr19:30.5mb-45000000')):
 
 # start snippet edge iterator region
 edge_counter = 0
-region = kaic.GenomicRegion(chromosome='chr19', start=6000000, end=18000000)
+region = fanc.GenomicRegion(chromosome='chr19', start=6000000, end=18000000)
 for edge in hic.edges((region, region)):
     edge_counter += 1
 # end snippet edge iterator region

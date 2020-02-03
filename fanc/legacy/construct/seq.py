@@ -29,7 +29,7 @@ and filtering could look like this:
         reads.run_queued_filters()
 
     # load genome object
-    genome = kaic.data.genomic.Genome.from_folder("/path/to/fasta_folder/")
+    genome = fanc.data.genomic.Genome.from_folder("/path/to/fasta_folder/")
     # extract genomic regions delineated
     # by restriction fragments
     fragments = genome.get_regions('HindIII')
@@ -55,17 +55,17 @@ and filtering could look like this:
 from __future__ import division
 import tables as t
 import pysam
-from kaic.config import config
-from kaic.tools.general import RareUpdateProgressBar, add_dict, find_alignment_match_positions, WorkerMonitor
-from kaic.tools.sambam import natural_cmp
-from kaic.tools.files import is_sambam_file, create_temporary_copy
-from kaic.legacy.data.general import Maskable, MaskFilter, MaskedTable, FileBased, Mask
+from fanc.config import config
+from fanc.tools.general import RareUpdateProgressBar, add_dict, find_alignment_match_positions, WorkerMonitor
+from fanc.tools.sambam import natural_cmp
+from fanc.tools.files import is_sambam_file, create_temporary_copy
+from fanc.legacy.data.general import Maskable, MaskFilter, MaskedTable, FileBased, Mask
 import os
 from tables.exceptions import NoSuchNodeError
 from abc import abstractmethod, ABCMeta
 from bisect import bisect_right
-from kaic.tools.general import bit_flags_from_int, CachedIterator
-from kaic.legacy.data.genomic import RegionsTable, GenomicRegion, AccessOptimisedRegionPairs, Edge, AccessOptimisedHic, Hic
+from fanc.tools.general import bit_flags_from_int, CachedIterator
+from fanc.legacy.data.genomic import RegionsTable, GenomicRegion, AccessOptimisedRegionPairs, Edge, AccessOptimisedHic, Hic
 import msgpack as pickle
 import numpy as np
 import hashlib
@@ -2652,7 +2652,7 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
 
     This class provides methods to pair reads from two different lists, map them to
     a list of genomic regions (generally resctriction fragments obtained through the
-    :class:`~kaic.data.genomic.Genome` object), and filter the list of pairs by
+    :class:`~fanc.data.genomic.Genome` object), and filter the list of pairs by
     different criteria.
 
     It provides several built-in pair filters:
@@ -2788,7 +2788,7 @@ class FragmentMappedReadPairs(Maskable, RegionsTable, FileBased):
                        constitutes the second half of mapped reads from
                        paired-end sequencing.
         :param regions: A list of genomic regions that will be used to assign
-                        reads. Look at :class:`~kaic.data.genomic.RegionsTable`
+                        reads. Look at :class:`~fanc.data.genomic.RegionsTable`
                         for more details on allowed formats.
         :param ignore_duplicates: Will ignore all duplicates of previously
                                   loaded reads with the same name.
@@ -3579,7 +3579,7 @@ class FragmentRead(object):
 
     .. attribute:: fragment
 
-        A :class:`~kaic.data.genomic.GenomicRegion` delineated by
+        A :class:`~fanc.data.genomic.GenomicRegion` delineated by
         restriction sites.
 
     .. attribute:: position
@@ -3595,7 +3595,7 @@ class FragmentRead(object):
         """
         Initialize this :class:`~FragmentRead` object.
 
-        :param fragment: A :class:`~kaic.data.genomic.GenomicRegion` delineated by
+        :param fragment: A :class:`~fanc.data.genomic.GenomicRegion` delineated by
                          restriction sites.
         :param position: The position of this read in base-pairs (1-based) from the
                          start of the chromosome it maps to.

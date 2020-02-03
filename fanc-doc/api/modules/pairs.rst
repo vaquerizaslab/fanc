@@ -1,7 +1,7 @@
 Pairs module
 ============
 
-.. automodule:: kaic.pairs
+.. automodule:: fanc.pairs
    :members:
    :inherited-members:
    :show-inheritance:

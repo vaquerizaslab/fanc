@@ -5,7 +5,7 @@
 AB compartments
 ###############
 
-The following steps assume that you ran the ``kaic auto`` command in :ref:`example-kaic-auto`.
+The following steps assume that you ran the ``fanc auto`` command in :ref:`example-fanc-auto`.
 Additionally, we set up the Python session like this:
 
 .. literalinclude:: code/ab_example_code.py
@@ -14,7 +14,7 @@ Additionally, we set up the Python session like this:
     :end-before: end snippet ab setup
 
 AB correlation matrices can very easily be obtained from Hi-C files using the
-:func:`~kaic.architecture.compartments.ABCompartmentMatrix.from_hic` function:
+:func:`~fanc.architecture.compartments.ABCompartmentMatrix.from_hic` function:
 
 .. literalinclude:: code/ab_example_code.py
     :language: python
@@ -52,9 +52,9 @@ the inactive compartment. It's calculation is very straightforward:
     :start-after: start snippet ab ev
     :end-before: end snippet ab ev
 
-:func:`~kaic.architecture.compartments.ABCompartmentMatrix.eigenvector` returns a numpy
+:func:`~fanc.architecture.compartments.ABCompartmentMatrix.eigenvector` returns a numpy
 array with one entry per region in the AB correlation matrix (you can retrieve a matching
-list of regions with :func:`~kaic.architecture.compartments.ABCompartmentMatrix.regions`).
+list of regions with :func:`~fanc.architecture.compartments.ABCompartmentMatrix.regions`).
 You can also retrieve only the EV entries for a specific region using the ``sub_region``
 argument, but note that the calculation is always performed on the entire genome first
 to avoid biases from subsetting.

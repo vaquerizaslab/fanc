@@ -23,7 +23,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
 
     .. code::
 
-        hic = kaic.load("path/to/file.hic")
+        hic = fanc.load("path/to/file.hic")
         ab = ABCompartmentMatrix.from_hic(hic)
 
     The :code:`ab` object can then be used to calculate compartmentalisation

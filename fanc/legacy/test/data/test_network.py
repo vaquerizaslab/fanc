@@ -1,8 +1,8 @@
 from __future__ import division
-import kaic
-from kaic.data.network import RaoPeakCaller, RaoPeakInfo
-from kaic.data.genomic import Hic, RegionMatrix, GenomicRegion
-from kaic.tools.general import pairwise
+import fanc
+from fanc.data.network import RaoPeakCaller, RaoPeakInfo
+from fanc.data.genomic import Hic, RegionMatrix, GenomicRegion
+from fanc.tools.general import pairwise
 import numpy as np
 import math
 import pickle
@@ -176,13 +176,13 @@ class TestOverlapPeaks:
         regions = [GenomicRegion('chr1', a + 1, b, ix=i) for i, (a, b) in enumerate(pairwise(np.arange(0, 10001, 100)))]
         self.peaks = {}
         for i in range(3):
-            p = kaic.data.network.PeakInfo()
+            p = fanc.data.network.PeakInfo()
             p.add_regions(regions)
-            p.add_edges(kaic.data.network.Peak(x=x, y=y, source=math.floor(x), sink=math.floor(y)) for x, y in (tuple(sorted(xy)) for xy in peaks[i]))
+            p.add_edges(fanc.data.network.Peak(x=x, y=y, source=math.floor(x), sink=math.floor(y)) for x, y in (tuple(sorted(xy)) for xy in peaks[i]))
             self.peaks[i] = p
 
     def test_overlap(self):
-        stats, merged = kaic.data.network.overlap_peaks(self.peaks, max_distance=100)
+        stats, merged = fanc.data.network.overlap_peaks(self.peaks, max_distance=100)
         expected = {
             (0, 1, 2): 1,
             (0,): 1,

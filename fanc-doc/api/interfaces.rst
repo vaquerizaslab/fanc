@@ -30,8 +30,8 @@ Common interfaces
 
 
 Being able to load different data types with the same command is the first convenient
-feature of :func:`~kaic.__init__.load`. The second is that most objects returned by
-:func:`~kaic.__init__.load` and supported by Kai-C in general share common interfaces
+feature of :func:`~fanc.__init__.load`. The second is that most objects returned by
+:func:`~fanc.__init__.load` and supported by Kai-C in general share common interfaces
 that unify and greatly simply handling of different datasets. We will summarise them
 here to provide you with a rough overview, and the next sections will discuss each
 interface in detail.
@@ -46,22 +46,22 @@ interface in detail.
   This interface supports the following file types: BED, GFF, BigWig, Tabix, BEDPE, and most
   Kai-C files. Find out more in :ref:`genomic_regions`.
 
-- :class:`~kaic.RegionPairsContainer`: This interface extends
+- :class:`~fanc.RegionPairsContainer`: This interface extends
   :class:`~genomic_regions.RegionBased` by adding properties and functions for pairs of
   genomic regions and their relationships ("edges"). You can use the powerful
-  :func:`kaic.RegionpairsContainer.edges` function to iterate over all edges in an object,
+  :func:`fanc.RegionpairsContainer.edges` function to iterate over all edges in an object,
   query only a subset, normalise edge weights on the fly, hide and reveal filtered
-  edges, and more. This interface supports Kai-C files like :class:`~kaic.ReadPairs` and
-  :class:`~kaic.Hic`, Cooler single and multi-resolution files and Juicer files.
+  edges, and more. This interface supports Kai-C files like :class:`~fanc.ReadPairs` and
+  :class:`~fanc.Hic`, Cooler single and multi-resolution files and Juicer files.
   To find out everything about this interface, go to :ref:`edges_interface`.
 
-- :class:`kaic.RegionMatrixContainer`: In many cases, such as Hi-C data, edges and their
+- :class:`fanc.RegionMatrixContainer`: In many cases, such as Hi-C data, edges and their
   associated scores ("weights") can be represented as a matrix. This interface extends
-  :class:`~kaic.RegionPairsContainer` with matrix-specific properties and functions,
+  :class:`~fanc.RegionPairsContainer` with matrix-specific properties and functions,
   including a versatile :func:`~RegionMatrixContainer.matrix` function for retrieving
   whole-genome or subset matrices with support for on-the-fly normalisation and O/E
   transformation, masking of unmappable regions and more. This interface supports
-  Kai-C files like :class:`~kaic.Hic` and  :class:`~kaic.ComparisonMatrix`, Cooler
+  Kai-C files like :class:`~fanc.Hic` and  :class:`~fanc.ComparisonMatrix`, Cooler
   single and multi-resolution files and Juicer files. Go to :ref:`matrix_interface`
   for all the details.
 

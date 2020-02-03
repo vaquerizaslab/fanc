@@ -1,9 +1,9 @@
-import kaic
+import fanc
 import numpy as np
 
 # start snippet check
-hic = kaic.load("examples/output/hic/binned/kaic_example_500kb.hic")
-isinstance(hic, kaic.matrix.RegionMatrixContainer)  # True if interface supported
+hic = fanc.load("examples/output/hic/binned/fanc_example_500kb.hic")
+isinstance(hic, fanc.matrix.RegionMatrixContainer)  # True if interface supported
 # end snippet check
 
 # start snippet matrix whole genome
@@ -11,7 +11,7 @@ m = hic.matrix()
 # end snippet matrix whole genome
 
 # start snippet matrix type
-type(m)  # kaic.matrix.RegionMatrix
+type(m)  # fanc.matrix.RegionMatrix
 isinstance(m, np.ndarray)  # True
 # end snippet matrix type
 

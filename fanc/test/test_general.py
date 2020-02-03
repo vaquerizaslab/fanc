@@ -1,9 +1,9 @@
 import tables as t
 import numpy as np
 import pytest
-from kaic.general import Mask, Maskable, MaskedTable, MaskFilter, FileBased
+from fanc.general import Mask, Maskable, MaskedTable, MaskFilter, FileBased
 import os
-from kaic.tools.files import create_or_open_pytables_file
+from fanc.tools.files import create_or_open_pytables_file
 
 
 class TestMask:

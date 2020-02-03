@@ -1,7 +1,7 @@
 from __future__ import division
-from kaic.architecture.architecture import calculateondemand
-from kaic.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature
-from kaic.data.genomic import GenomicRegion, Node, Edge
+from fanc.architecture.architecture import calculateondemand
+from fanc.architecture.genome_architecture import MatrixArchitecturalRegionFeature, VectorArchitecturalRegionFeature
+from fanc.data.genomic import GenomicRegion, Node, Edge
 import tables as t
 import types
 import numpy as np

@@ -1,7 +1,7 @@
 import os
 import logging
-import kaic
-from kaic.tools.general import mkdir
+import fanc
+from fanc.tools.general import mkdir
 
 
 # start snippet logging
@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO,
 output_folder = 'api_output'
 
 # start snippet import map
-import kaic.map as map
+import fanc.map as map
 # end snippet import map
 
 # start snippet mapper
@@ -35,26 +35,26 @@ sam_2_file = map.iterative_mapping('SRR4271982_chr18_19_2.fastq.gzip',
 # end snippet iterative mapping
 
 # start snippet sort sam
-from kaic.tools.files import sort_natural_sam
+from fanc.tools.files import sort_natural_sam
 sorted_sam_1_file = sort_natural_sam(sam_1_file)
 sorted_sam_2_file = sort_natural_sam(sam_2_file)
 # end snippet sort sam
 
 
 # start snippet genome
-from kaic.regions import genome_regions
+from fanc.regions import genome_regions
 genome_file = 'hg19_chr18_19.fa'
 fragments = genome_regions(genome_file, restriction_enzyme='HindIII')
 # end snippet genome
 
 # start snippet read filters
-from kaic.pairs import QualityFilter, UniquenessFilter
+from fanc.pairs import QualityFilter, UniquenessFilter
 quality_filter = QualityFilter(30, mask='MAPQ')
 uniqueness_filter = UniquenessFilter(strict=True, mask='unique')
 # end snippet read filters
 
 # start snippet import pairs
-from kaic.pairs import generate_pairs_split as generate_pairs
+from fanc.pairs import generate_pairs_split as generate_pairs
 pairs_folder = mkdir(os.path.join(output_folder, 'pairs'))
 pairs = generate_pairs(sam_1_file, sam_2_file, fragments,
                        read_filters=(quality_filter, uniqueness_filter),
@@ -71,7 +71,7 @@ pair = pairs[0]
 print(pair)
 # chr18: 3187827-(3191583[1])-3192106 -- chr18: 3187827-(3192073[-1])-3192106
 type(pair)
-# kaic.pairs.FragmentReadPair
+# fanc.pairs.FragmentReadPair
 
 print(pair.left)
 # chr18: 3187827-(3191583[1])-3192106
@@ -79,7 +79,7 @@ print(pair.left)
 print(pair.right)
 # chr18: 3187827-(3192073[-1])-3192106
 type(pair.right)
-# kaic.pairs.FragmentRead
+# fanc.pairs.FragmentRead
 print(pair.right.fragment)
 # chr18:3187827-3192106
 type(pair.right.fragment)
@@ -106,10 +106,10 @@ pairs.reset_filters()
 # end snippet pairs reset
 
 # start snippet pairs filter example
-from kaic.pairs import SelfLigationFilter
+from fanc.pairs import SelfLigationFilter
 sl_filter = SelfLigationFilter(mask='self-ligation')
 # alternative:
-# from kaic.general import Mask
+# from fanc.general import Mask
 # sl_filter = SelfLigationFilter(mask=Mask(name='self-ligation', description="Filter for self-ligated fragments")
 pairs.filter(sl_filter)
 # end snippet pairs filter example
@@ -117,7 +117,7 @@ pairs.filter(sl_filter)
 pairs.reset_filters()
 
 # start snippet pairs filter queue
-from kaic.pairs import SelfLigationFilter, ReDistanceFilter
+from fanc.pairs import SelfLigationFilter, ReDistanceFilter
 sl_filter = SelfLigationFilter(mask='self-ligation')
 rd_filter = ReDistanceFilter(500, mask='re-site-distance')
 pairs.filter(sl_filter, queue=True)
@@ -147,7 +147,7 @@ hic = pairs.to_hic(file_name=hic_file)
 # end snippet hic convert
 
 hic.close()
-hic = kaic.load(hic_file)
+hic = fanc.load(hic_file)
 
 # start snippet hic bin
 binned_hic = hic.bin(1000000,
@@ -156,14 +156,14 @@ binned_hic = hic.bin(1000000,
 # end snippet hic bin
 
 # start snippet hic filter
-from kaic.hic import LowCoverageFilter
+from fanc.hic import LowCoverageFilter
 lc_filter = LowCoverageFilter(binned_hic, rel_cutoff=0.2)
 binned_hic.filter(lc_filter)
 binned_hic.run_queued_filters()
 # end snippet hic filter
 
 # start snippet hic balance
-from kaic.hic import kr_balancing
+from fanc.hic import kr_balancing
 kr_balancing(binned_hic, whole_matrix=False,
              restore_coverage=False)
 # end snippet hic balance

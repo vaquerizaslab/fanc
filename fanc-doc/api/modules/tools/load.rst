@@ -1,7 +1,7 @@
 Load module
 ===========
 
-.. automodule:: kaic.tools.load
+.. automodule:: fanc.tools.load
    :members:
    :inherited-members:
    :show-inheritance:

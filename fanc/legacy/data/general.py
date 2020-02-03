@@ -7,11 +7,11 @@ files. Other features include indexing and querying.
 """
 
 from __future__ import division
-from kaic.config import config
+from fanc.config import config
 import tables as t
 from tables.nodes import filenode
-from kaic.tools.files import create_or_open_pytables_file, tmp_file_name
-from kaic.tools.general import RareUpdateProgressBar, create_col_index
+from fanc.tools.files import create_or_open_pytables_file, tmp_file_name
+from fanc.tools.general import RareUpdateProgressBar, create_col_index
 import os
 from tables.exceptions import NoSuchNodeError
 from abc import ABCMeta, abstractmethod
@@ -79,7 +79,7 @@ class FileBased(with_metaclass(MetaFileBased, object)):
                     tmpdir = tempfile.gettempdir()
                 else:
                     tmpdir = os.path.expanduser(tmpdir)
-                self.tmp_file_name = tmp_file_name(tmpdir, prefix='tmp_kaic', extension='h5')
+                self.tmp_file_name = tmp_file_name(tmpdir, prefix='tmp_fanc', extension='h5')
                 logger.info("Temporary output file: {}".format(self.tmp_file_name))
                 if mode in ('r+', 'r'):
                     shutil.copyfile(file_name, self.tmp_file_name)

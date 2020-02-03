@@ -6,35 +6,35 @@ RegionPairsContainer
 
 This interface provides common properties and functions to data based on pairs of regions.
 A typical example in this regard would be pairs of ligated fragments in a Hi-C library, as
-represented within Kai-C by the :class:`~kaic.pairs.ReadPairs` class. But also matrix-based
-data, such as in :class:`~kaic.matrix.Hic` can be interpreted as scores between pairs of
-binned genomic regions, hence it also supports the :class:`~kaic.matrix.RegionPairsContainer`
-interface. After loading a dataset using :func:`~kaic.tools.load.load`, you can check for
-support of the :class:`~kaic.matrix.RegionPairsContainer` interface with:
+represented within Kai-C by the :class:`~fanc.pairs.ReadPairs` class. But also matrix-based
+data, such as in :class:`~fanc.matrix.Hic` can be interpreted as scores between pairs of
+binned genomic regions, hence it also supports the :class:`~fanc.matrix.RegionPairsContainer`
+interface. After loading a dataset using :func:`~fanc.tools.load.load`, you can check for
+support of the :class:`~fanc.matrix.RegionPairsContainer` interface with:
 
 .. literalinclude:: code/edges_interface_snippets.py
     :language: python
     :start-after: start snippet check
     :end-before: end snippet check
 
-The current list of Kai-C classes supporting :class:`~kaic.matrix.RegionPairsContainer` is:
-:class:`~kaic.pairs.ReadPairs`,
-:class:`~kaic.compatibility.cooler.CoolerHic`,
-:class:`~kaic.compatibility.juicer.JuicerHic`,
-:class:`~kaic.hic.Hic`,
-:class:`~kaic.architecture.compartments.ABCompartmentMatrix`,
-:class:`~kaic.architecture.comparisons.DifferenceMatrix`,
-:class:`~kaic.architecture.comparisons.FoldChangeMatrix`,
-:class:`~kaic.peaks.PeakInfo`,
+The current list of Kai-C classes supporting :class:`~fanc.matrix.RegionPairsContainer` is:
+:class:`~fanc.pairs.ReadPairs`,
+:class:`~fanc.compatibility.cooler.CoolerHic`,
+:class:`~fanc.compatibility.juicer.JuicerHic`,
+:class:`~fanc.hic.Hic`,
+:class:`~fanc.architecture.compartments.ABCompartmentMatrix`,
+:class:`~fanc.architecture.comparisons.DifferenceMatrix`,
+:class:`~fanc.architecture.comparisons.FoldChangeMatrix`,
+:class:`~fanc.peaks.PeakInfo`,
 and
-:class:`~kaic.peaks.RaoPeakInfo`.
+:class:`~fanc.peaks.RaoPeakInfo`.
 
 **************
 The Edge class
 **************
 
-In :class:`~kaic.matrix.RegionPairsContainer` objects, the basic data type is
-:class:`~kaic.matrix.Edge`. It "connects" two :class:`~genomic_regions.GenomicRegion`
+In :class:`~fanc.matrix.RegionPairsContainer` objects, the basic data type is
+:class:`~fanc.matrix.Edge`. It "connects" two :class:`~genomic_regions.GenomicRegion`
 objects, called "nodes" within the context of the edge, and supports arbitrary
 property annotations, which typically include an edge "weight". Additionally,
 regions are typically associated with an index :code:`ix`, which refers to their
@@ -88,7 +88,7 @@ linking it to a region object:
 
 A call to :code:`source_node` or :code:`sink_node` will then raise a :code:`ValueError`.
 
-:class:`~kaic.matrix.Hic` object edges and many other objects have a "weight"
+:class:`~fanc.matrix.Hic` object edges and many other objects have a "weight"
 property, describing, for example, their (normalised) ligation frequency or contact
 probability. This properties value is internally multiplied by the value of
 :code:`edge.bias` for correction on the fly:
@@ -98,7 +98,7 @@ probability. This properties value is internally multiplied by the value of
     :start-after: start snippet weight bias
     :end-before: end snippet weight bias
 
-If, for example, an :class:`~kaic.matrix.Edge` is created like this:
+If, for example, an :class:`~fanc.matrix.Edge` is created like this:
 
 .. literalinclude:: code/edges_interface_snippets.py
     :language: python
@@ -130,13 +130,13 @@ from this, which will be discussed below.
 The edges function
 ******************
 
-:class:`~kaic.matrix.RegionPairsContainer` compatible objects are built on lists of
+:class:`~fanc.matrix.RegionPairsContainer` compatible objects are built on lists of
 regions, which can be accessed and queried using the :func:`~genomic_regions.RegionBased.regions`
 function (see :ref:`genomic_regions`), and lists of edges. This section shows how these
-edge lists can be queried using the :func:`~kaic.matrix.RegionPairsContainer.edges`
+edge lists can be queried using the :func:`~fanc.matrix.RegionPairsContainer.edges`
 function.
 
-In its simplest form, :func:`~kaic.matrix.RegionPairsContainer.edges` can simply be used as
+In its simplest form, :func:`~fanc.matrix.RegionPairsContainer.edges` can simply be used as
 a property and returns an iterator over all edges in the object. We can use this, for example,
 to count the edges in the object (not the sum of weights):
 
@@ -152,7 +152,7 @@ We can also do this much more simply (and efficiently) by using the built-in :co
     :start-after: start snippet edge length
     :end-before: end snippet edge length
 
-The real power of :func:`~kaic.matrix.RegionPairsContainer.edges`, however, lies in its use as
+The real power of :func:`~fanc.matrix.RegionPairsContainer.edges`, however, lies in its use as
 a function:
 
 .. literalinclude:: code/edges_interface_snippets.py
@@ -219,7 +219,7 @@ Lazy evaluation
 ~~~~~~~~~~~~~~~
 
 Hi-C datasets are often very large, with hundreds of millions, even billions of valid pairs
-in the matrix. The process of creating a unique :class:`~kaic.Matrix.Edge` object for every
+in the matrix. The process of creating a unique :class:`~fanc.Matrix.Edge` object for every
 matrix entry can thus cumulatively take a significant amount of time. For this reason, Kai-C
 offers *lazy* evaluation of edge properties. When enabled, edge data is only
 read when it is requested. This, for example, avoids reading from file when it is not absolutely
@@ -241,10 +241,10 @@ when explicitly requested from an edge, the following code does not work as inte
     :end-before: end snippet edge iterator wrong lazy
 
 All edges in the list are identical! This is because lazy iterations use only a single
-instance of the :class:`~kaic.matrix.LazyEdge` object, which simply points to the
+instance of the :class:`~fanc.matrix.LazyEdge` object, which simply points to the
 data location in the edge in the current iteration. This pointer is replaced for the
 following edge in the next iteration, but the actual object remains the same. The result
-is a list of the same :class:`~kaic.matrix.LazyEdge` object pointing to the same edge
+is a list of the same :class:`~fanc.matrix.LazyEdge` object pointing to the same edge
 data.
 
 Here is the correct way of obtaining data using lazy iterators:
@@ -255,7 +255,7 @@ Here is the correct way of obtaining data using lazy iterators:
     :end-before: end snippet edge iterator right lazy
 
 The example accesses the edge data in the loop and stores it independently of the
-:class:`~kaic.matrix.LazyEdge` object. Lazy iterators can greatly speed up your analyses,
+:class:`~fanc.matrix.LazyEdge` object. Lazy iterators can greatly speed up your analyses,
 but **be very careful** working with them!
 
 Another useful feature of lazy iterators is that they support data modification for
@@ -268,7 +268,7 @@ object like this:
     :end-before: end snippet edge iterator modify lazy
 
 This only works for files opened in append mode (:code:`mode='a'`), and will throw an
-error for files opened in read-only mode. The :func:`~kaic.matrix.LazyEdge.update` function
+error for files opened in read-only mode. The :func:`~fanc.matrix.LazyEdge.update` function
 ensures data is written to file after modifying it.
 
 .. warning::
@@ -284,8 +284,8 @@ ensures data is written to file after modifying it.
 Other functions
 ***************
 
-The :func:`~kaic.matrix.RegionPairsContainer.edges` iterator is the most versatile and useful
-function in the :class:`~kaic.matrix.RegionPairsContainer` interface, but by far not the only one.
+The :func:`~fanc.matrix.RegionPairsContainer.edges` iterator is the most versatile and useful
+function in the :class:`~fanc.matrix.RegionPairsContainer` interface, but by far not the only one.
 We will briefly list the most useful other functions with a brief description and examples here.
 
 regions_identical
@@ -297,7 +297,7 @@ mappable
 regions_and_edges
 ~~~~~~~~~~~~~~~~~
 
-The :func:`~kaic.matrix.RegionPairsContainer.regions_and_edges` function returns three objects:
+The :func:`~fanc.matrix.RegionPairsContainer.regions_and_edges` function returns three objects:
 a list of regions corresponding to the selected matrix rows; a list of regions corresponding to
 the selected matrix columns; and an edge iterator over the matrix subset spanned by the selector.
 
@@ -307,13 +307,13 @@ the selected matrix columns; and an edge iterator over the matrix subset spanned
     :end-before: end snippet regions and edges
 
 This is simpler and saves computation time over having separate function calls to
-:func:`~kaic.regions.RegionBasedWithBins.regions` and :func:`~kaic.matrix.RegionPairsContainer.edges`.
+:func:`~fanc.regions.RegionBasedWithBins.regions` and :func:`~fanc.matrix.RegionPairsContainer.edges`.
 
 ~~~~~~~~~
 edge_data
 ~~~~~~~~~
 
-The function :func:`~kaic.matrix.RegionPairsContainer.edge_data` iterates over only a specific
+The function :func:`~fanc.matrix.RegionPairsContainer.edge_data` iterates over only a specific
 edge attribute for a selection of edges:
 
 .. literalinclude:: code/edges_interface_snippets.py
@@ -326,7 +326,7 @@ edge attribute for a selection of edges:
 mappable
 ~~~~~~~~
 
-:func:`~kaic.matrix.RegionPairsContainer.mappable` returns a boolean vector where each entry
+:func:`~fanc.matrix.RegionPairsContainer.mappable` returns a boolean vector where each entry
 corresponds to a region in the object. If the vector entry is :code:`True`, the regions has
 at least one edge connected to it, i.e. a non-zero matrix entry, otherwise the entry is :code:`False`.
 
@@ -335,5 +335,5 @@ at least one edge connected to it, i.e. a non-zero matrix entry, otherwise the e
     :start-after: start snippet mappable
     :end-before: end snippet mappable
 
-The next interface builds on the :func:`~kaic.matrix.RegionPairsContainer` structure to populate
+The next interface builds on the :func:`~fanc.matrix.RegionPairsContainer` structure to populate
 matrices with edge weights: :ref:`matrix_interface`.

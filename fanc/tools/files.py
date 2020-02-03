@@ -31,7 +31,7 @@ def get_number_of_lines(file_name):
         return sum(1 for _ in f)
 
 
-def tmp_file_name(tmpdir, prefix='tmp_kaic', extension='h5'):
+def tmp_file_name(tmpdir, prefix='tmp_fanc', extension='h5'):
     with tempfile.NamedTemporaryFile('w', prefix=prefix, dir=tmpdir, suffix=extension) as f:
         name = f.name
     return name
@@ -551,7 +551,7 @@ def sort_natural_sam(sam_file, output_file=None, sambamba=True, _sambamba_path='
 
     replace_input = False
     if output_file is None:
-        with tempfile.NamedTemporaryFile(delete=False, prefix='kaic_', suffix=extension) as f:
+        with tempfile.NamedTemporaryFile(delete=False, prefix='fanc_', suffix=extension) as f:
             output_file = f.name
         replace_input = True
 

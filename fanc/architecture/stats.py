@@ -2,7 +2,7 @@ def cis_trans_ratio(hic, normalise=False):
     """
     Calculate the cis/trans ratio for a Hic object.
 
-    :param hic: :class:`~kaic.Hic` object
+    :param hic: :class:`~fanc.Hic` object
     :param normalise: If True, will normalise ratio to the possible number of cis/trans contacts
                       in this genome. Makes ratio comparable across different genomes
     :return: tuple (ratio, cis, trans, factor)

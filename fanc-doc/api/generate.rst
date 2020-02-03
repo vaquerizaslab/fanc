@@ -5,7 +5,7 @@ Generate Hi-C matrices (API)
 ============================
 
 In :ref:`generate_hic` we built a Hi-C matrix from FASTQ using command line tools, either
-with ``kaic auto`` or using :ref:`kaic-modular`. Here, we will accomplish the same using
+with ``fanc auto`` or using :ref:`fanc-modular`. Here, we will accomplish the same using
 only the Python API.
 
 .. toctree::

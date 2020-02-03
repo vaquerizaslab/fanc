@@ -592,7 +592,7 @@ class ObservedPeakFilter(PeakFilter):
         """
         Initialize filter object.
 
-        :param mask: A :class:`~kaic.data.general.Mask` object.
+        :param mask: A :class:`~fanc.data.general.Mask` object.
         :param cutoff: Minimum observed value to consider peak
         """
         super(ObservedPeakFilter, self).__init__(mask=mask)
@@ -601,7 +601,7 @@ class ObservedPeakFilter(PeakFilter):
     def valid_peak(self, peak):
         """
         Evaluate whether a peak passes FDR cutoffs set in __init__
-        :param peak: An :class:`~kaic.data.genomic.Edge` object
+        :param peak: An :class:`~fanc.data.genomic.Edge` object
         :return: True if peak passes interal FDR cutoffs, False otherwise
         """
         if peak.uncorrected < self.cutoff:
@@ -617,7 +617,7 @@ class DistancePeakFilter(PeakFilter):
         """
         Initialize filter object.
 
-        :param mask: A :class:`~kaic.data.general.Mask` object.
+        :param mask: A :class:`~fanc.data.general.Mask` object.
         :param cutoff: Minimum observed value to consider peak
         """
         super(DistancePeakFilter, self).__init__(mask=mask)
@@ -626,7 +626,7 @@ class DistancePeakFilter(PeakFilter):
     def valid_peak(self, peak):
         """
         Evaluate whether a peak passes FDR cutoffs set in __init__
-        :param peak: An :class:`~kaic.data.genomic.Edge` object
+        :param peak: An :class:`~fanc.data.genomic.Edge` object
         :return: True if peak passes internal FDR cutoffs, False otherwise
         """
         if abs(peak.source - peak.sink) < self.cutoff:
@@ -644,7 +644,7 @@ class FdrPeakFilter(PeakFilter):
         """
         Initialize filter object.
 
-        :param mask: A :class:`~kaic.data.general.Mask` object.
+        :param mask: A :class:`~fanc.data.general.Mask` object.
         :param fdr_cutoff: Global FDR cutoff. Is overridden by the
                            neighborhood-specific cutoffs
         :param fdr_ll_cutoff: FDR cutoff for the lower-left neighborhood
@@ -669,7 +669,7 @@ class FdrPeakFilter(PeakFilter):
     def valid_peak(self, peak):
         """
         Evaluate whether a peak passes FDR cutoffs set in __init__
-        :param peak: An :class:`~kaic.data.genomic.Edge` object
+        :param peak: An :class:`~fanc.data.genomic.Edge` object
         :return: True if peak passes interal FDR cutoffs, False otherwise
         """
         if self.fdr_ll_cutoff is not None and peak.fdr_ll > self.fdr_ll_cutoff:
@@ -693,7 +693,7 @@ class MappabilityPeakFilter(PeakFilter):
         """
         Initialize filter object.
 
-        :param mask: A :class:`~kaic.data.general.Mask` object.
+        :param mask: A :class:`~fanc.data.general.Mask` object.
         :param mappability_cutoff: Global mappability cutoff. Is overridden by the
                                    neighborhood-specific cutoffs
         :param mappability_ll_cutoff: Mappability cutoff for the lower-left neighborhood
@@ -718,7 +718,7 @@ class MappabilityPeakFilter(PeakFilter):
     def valid_peak(self, peak):
         """
         Evaluate whether a peak passes FDR cutoffs set in __init__
-        :param peak: An :class:`~kaic.data.genomic.Edge` object
+        :param peak: An :class:`~fanc.data.genomic.Edge` object
         :return: True if peak passes interal FDR cutoffs, False otherwise
         """
         if self.mappability_ll_cutoff is not None and peak.mappability_ll < self.mappability_ll_cutoff:
@@ -747,7 +747,7 @@ class EnrichmentPeakFilter(PeakFilter):
         :param h_ratio: Minimum observed/e_h ratio
         :param v_ratio: Minimum observed/e_v ratio
         :param d_ratio: Minimum observed/e_d ratio
-        :param mask: A :class:`~kaic.data.general.Mask` object.
+        :param mask: A :class:`~fanc.data.general.Mask` object.
         :return: True if all observed/expected ratios pass the thresholds,
                  False otherwise
         """
@@ -1184,7 +1184,7 @@ class RaoPeakCaller(object):
         The peak calling behavior can be influenced by modifying
         the object attributes set when initializing :class:`~RaoPeakCaller`.
 
-        :param hic: A :class:`~kaic.data.genomic.Hic` object
+        :param hic: A :class:`~fanc.data.genomic.Hic` object
         :param chromosome_pairs: If None, all chromosome pairs will be
                                  investigated for peaks. Otherwise
                                  specify a list of chromosome name
@@ -1450,13 +1450,13 @@ def overlap_peaks(peaks, max_distance=6000):
     or conditions.
 
     :param dict peaks: Peaks to overlap. Dictionary of
-                       :class:`kaic.data.network.PeakInfo`,
+                       :class:`fanc.data.network.PeakInfo`,
                        keys are dataset names.
     :param int max_distance: Maximum distance between peaks for overlap
     :return: DataFrame of overlap statistics and dictionary
              containing overlapping peaks. Keys are sets
              of dataset names.
-    :rtype: (pandas.DataFrame, kaic.data.network.PeakInfo)
+    :rtype: (pandas.DataFrame, fanc.data.network.PeakInfo)
     """
     # Algorithm from https://github.com/theaidenlab/juicebox/
     # blob/cb5999cb1e8e430dd29d4114fb208aca4b8d35ac/src/juicebox/

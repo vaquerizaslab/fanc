@@ -1,4 +1,4 @@
-from kaic.legacy.data.genomic import AccessOptimisedHic, Hic
+from fanc.legacy.data.genomic import AccessOptimisedHic, Hic
 import numpy as np
 from collections import defaultdict
 import logging

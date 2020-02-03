@@ -1,4 +1,4 @@
-.. _kaic-plotting:
+.. _fanc-plotting:
 
 ============
 Plotting API
@@ -9,7 +9,7 @@ Here is an overview of the plot types and functions available in the plotting AP
 Index of plot classes
 '''''''''''''''''''''
 
-.. currentmodule:: kaic.plotting
+.. currentmodule:: fanc.plotting
 
 .. autosummary::
 
@@ -36,7 +36,7 @@ Index of plot classes
 Description and examples
 ''''''''''''''''''''''''
 
-.. automodule:: kaic.plotting
+.. automodule:: fanc.plotting
     :members:
         HicPlot, HicPlot2D, HicComparisonPlot2D,
         HicSlicePlot, HicPeakPlot, VerticalSplitPlot, GenomicVectorArrayPlot,
@@ -48,7 +48,7 @@ Description and examples
 
     .. data:: example_data
 
-        dict with user-specific paths to example data included in kaic.
+        dict with user-specific paths to example data included in fanc.
 
     .. data:: style_ticks_whitegrid
 

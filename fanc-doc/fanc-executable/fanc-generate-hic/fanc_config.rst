@@ -1,4 +1,4 @@
-.. _kaic-config:
+.. _fanc-config:
 
 ==================
 Kai-C config files

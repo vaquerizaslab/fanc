@@ -12,7 +12,7 @@ Example:
 
 .. code:: python
 
-   hic = kaic.sample_hic()
+   hic = fanc.sample_hic()
    ex = ExpectedContacts(hic)  # will not trigger calculation of results yet
    intra_expected_foo = ex.intra_expected()  # triggers calculation
    intra_expected_bar = ex.intra_expected()  # simply retrieves data from memory
@@ -24,20 +24,20 @@ A recalculation is also avoided when restoring data from file.
 
 
 from __future__ import division
-from kaic.config import config
-from kaic.legacy.architecture.architecture import TableArchitecturalFeature, calculateondemand, \
+from fanc.config import config
+from fanc.legacy.architecture.architecture import TableArchitecturalFeature, calculateondemand, \
     ArchitecturalFeature
-from kaic.legacy.architecture.genome_architecture import MatrixArchitecturalRegionFeature, \
+from fanc.legacy.architecture.genome_architecture import MatrixArchitecturalRegionFeature, \
     VectorArchitecturalRegionFeature,  MatrixArchitecturalRegionFeatureFilter
-from kaic.architecture.maxima_callers import MaximaCallerDelta
+from fanc.architecture.maxima_callers import MaximaCallerDelta
 from genomic_regions import Bedpe
-from kaic.regions import GenomicRegion, Genome
-from kaic.matrix import Edge
-from kaic.hic import Hic, HicEdgeFilter
+from fanc.regions import GenomicRegion, Genome
+from fanc.matrix import Edge
+from fanc.hic import Hic, HicEdgeFilter
 from collections import defaultdict
-from kaic.tools.general import ranges, to_slice
-from kaic.tools.matrix import apply_sliding_func, kth_diag_indices, trim_stats
-from kaic.general import FileGroup
+from fanc.tools.general import ranges, to_slice
+from fanc.tools.matrix import apply_sliding_func, kth_diag_indices, trim_stats
+from fanc.general import FileGroup
 from Bio.SeqUtils import GC as calculate_gc_content
 import numpy as np
 import tables as t
@@ -46,7 +46,7 @@ from scipy.misc import imresize
 from scipy.stats import trim_mean
 from scipy.stats.mstats import gmean
 from bisect import bisect_left
-from kaic.tools.general import RareUpdateProgressBar
+from fanc.tools.general import RareUpdateProgressBar
 from future.utils import string_types
 import warnings
 import logging
@@ -57,7 +57,7 @@ def cis_trans_ratio(hic, normalise=False):
     """
     Calculate the cis/trans ratio for a Hic object.
     
-    :param hic: :class:`~kaic,data.genomic.Hic` object
+    :param hic: :class:`~fanc,data.genomic.Hic` object
     :param normalise: If True, will normalise ratio to the possible number of cis/trans contacts
                       in this genome. Makes ratio comparable across different genomes
     :return: tuple (ratio, cis, trans, factor)
@@ -113,7 +113,7 @@ class HicEdgeCollection(MatrixArchitecturalRegionFeature):
         """
         Initialize :class:`~HicEdgeCollection`.
 
-        :param hics: Iterable of :class:`~kaic,data.genomic.Hic` objects
+        :param hics: Iterable of :class:`~fanc,data.genomic.Hic` objects
         :param additional_fields: Any additional meta fields to include in the Hi-C collection
                                   (edge field). Must be PyTables Column description(s)
         :param file_name: Path to save file
@@ -227,8 +227,8 @@ class ExpectedContacts(TableArchitecturalFeature):
     Intra-chromosomal contacts take into account the distance between two regions,
     inter-chromosomal expected contacts are a genome-wide average.
 
-    :param hic: A :class:`~kaic.data.genomic.RegionMatrixTable` object
-                    such as :class:`~kaic.data.genomic.Hic`
+    :param hic: A :class:`~fanc.data.genomic.RegionMatrixTable` object
+                    such as :class:`~fanc.data.genomic.Hic`
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Temporary directory
@@ -236,10 +236,10 @@ class ExpectedContacts(TableArchitecturalFeature):
                    to expected intra-chromosomal contacts.
     :param min_reads: Minimum number of reads in sliding window to apply smooting
                       function
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
     :param weight_column: Name of the column containing the weights/values for the
                           expected value calculation. If None, this will be the default field
-                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+                          in the provided :class:`~fanc.data.genomic.RegionMatrixTable`
 
     """
     _classid = 'EXPECTEDCONTACTS'
@@ -475,18 +475,18 @@ class ExpectedContacts(TableArchitecturalFeature):
 
 class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
     """
-    Calculate the ratio of observed over expected contacts in a :class:`~kaic.data.genomic.RegionMatrixTable`.
+    Calculate the ratio of observed over expected contacts in a :class:`~fanc.data.genomic.RegionMatrixTable`.
 
-    :param hic: A :class:`~kaic.data.genomic.RegionMatrixTable` object
-                such as :class:`~kaic.data.genomic.Hic`
+    :param hic: A :class:`~fanc.data.genomic.RegionMatrixTable` object
+                such as :class:`~fanc.data.genomic.Hic`
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Temporary directory
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
     :param weight_column: Name of the column containing the weights/values for the
                           expected value calculation. If None, this will be the default field
-                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
-    :return: :class:`~kaic.architecture.genome_architecture.MatrixArchitecturalRegionFeature`
+                          in the provided :class:`~fanc.data.genomic.RegionMatrixTable`
+    :return: :class:`~fanc.architecture.genome_architecture.MatrixArchitecturalRegionFeature`
     """
     _classid = 'OBSERVEDEXPECTEDRATIO'
 
@@ -573,16 +573,16 @@ class ObservedExpectedRatio(MatrixArchitecturalRegionFeature):
 
 class ComparisonMatrix(MatrixArchitecturalRegionFeature):
     """
-    Compare two :class:`~kaic.data.genomic.RegionMatrixTable` objects.
+    Compare two :class:`~fanc.data.genomic.RegionMatrixTable` objects.
 
     Define edge comparison function manually.
 
-    :param matrix1: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
-    :param matrix2: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param matrix1: :class:`~fanc.data.genomic.RegionMatrixTable`, such as :class:`~fanc.data.genomic.Hic`
+    :param matrix2: :class:`~fanc.data.genomic.RegionMatrixTable`, such as :class:`~fanc.data.genomic.Hic`
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Temporary directory
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param scale_matrices: If True, will scale the matrices naively by artificially increasing the number of
                            reads in one matrix uniformly, so that it has the same number of total contacts
@@ -590,7 +590,7 @@ class ComparisonMatrix(MatrixArchitecturalRegionFeature):
     :param log2: If True, will log2-transform the output values.
     :param weight_column: Name of the column containing the weights/values for the
                           expected value calculation. If None, this will be the default field
-                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+                          in the provided :class:`~fanc.data.genomic.RegionMatrixTable`
     """
     _classid = 'COMPARISONMATRIX'
 
@@ -671,16 +671,16 @@ class ComparisonMatrix(MatrixArchitecturalRegionFeature):
 
 class FoldChangeMatrix(ComparisonMatrix):
     """
-    Calculate the fold-change matrix of two :class:`~kaic.data.genomic.RegionMatrixTable` objects.
+    Calculate the fold-change matrix of two :class:`~fanc.data.genomic.RegionMatrixTable` objects.
 
     fc_ij = matrix1_ij/matrix2_ij
 
-    :param matrix1: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
-    :param matrix2: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param matrix1: :class:`~fanc.data.genomic.RegionMatrixTable`, such as :class:`~fanc.data.genomic.Hic`
+    :param matrix2: :class:`~fanc.data.genomic.RegionMatrixTable`, such as :class:`~fanc.data.genomic.Hic`
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Temporary directory
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param scale_matrices: If True, will scale the matrices naively by artificially increasing the number of
                            reads in one matrix uniformly, so that it has the same number of total contacts
@@ -688,7 +688,7 @@ class FoldChangeMatrix(ComparisonMatrix):
     :param log2: If True, will log2-transform the output values.
     :param weight_column: Name of the column containing the weights/values for the
                           expected value calculation. If None, this will be the default field
-                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+                          in the provided :class:`~fanc.data.genomic.RegionMatrixTable`
     """
     _classid = 'FOLDCHANGEMATRIX'
 
@@ -708,16 +708,16 @@ class FoldChangeMatrix(ComparisonMatrix):
 
 class DifferenceMatrix(ComparisonMatrix):
     """
-    Calculate the fold-change matrix of two :class:`~kaic.data.genomic.RegionMatrixTable` objects.
+    Calculate the fold-change matrix of two :class:`~fanc.data.genomic.RegionMatrixTable` objects.
 
     fc_ij = matrix1_ij/matrix2_ij
 
-    :param matrix1: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
-    :param matrix2: :class:`~kaic.data.genomic.RegionMatrixTable`, such as :class:`~kaic.data.genomic.Hic`
+    :param matrix1: :class:`~fanc.data.genomic.RegionMatrixTable`, such as :class:`~fanc.data.genomic.Hic`
+    :param matrix2: :class:`~fanc.data.genomic.RegionMatrixTable`, such as :class:`~fanc.data.genomic.Hic`
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Temporary directory
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param scale_matrices: If True, will scale the matrices naively by artificially increasing the number of
                            reads in one matrix uniformly, so that it has the same number of total contacts
@@ -725,7 +725,7 @@ class DifferenceMatrix(ComparisonMatrix):
     :param log2: If True, will log2-transform the output values.
     :param weight_column: Name of the column containing the weights/values for the
                           expected value calculation. If None, this will be the default field
-                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+                          in the provided :class:`~fanc.data.genomic.RegionMatrixTable`
     """
     _classid = 'DIFFERENCEMATRIX'
 
@@ -750,17 +750,17 @@ class ABDomainMatrix(MatrixArchitecturalRegionFeature):
     of the observed/expected matrix.
     You can also directly calculate the Hi-C correlation matrix by setting 'ratio' to False.
 
-    :param hic: A :class:`~kaic.data.genomic.Hic` matrix
+    :param hic: A :class:`~fanc.data.genomic.Hic` matrix
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Temporary directory
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param ratio: If False, will omit the step of calculating the observed/expected matrix and return
                   a Hi-C correlation matrix directly.
     :param weight_column: Name of the column containing the weights/values for the
                           expected value calculation. If None, this will be the default field
-                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+                          in the provided :class:`~fanc.data.genomic.RegionMatrixTable`
     :param per_chromosome: If True, will only calculate the intra-chromosomal ABDomainMatrix,
                            which will save computation time and memory.
     """
@@ -846,13 +846,13 @@ class ABDomains(VectorArchitecturalRegionFeature):
     sign of the first eigenvector of the :class:`~ABDomainMatrix` - a region will be assigned
     domain 'A' if its corresponding value in the eigenvector is >= 0, and 'B' otherwise.
 
-    :param data: A :class:`~kaic.data.genomic.Hic` object or :class:`~ABDomainMatrix`
+    :param data: A :class:`~fanc.data.genomic.Hic` object or :class:`~ABDomainMatrix`
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Temporary directory
     :param genome: A Genome for GC content calculation, used to decide if negative
                    eigenvector means A or B
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param per_chromosome: If True, will only calculate the intra-chromosomal ABDomainMatrix,
                            which will save computation time and memory.
@@ -1003,18 +1003,18 @@ class ABDomains(VectorArchitecturalRegionFeature):
 class PossibleContacts(TableArchitecturalFeature):
     """
     Calculate the possible number of intra- and inter-chromosomal contacts in a
-    :class:`~kaic.data.genomic.RegionMatrixTable`. This is a combinatorial approach
+    :class:`~fanc.data.genomic.RegionMatrixTable`. This is a combinatorial approach
     that also takes into account unmappable/masked regions in the genome.
 
-    :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`
+    :param hic: :class:`~fanc.data.genomic.RegionMatrixTable`
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Temporary directory
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param weight_column: Name of the column containing the weights/values for the
                           expected value calculation. If None, this will be the default field
-                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
+                          in the provided :class:`~fanc.data.genomic.RegionMatrixTable`
     """
     _classid = 'POSSIBLECONTACTS'
 
@@ -1118,7 +1118,7 @@ class RowRegionMatrix(np.ndarray):
     def region_bins(self, region):
         """
         Get a slice of indices for regions in this matrix spanned by 'region'.
-        :param region: A :class:`~kaic.data.genomic.GenomicRegion` object or region selector string
+        :param region: A :class:`~fanc.data.genomic.GenomicRegion` object or region selector string
         :return: slice
         """
         if self._region_index is None or self._chromosome_index is None:
@@ -1214,7 +1214,7 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Path to temporary directory
     :param data_fields: dict or class with PyTables data types
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param data: dict with data to load while initializing the matrix (only here for convenience)
 
@@ -1243,7 +1243,7 @@ class MultiVectorArchitecturalRegionFeature(VectorArchitecturalRegionFeature):
         Get parts or all of this object's vectors concatenated into a matrix.
 
         :param regions: If None, will default to all regions in the matrix. Else provide an iterator
-                        over :class:`~kaic.data.genomic.GenomicRegion`s
+                        over :class:`~fanc.data.genomic.GenomicRegion`s
         :param keys: Keys of vectors to include in matrix. Will by default include all vectors.
         :return: :class:`~RowRegionMatrix`
         """
@@ -1308,15 +1308,15 @@ class DirectionalityIndex(MultiVectorArchitecturalRegionFeature):
     The directionality index (Dixon 2012 et al.) is a measure for up-/downstream biases of contact counts any
     given region displays.
 
-    :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
-                a :class:`~kaic.data.genomic.Hic`object
+    :param hic: :class:`~fanc.data.genomic.RegionMatrixTable`, typically
+                a :class:`~fanc.data.genomic.Hic`object
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Path to temporary directory
     :param weight_column: Name of the column containing the weights/values for the
                           expected value calculation. If None, this will be the default field
-                          in the provided :class:`~kaic.data.genomic.RegionMatrixTable`
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+                          in the provided :class:`~fanc.data.genomic.RegionMatrixTable`
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param window_sizes: A list of intergers with the window sizes (in base pairs) to use for
                          directionality index calculations.
@@ -1465,12 +1465,12 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
     should work well in many cases, it is highly recommended that you read through the options listed below
     to get the most out of your analysis.
 
-    :param hic: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
-                a :class:`~kaic.data.genomic.Hic`object
+    :param hic: :class:`~fanc.data.genomic.RegionMatrixTable`, typically
+                a :class:`~fanc.data.genomic.Hic`object
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Path to temporary directory
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param offset: Offset of the insulation square from the diagonal. Can be useful to avoid biases
                    stemming from very bright diagonals
@@ -1797,7 +1797,7 @@ class InsulationIndex(MultiVectorArchitecturalRegionFeature):
         :param sub_bin_precision: Call boundaries with sub bin precision, by taking
                                   into account the precise zero transition of the delta vector.
         :param call_maxima: Call maxima instead of minima as boundaries
-        :return: list of :class:`~kaic.data.genomic.GenomicRegion`
+        :return: list of :class:`~fanc.data.genomic.GenomicRegion`
         """
         index = self.insulation_index(window_size)
         if log:
@@ -1836,13 +1836,13 @@ class RegionContactAverage(MultiVectorArchitecturalRegionFeature):
     index window has a width of 1, region contact average can be as wide as required) and can be offset
     from the diagonal.
 
-    :param matrix: :class:`~kaic.data.genomic.RegionMatrixTable`, typically
-                   a :class:`~kaic.data.genomic.Hic`object
+    :param matrix: :class:`~fanc.data.genomic.RegionMatrixTable`, typically
+                   a :class:`~fanc.data.genomic.Hic`object
     :param file_name: Path to save file location
     :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
     :param tmpdir: Path to temporary directory
     :param window_sizes: List of window sizes in base pairs to calculate the insulation index
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param offset: Offset of window from the diagonal of the matrix
     :param padding: Padding of window (width = 1 + 2*padding)
@@ -2030,7 +2030,7 @@ class MetaMatrixBase(ArchitecturalFeature, FileGroup):
     Meta class for the extraction of submatrices from a matrix using a list of regions.
 
     :param array: :class:`~MultiVectorArchitecturalRegionFeature`
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param window_width: Width of the extracted sub-matrix in bins
     :param data_selection: Names or indexes of the vectors to extract submatrix from.
@@ -2155,7 +2155,7 @@ class MetaArray(MetaMatrixBase):
     genome.
 
     :param array: :class:`~MultiVectorArchitecturalRegionFeature`
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param window_width: Width of the extracted sub-matrix in bins
     :param data_selection: Names or indexes of the vectors to extract submatrix from.
@@ -2223,7 +2223,7 @@ class MetaHeatmap(MetaMatrixBase):
     Extract sub-rows from array by a list of regions and concatenate into a heatmap array.
 
     :param array: :class:`~MultiVectorArchitecturalRegionFeature`
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param window_width: Width of the extracted sub-matrix in bins
     :param data_selection: Names or indexes of the vectors to extract submatrix from.
@@ -2304,7 +2304,7 @@ class MetaRegionAverage(MetaMatrixBase):
     Calculate an average profile of array values for a list of regions.
 
     :param array: :class:`~MultiVectorArchitecturalRegionFeature`
-    :param regions: A region selector string, :class:`~kaic.data.genomic.GenomicRegion`, or lists thereof.
+    :param regions: A region selector string, :class:`~fanc.data.genomic.GenomicRegion`, or lists thereof.
                     Will subset both matrices using these region(s) before the calculation
     :param window_width: Width of the extracted sub-matrix in bins
     :param data_selection: Names or indexes of the vectors to extract submatrix from.

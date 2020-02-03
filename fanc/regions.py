@@ -8,14 +8,14 @@ documentation, but here is an example to get you started:
 
 .. code::
 
-    import kaic
-    rt = kaic.RegionsTable()
+    import fanc
+    rt = fanc.RegionsTable()
 
     # demo how to add regions
     regions = []
     for chromosome in ['chr1', 'chr2']:
         for start in range(1, 10000, 1000):
-            r = kaic.GenomicRegion(chromosome=chromosome, start=start, end=start+999)
+            r = fanc.GenomicRegion(chromosome=chromosome, start=start, end=start+999)
             regions.append(r)
     rt.add_regions(regions)
 
@@ -31,15 +31,15 @@ in silico digestion and genome binning.
 
 .. code::
 
-    import kaic
+    import fanc
 
     # create chromosomes
-    chromosome1 = kaic.Chromosome(name='chr1', sequence='AAGTCCGTGCTGTCGATCATAGCTAGCTAGCTA')
-    chromosome2 = kaic.Chromosome(name='chr2', sequence='GTGTCGATCAAATCGAAA')
+    chromosome1 = fanc.Chromosome(name='chr1', sequence='AAGTCCGTGCTGTCGATCATAGCTAGCTAGCTA')
+    chromosome2 = fanc.Chromosome(name='chr2', sequence='GTGTCGATCAAATCGAAA')
     len(chromosome1)  # 33
 
     # create genome
-    genome = kaic.Genome()
+    genome = fanc.Genome()
     genome.add_chromosome(chromosome1)
     genome.add_chromosome(chromosome2)
 
@@ -397,8 +397,8 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
 
     This class is inherited by objects working with lists of genomic
     regions, such as equidistant bins along chromosomes in a genome
-    (:class:`~kaic.hic.Hic`) or restriction fragments of genomic DNA
-    (:class:`~kaic.pairs.ReadPairs`)
+    (:class:`~fanc.hic.Hic`) or restriction fragments of genomic DNA
+    (:class:`~fanc.pairs.ReadPairs`)
 
     Internally, each genomic region is encoded in a PyTables Table and
     the following region attributes are represented as table columns:
@@ -410,9 +410,9 @@ class RegionsTable(RegionBasedWithBins, FileGroup):
 
     .. code::
 
-        import kaic
+        import fanc
         import tables
-        rt = kaic.RegionsTable(
+        rt = fanc.RegionsTable(
                 additional_fields={'score': tables.Float32Col()}
              )
 

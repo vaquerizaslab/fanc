@@ -1,31 +1,31 @@
 """
 Module that handles Kai-C configuration files.
 
-Generally, some Kai-C behaviour can be controlled using a "kaic.conf"
+Generally, some Kai-C behaviour can be controlled using a "fanc.conf"
 file in one of the following locations, in order of preference:
 
-1. kaic.conf in current directory
-2. File specified by environment variable KAIC_CONF
-3. kaic.conf in home folder
-4. .kaic.conf in home folder
-5. ~/.config/kaic.conf
-6. /etc/kaic/kaic.conf
+1. fanc.conf in current directory
+2. File specified by environment variable fanc_CONF
+3. fanc.conf in home folder
+4. .fanc.conf in home folder
+5. ~/.config/fanc.conf
+6. /etc/fanc/fanc.conf
 
 All configuration files will be read, but the options of lower-ranking
 locations will be overwritten.
 
-To write a default configuration file use  :code:`kaic write-config`
+To write a default configuration file use  :code:`fanc write-config`
 from the command line or
 
 .. code::
 
-    from kaic.config import write_default_config
+    from fanc.config import write_default_config
 
-    write_default_config('~/.kaic.conf')  # or any other location
+    write_default_config('~/.fanc.conf')  # or any other location
 
 """
 
-from kaic.tools.general import Map
+from fanc.tools.general import Map
 import yaml
 import os
 import copy
@@ -115,8 +115,8 @@ juicer_tools_jar_path:
 """
 default_config = yaml.load(_default_config_content, Loader=yaml.FullLoader)
 
-_config_file_name = 'kaic.conf'
-_environment_variable_name = 'KAIC_CONF'
+_config_file_name = 'fanc.conf'
+_environment_variable_name = 'fanc_CONF'
 
 # check common places for config file
 # modified from: http://stackoverflow.com/questions/7567642/where-to-put-a-configuration-file-in-python
@@ -133,22 +133,22 @@ _config_file_locations = (
     # home folder (hidden file)
     os.path.join(os.path.expanduser("~"), '.' + _config_file_name),
     # home folder (.config directory)
-    os.path.join(os.path.expanduser("~"), '.config', 'kaic', _config_file_name),
-    # /etc/kaic (MySQL style)
-    os.path.join("/etc/kaic/", _config_file_name)
+    os.path.join(os.path.expanduser("~"), '.config', 'fanc', _config_file_name),
+    # /etc/fanc (MySQL style)
+    os.path.join("/etc/fanc/", _config_file_name)
 )
 
 
 # read the first config file that is found, checking in the order above
 def read_file_configs(config_file_locations=None):
     """
-    Read all kaic.conf configuration files found in
+    Read all fanc.conf configuration files found in
     1. current directory
-    2. specified by environment variable KAIC_CONF
-    3. kaic.conf in home folder
-    4. .kaic.conf in home folder
-    5. ~/.config/kaic.conf
-    6. /etc/kaic/kaic.conf
+    2. specified by environment variable fanc_CONF
+    3. fanc.conf in home folder
+    4. .fanc.conf in home folder
+    5. ~/.config/fanc.conf
+    6. /etc/fanc/fanc.conf
 
     :param config_file_locations: optional custom config file paths in a list
     :return: dictionaries of parsed configs
@@ -193,11 +193,11 @@ def write_default_config(file_name=None, overwrite=False):
     """
     Write the default configuration file.
 
-    :param file_name: Output path, e.g. ~/.kaic.conf
+    :param file_name: Output path, e.g. ~/.fanc.conf
     :param overwrite: Overwrite existing file if True. Default: False
     """
     if file_name is None:
-        file_name = os.path.expanduser('~/.kaic.conf')
+        file_name = os.path.expanduser('~/.fanc.conf')
     else:
         file_name = os.path.expanduser(file_name)
     if not overwrite and os.path.exists(file_name):

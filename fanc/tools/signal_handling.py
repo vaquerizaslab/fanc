@@ -1,5 +1,5 @@
 import signal
-from kaic.config import config
+from fanc.config import config
 
 
 class TrappedSignalException(Exception):

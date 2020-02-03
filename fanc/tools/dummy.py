@@ -1,5 +1,5 @@
-from kaic.hic import LegacyHic, Hic
-from kaic.matrix import Edge
+from fanc.hic import LegacyHic, Hic
+from fanc.matrix import Edge
 from genomic_regions import GenomicRegion
 
 

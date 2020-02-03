@@ -1,4 +1,4 @@
-.. _kaic-loops:
+.. _fanc-loops:
 
 
 ############
@@ -16,15 +16,15 @@ patches of increased contact intensity:
 
 .. image:: images/rao2014.chr11_77400000_78600000.png
 
-We can use ``kaic loops`` to call loops in Hi-C matrices using the HICCUPS algorithm
+We can use ``fanc loops`` to call loops in Hi-C matrices using the HICCUPS algorithm
 (`Rao and Huntley et al., 2014 <http://dx.doi.org/10.1016/j.cell.2014.11.021>`_).
 Please refer to the original paper for details on the algorithm, specifically the
 different types of local neighborhoods defined to make loop calling robust.
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
+   :module: fanc.commands.fanc_commands
    :func: loops_parser
-   :prog: kaic loops
+   :prog: fanc loops
    :nodescription:
    :nodefault:
 
@@ -45,16 +45,16 @@ related to their loop probability. The most important ones are
     :start-after: start snippet loops annotate
     :end-before: end snippet loops annotate
 
-When run like this, ``kaic loops`` does not actually call any loops, but merely returns
+When run like this, ``fanc loops`` does not actually call any loops, but merely returns
 a matrix object where every pixel is annotated with the above properties. Importantly,
 as this is the most computationally expensive step, you are strongly advised to choose
 a large number of threads using the ``-t`` option. Even better, if you have access to
-a computational cluster running Sun/Oracle Grid Engine, ``kaic loops`` can automatically
+a computational cluster running Sun/Oracle Grid Engine, ``fanc loops`` can automatically
 submit annotation jobs to the cluster if you set the ``--sge`` flag. The ``-t`` option
 then specifies the number of jobs allowed to run in parallel instead of the number of
 local threads used for multiprocessing.
 
-By default, ``kaic loops`` assumes a loop size of 25kb. This determines the area around
+By default, ``fanc loops`` assumes a loop size of 25kb. This determines the area around
 a pixel that is not included in the local neighborhood calculations. If this is chosen
 too small, the neighborhood will lie within the peak region, and enrichments are going
 to be lower. If this is chosen too big, the neighborhood will no longer be local. If you

@@ -1,13 +1,13 @@
 # start snippet oe setup
-import kaic
+import fanc
 import matplotlib.pyplot as plt
 
-hic_500kb = kaic.load("output/hic/binned/kaic_example_500kb.hic")
+hic_500kb = fanc.load("output/hic/binned/fanc_example_500kb.hic")
 # end snippet oe setup
 
 hic_500kb.close()
 # start snippet oe append
-hic_500kb = kaic.load("output/hic/binned/kaic_example_500kb.hic", mode='a')
+hic_500kb = fanc.load("output/hic/binned/fanc_example_500kb.hic", mode='a')
 # end snippet oe append
 
 
@@ -29,7 +29,7 @@ ax.set_xlabel("Distance")
 ax.set_ylabel("Average contacts")
 plt.show()
 # end snippet oe ddplot
-fig.savefig('../kaic-doc/api/analyse/images/oe_500kb.png')
+fig.savefig('../fanc-doc/api/analyse/images/oe_500kb.png')
 
 
 # start snippet oe nonorm
@@ -48,4 +48,4 @@ ax.set_xlabel("Distance")
 ax.set_ylabel("Average contacts (not normalised)")
 plt.show()
 # end snippet oe nonorm
-fig.savefig('../kaic-doc/api/analyse/images/oe_500kb_nonorm.png')
+fig.savefig('../fanc-doc/api/analyse/images/oe_500kb_nonorm.png')

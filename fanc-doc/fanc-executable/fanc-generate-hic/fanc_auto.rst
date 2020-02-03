@@ -1,24 +1,24 @@
-.. _kaic-auto:
+.. _fanc-auto:
 
 
 ##################################
-Generating Hi-C matrices with kaic
+Generating Hi-C matrices with fanc
 ##################################
 
-This part of the documentation will focus primarily on ``kaic auto`` - the most versatile
+This part of the documentation will focus primarily on ``fanc auto`` - the most versatile
 command in the Kai-C toolkit. Its main goal is to convert any input to binned Hi-C matrices.
-The following schematic will give you an overview of what file types ``kaic auto`` can handle
+The following schematic will give you an overview of what file types ``fanc auto`` can handle
 and how they are processed downstream.
 
-.. image:: images/kaic-auto-schematic.png
+.. image:: images/fanc-auto-schematic.png
 
-``kaic auto`` will map reads in FASTQ (or gzipped FASTQ) files to a reference genome, generating
+``fanc auto`` will map reads in FASTQ (or gzipped FASTQ) files to a reference genome, generating
 SAM/BAM files. SAM/BAM files with paired-end reads will be automatically sorted and mate pairs
 will be matched to generate Pairs files. Pairs files will be converted into fragment-level Hic
 objects. Multiple fragment-level Hic objects will be merged into a single Hi-C object. Finally,
 the fragment-level Hic object will be binned at various bin sizes.
 
-Internally, ``kaic auto`` constructs its Hi-C processing pipeline from more specialised ``kaic``
+Internally, ``fanc auto`` constructs its Hi-C processing pipeline from more specialised ``fanc``
 commands. When describing the different pipeline steps and how you can control them below, we
 will also reference the specialised command that is used to build each step of the pipeline.
 
@@ -27,16 +27,16 @@ will also reference the specialised command that is used to build each step of t
 Parameters
 **********
 
-Each pipeline step in ``kaic auto`` is controlled by a specific set of parameters in ``kaic auto``.
+Each pipeline step in ``fanc auto`` is controlled by a specific set of parameters in ``fanc auto``.
 Some of these are mandatory for specific types of input, others are optional and affect, for example,
 the processing and filtering of objects in the pipeline.
 
-Here is the help output for ``kaic auto``:
+Here is the help output for ``fanc auto``:
 
 .. argparse::
-   :module: kaic.commands.auto
+   :module: fanc.commands.auto
    :func: auto_parser
-   :prog: kaic auto
+   :prog: fanc auto
    :nodescription:
    :nodefault:
 
@@ -47,12 +47,12 @@ Mandatory arguments
 
 .. code:: python
 
-    kaic auto <input 1> <input 2> <input 3> < ... > <output folder>
+    fanc auto <input 1> <input 2> <input 3> < ... > <output folder>
 
 
-``kaic auto`` accepts any number of input files, which will be discussed below.
+``fanc auto`` accepts any number of input files, which will be discussed below.
 The last positional argument (without '-') must always be the output folder for
-all intermediate and final Kai-C files. ``kaic auto`` will generate the following
+all intermediate and final Kai-C files. ``fanc auto`` will generate the following
 folder structure in the output folder:
 
 .. code:: bash
@@ -73,16 +73,16 @@ the folder names should be self-explanatory.
 General arguments
 =================
 
-``kaic auto`` will name its output files using the ``-n`` parameter as prefix. If this is not
+``fanc auto`` will name its output files using the ``-n`` parameter as prefix. If this is not
 provided, it will try to come up with a basename from the largest overlap of the input file
 names. As this can be surprising it is often best to specify the ``-n`` parameter directly.
 
 You should also use the ``-t`` parameter to set the maximum number of parallel threads used
-by ``kaic auto`` - by default, it uses only a single processor. It is highly recommended to
+by ``fanc auto`` - by default, it uses only a single processor. It is highly recommended to
 set this to a much higher value to enable parallel processing of large datasets.
 
 If you are working on a network, or with multiple hard drives, you may want to use the ``-tmp``
-option. It instructs ``kaic auto`` to perform as many calculations as possible in a temporary
+option. It instructs ``fanc auto`` to perform as many calculations as possible in a temporary
 directory.
 
 ***********
@@ -90,41 +90,41 @@ Input types
 ***********
 
 For this tutorial, we are going to use the example data provided on our
-`GitHub page <http://www.github.com/vaquerizaslab/kaic>`_ in the ``examples`` folder.
+`GitHub page <http://www.github.com/vaquerizaslab/fanc>`_ in the ``examples`` folder.
 It is a downsampled Hi-C library of a previously published human adrenal tissue dataset
 (`SRR4271982 of GSM2322539 <https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM2322539>`_)
 that only contains chromosomes 18 and 19.
 
-Now let us discuss the different input types ``kaic auto`` can handle.
+Now let us discuss the different input types ``fanc auto`` can handle.
 
 ===========
 FASTQ input
 ===========
 
-To process FASTQ files with ``kaic``, you must first have
+To process FASTQ files with ``fanc``, you must first have
 `Bowtie2 <http://bowtie-bio.sourceforge.net/bowtie2/index.shtml>`_ or
 `BWA <http://bio-bwa.sourceforge.net/>`_ installed on your system and available in your PATH.
 Additionally, you need the corresponding index for the reference genome of your choice. We currently
 recommend using BWA, as it supports chimeric reads, which are frequent in Hi-C libraries when
 ligation junctions are sequenced.
 
-Once you have these prerequisites, you can call ``kaic auto`` like this, assuming you are in the \
+Once you have these prerequisites, you can call ``fanc auto`` like this, assuming you are in the \
 ``examples`` folder:
 
 .. code:: bash
 
-    kaic auto SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_2.fastq.gzip \
+    fanc auto SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_2.fastq.gzip \
               ./example_output/ -i bwa-index/hg19_chr18_19.fa \
               -g hg19_chr18_19_re_fragments.bed
 
-The first two arguments are the paired-end FASTQ files. ``kaic auto`` works with FASTQ and gzipped
-FASTQ files. In general, ``kaic auto`` assumes that two consecutive FASTQ file arguments are mate
+The first two arguments are the paired-end FASTQ files. ``fanc auto`` works with FASTQ and gzipped
+FASTQ files. In general, ``fanc auto`` assumes that two consecutive FASTQ file arguments are mate
 pairs (there is no pattern matching on _1 and _2 involved, so make sure you have the correct order
 of input files!). Following the FASTQ files as the last positional argument is the output folder
-(``example_output``). ``-i`` or ``--genome-index`` instructs ``kaic auto`` to use the specified index
+(``example_output``). ``-i`` or ``--genome-index`` instructs ``fanc auto`` to use the specified index
 for mapping the FASTQ files to a reference genome. It will automatically determine whether a
 BWA mem or Bowtie2 index is provided and choose the mapping software accordingly. Other mappers are
-currently not supported (raise an `issue on GitHub <http://www.github.com/vaquerizaslab/kaic>`_
+currently not supported (raise an `issue on GitHub <http://www.github.com/vaquerizaslab/fanc>`_
 if you are interested in support for your favourite mapper).
 
 .. warning::
@@ -148,21 +148,21 @@ As mentioned above, it is common to find reads in Hi-C libraries that contain a 
 sequence. Kai-C can automatically split these kinds of reads before mapping using the
 ``--split-ligation-junction`` option, which can improve mapping efficiency.
 
-``kaic auto`` parallelises mapping by spawning multiple mapping
+``fanc auto`` parallelises mapping by spawning multiple mapping
 processes internally. This can result in high disk I/O - if you have issues with poor performance,
 try using the ``--mapper-parallel`` option, which will instead use the multithreading of your chosen
 mapping software. If you are using Bowtie2, you can additionally use the ``--memory-map`` option,
 which will load the entire Bowtie2 index into memory to be shared across all Bowtie2 processes. Use
 this option if your system has a lot of memory available to speed up the mapping. Finally, if you
-are using the ``-tmp`` option, which causes ``kaic auto`` to perform most pipeline steps in a
+are using the ``-tmp`` option, which causes ``fanc auto`` to perform most pipeline steps in a
 temporary directory, you may want to use the ``--split-fastq`` option to split the FASTQ files into
 smaller chunks before mapping, so you can save space on your ``tmp`` partition.
 
 The resulting BAM files are automatically handed to the next step in the pipeline, or you can
-provide SAM/BAM files to ``kaic auto`` directly. This is described in the following section.
-You can also perform the mapping separately with the ``kaic map`` command, which also gives you
+provide SAM/BAM files to ``fanc auto`` directly. This is described in the following section.
+You can also perform the mapping separately with the ``fanc map`` command, which also gives you
 additional options for controlling the mapping process, and which is described in
-:ref:`kaic-map`.
+:ref:`fanc-map`.
 
 =============
 SAM/BAM input
@@ -172,21 +172,21 @@ To process SAM/BAM files, no additional external software is required. However, 
 the installation of `Sambamba <http://lomereiter.github.io/sambamba/>`_, which can greatly speed
 up the SAM sorting step required for merging mate pairs into the Pairs object.
 
-A minimal ``kaic auto`` command using SAM/BAM files could look like this:
+A minimal ``fanc auto`` command using SAM/BAM files could look like this:
 
 .. code:: bash
 
-    kaic auto sam/SRR4271982_chr18_19_1.bam sam/SRR4271982_chr18_19_2.bam ./example_output/ \
+    fanc auto sam/SRR4271982_chr18_19_1.bam sam/SRR4271982_chr18_19_2.bam ./example_output/ \
               -g hg19_chr18_19_re_fragments.bed
 
-Similarly to FASTQ input, ``kaic auto`` assumes that two consecutive SAM/BAM files represent
+Similarly to FASTQ input, ``fanc auto`` assumes that two consecutive SAM/BAM files represent
 mate pairs, and will match the read names in the pairing step. The ``-g`` or ``--genome``
 parameter is mandatory for both FASTQ and SAM/BAM input, and is used to load (or construct) the
 restriction fragment regions necessary for building the fragment-level Hi-C object.
 You can either directly provide a region-based file with restriction fragments (most file
 formats are supported, including BED and GFF), or use a FASTA file with the genomic sequence
 in conjunction with the ``-r`` or ``--restriction-enzyme`` parameter. In the latter case,
-``kaic auto`` will perform an in silico digestion of the genome and use the resulting
+``fanc auto`` will perform an in silico digestion of the genome and use the resulting
 restriction fragments from there.
 
 .. note::
@@ -194,19 +194,19 @@ restriction fragments from there.
     Genome assembly FASTA files typically contain a large number of unassembled contigs or
     other sequences that are often irrelevant for downstream Hi-C analysis. As the number of
     chromosomes can negatively affect Kai-C performance, it is generally a good idea to limit
-    the analysis to canonical chromosomes. A very easy way to do with with ``kaic`` is the
-    ``kaic fragments`` command, which accepts a ``--chromosomes`` option to specify exactly
+    the analysis to canonical chromosomes. A very easy way to do with with ``fanc`` is the
+    ``fanc fragments`` command, which accepts a ``--chromosomes`` option to specify exactly
     which chromosomes you want in the final analysis. The output file can be directly used as
     input for the ``-g`` argument.
 
 SAM/BAM files are first sorted and then matched by ``qname``. Together with the restriction
 fragment list, mate pairs will be assigned to restriction fragments and stored in a "Pairs"
-object. By default, ``kaic auto`` excludes unmappable and multimapping reads, as these are
+object. By default, ``fanc auto`` excludes unmappable and multimapping reads, as these are
 unusable or misleading in interpreting Hi-C data. Additional filters for read pairs are
-described in the :ref:`kaic-auto-pairs` section.
+described in the :ref:`fanc-auto-pairs` section.
 
-You can run the SAM/BAM to Pairs step of the ``kaic auto`` pipeline separately using
-``kaic pairs``, which is described in mor detail in :ref:`kaic-pairs`.
+You can run the SAM/BAM to Pairs step of the ``fanc auto`` pipeline separately using
+``fanc pairs``, which is described in mor detail in :ref:`fanc-pairs`.
 
 
 =======================
@@ -218,34 +218,34 @@ text files that contain read pair information. Kai-C supports valid pairs files 
 `HiC-Pro <http://nservant.github.io/HiC-Pro/RESULTS.html#list-of-valid-interaction-products>`_
 and the `4D Nucleome project <https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md>`_.
 
-With ``kaic auto`` you can load them like this
+With ``fanc auto`` you can load them like this
 
 .. code:: bash
 
-    kaic auto test.validPairs ./example_output/ -g hg19_chr18_19_re_fragments.bed
+    fanc auto test.validPairs ./example_output/ -g hg19_chr18_19_re_fragments.bed
 
-``kaic auto`` will attempt to automatically determine if you supply a valid pairs file.
+``fanc auto`` will attempt to automatically determine if you supply a valid pairs file.
 
 
-.. _kaic-auto-pairs:
+.. _fanc-auto-pairs:
 
 ===========
 Pairs input
 ===========
-If you already have a Kai-C Pairs object, for example from a previous ``kaic auto`` run or
-from the ``kaic pairs`` command, you can feed them to ``kaic auto`` directly:
+If you already have a Kai-C Pairs object, for example from a previous ``fanc auto`` run or
+from the ``fanc pairs`` command, you can feed them to ``fanc auto`` directly:
 
 .. code:: bash
 
-    kaic auto pairs/test.pairs ./example_output/
+    fanc auto pairs/test.pairs ./example_output/
 
 The Pairs objects already contain restriction fragment information, hence the ``-g`` parameter
-is no longer necessary. Unless using the ``--no-filter-pairs`` option, ``kaic auto`` will first
+is no longer necessary. Unless using the ``--no-filter-pairs`` option, ``fanc auto`` will first
 filter read pairs for self-ligated fragments, PCR duplicates, and restriction site distance
 (>10kb). You have the option to additionally filter out ligation error products using the
 ``--le-inward-cutoff`` and ``--le-outward-cutoff`` parameters. More details on the different
-filtering options are available in the description of the separate ``kaic pairs`` command:
-:ref:`kaic-pairs`
+filtering options are available in the description of the separate ``fanc pairs`` command:
+:ref:`fanc-pairs`
 
 After filtering, Pairs files are converted to fragment-level Hic objects. The parameters
 applying to their processing are described in the next section.
@@ -255,12 +255,12 @@ applying to their processing are described in the next section.
 Hic input
 =========
 
-If you already have a Kai-C Hic object, for example from a previous ``kaic auto`` run or
-from the ``kaic hic`` command, you can feed them to ``kaic auto`` directly:
+If you already have a Kai-C Hic object, for example from a previous ``fanc auto`` run or
+from the ``fanc hic`` command, you can feed them to ``fanc auto`` directly:
 
 .. code:: bash
 
-    kaic auto hic/test.hic ./example_output/
+    fanc auto hic/test.hic ./example_output/
 
 If you are running this command with multiple input files, these will be merged into a single
 fragment-level Hic object. This merged Hic object will then be binned at the resolutions
@@ -274,16 +274,16 @@ by default the corrected matrix entries correspond to contact probabilities. You
 ``--restore-coverage`` option to force matrix entries in a chromosome to sum up to the
 total number of reads before correction.
 
-You can run the Hi-C processing step independently with the ``kaic hic`` command, as described
-in detail in :ref:`kaic-hic`
+You can run the Hi-C processing step independently with the ``fanc hic`` command, as described
+in detail in :ref:`fanc-hic`
 
 
 ===========
 Mixed input
 ===========
 
-Now that we have covered all the different input options fort ``kaic auto``, it is worth
-stressing that you can combined different types of input in the same command. ``kaic auto``
+Now that we have covered all the different input options fort ``fanc auto``, it is worth
+stressing that you can combined different types of input in the same command. ``fanc auto``
 will attempt to automatically determine the commands necessary for each input to run
 through the entire pipeline, and will merge inputs into a single fragment-level Hic object
 before binning.
@@ -292,7 +292,7 @@ That means something like this is possible:
 
 .. code:: bash
 
-    kaic auto hic/test.hic pairs/test.pairs test.validPairs \
+    fanc auto hic/test.hic pairs/test.pairs test.validPairs \
               sam/SRR4271982_chr18_19_1.bam sam/SRR4271982_chr18_19_2.bam \
               SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_2.fastq.gzip \
               ./example_output/ -g hg19_chr18_19_re_fragments.bed -b 1mb, 50kb, 25kb \
@@ -303,21 +303,21 @@ That means something like this is possible:
 Test runs and Sun/Oracle Grid engine support
 ********************************************
 
-By default, ``kaic auto`` runs tasks in parallel locally on the machine it was started on.
+By default, ``fanc auto`` runs tasks in parallel locally on the machine it was started on.
 If you want to perform a test run, without actually executing any commands, you can use
-the ``--run-with test`` option. This will not run any of the ``kaic`` pipeline steps, but
+the ``--run-with test`` option. This will not run any of the ``fanc`` pipeline steps, but
 will print each command it would run, including the dependencies between commands, to the
 command line.
 If you have access to a computational cluster running Sun/Oracle Grid Engine (SGE/OGE), you
-can instruct ``kaic auto`` to submit all commands to the cluster using ``--run-with sge``.
+can instruct ``fanc auto`` to submit all commands to the cluster using ``--run-with sge``.
 Internally, this calls ``qsub`` on each command and uses the ``--hold_jid`` parameter to
 ensure each command waits for the output of its dependencies. You can configure the SGE
-setup using :ref:`kaic-config`
+setup using :ref:`fanc-config`
 
 **********
 Next steps
 **********
 
-Once you have generated your binned, filtered, and corrected Hic objects with ``kaic auto``,
+Once you have generated your binned, filtered, and corrected Hic objects with ``fanc auto``,
 you may want to explore the data in those matrices. Kai-C provides a number of commands for
 data analsyis and exploration. Continue with :ref:`` for further details.

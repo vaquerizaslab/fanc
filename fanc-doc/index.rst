@@ -6,7 +6,7 @@ Kai-C documentation
    :maxdepth: 3
 
    Getting started with Kai-C <getting_started>
-   kaic: command line tools <kaic>
+   fanc: command line tools <fanc>
    klot: plotting from the command line <klot>
    Python API <api/api>
 

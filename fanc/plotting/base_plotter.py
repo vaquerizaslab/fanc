@@ -1,6 +1,6 @@
 from __future__ import division, print_function
-from kaic.config import config
-from kaic.plotting.helpers import style_ticks_whitegrid, LimitGroup
+from fanc.config import config
+from fanc.plotting.helpers import style_ticks_whitegrid, LimitGroup
 from matplotlib.ticker import MaxNLocator, Formatter, Locator
 from genomic_regions import GenomicRegion
 from abc import abstractmethod, abstractproperty, ABCMeta
@@ -20,7 +20,7 @@ class GenomeCoordFormatter(Formatter):
     """
     def __init__(self, chromosome, minor_div=None, display_scale=True, display_chromosome=True):
         """
-        :param chromosome: :class:`~kaic.data.genomic.GenomicRegion` or string
+        :param chromosome: :class:`~fanc.data.genomic.GenomicRegion` or string
         :param minor_div: Divide each major tick by this many minor ticks.
         :param display_scale: Boolean
                               Display distance scale at bottom right
@@ -218,7 +218,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
                               are linked otherwise.
         :param Axes ax: Matplotlib axes instance that the plot will be drawn on.
                         Only necessary if you don't intend to use a 
-                        :class:`~kaic.plotting.plotter.GenomicFigure` to draw the
+                        :class:`~fanc.plotting.plotter.GenomicFigure` to draw the
                         plot. Default: None
         """
         if len(kwargs) > 0:
@@ -441,7 +441,7 @@ class ScalarDataPlot(BasePlotter1D):
                           'mid' Draw values connecting mid-points of bins
         :param tupleylim: Set y-axis limits as tuple. Can leave upper or lower
                           limit undetermined by setting None, e.g. (2.5, None).
-                          Alternatively, a :class:`~kaic.plotting.helpers.LimitGroup` instance can
+                          Alternatively, a :class:`~fanc.plotting.helpers.LimitGroup` instance can
                           be passed to synchronize limits across multiple plots.
                           Default: Automatically determined by data limits
         :type lim: tuple(float, float)

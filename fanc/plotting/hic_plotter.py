@@ -1,8 +1,8 @@
-import kaic
-from kaic.config import config
-from kaic.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, ScalarDataPlot, \
+import fanc
+from fanc.config import config
+from fanc.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, ScalarDataPlot, \
                                        PlotMeta, BaseOverlayPlotter
-from kaic.plotting.helpers import append_axes, style_ticks_whitegrid
+from fanc.plotting.helpers import append_axes, style_ticks_whitegrid
 from genomic_regions import GenomicRegion, as_region
 from ..matrix import RegionMatrixTable, RegionMatrixContainer
 from ..architecture.comparisons import SplitMatrix
@@ -32,8 +32,8 @@ def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1,
     """
     Prepare :class:`~BufferedMatrix` from hic data.
 
-    :param hic_data: :class:`~kaic.data.genomic.RegionMatrixTable` or
-                     :class:`~kaic.data.genomic.RegionMatrix`
+    :param hic_data: :class:`~fanc.data.genomic.RegionMatrixTable` or
+                     :class:`~fanc.data.genomic.RegionMatrix`
     :param buffering_strategy: "all", "fixed" or "relative"
                                "all" buffers the whole matrix
                                "fixed" buffers a fixed area, specified by buffering_arg
@@ -55,7 +55,7 @@ def prepare_hic_buffer(hic_data, buffering_strategy="relative", buffering_arg=1,
 
 class BufferedMatrix(object):
     """
-    Buffer contents of any :class:`~kaic.Hic` like objects. Matrix is
+    Buffer contents of any :class:`~fanc.Hic` like objects. Matrix is
     prefetched and stored in memory. Buffer contents can quickly be fetched
     from memory. Different buffering strategies allow buffering of nearby
     regions so that adjacent parts of the matrix can quickly be fetched.
@@ -69,8 +69,8 @@ class BufferedMatrix(object):
                  norm=True, oe=False, log=False):
         """
         Initialize a buffer for Matrix-like objects that support
-        indexing using class:`~GenomicRegion` objects, such as class:`~kaic.Hic`
-        or class:`~kaic.RegionMatrix` objects.
+        indexing using class:`~GenomicRegion` objects, such as class:`~fanc.Hic`
+        or class:`~fanc.RegionMatrix` objects.
 
         :param data: Data to be buffered
         :param buffering_strategy: "all", "fixed" or "relative"
@@ -143,7 +143,7 @@ class BufferedMatrix(object):
         m = self.buffered_matrix[tuple(regions)]
         if self.smooth_sigma is not None:
             mf = gaussian_filter(m, self.smooth_sigma)
-            m = kaic.matrix.RegionMatrix(mf, row_regions=m.row_regions, col_regions=m.col_regions)
+            m = fanc.matrix.RegionMatrix(mf, row_regions=m.row_regions, col_regions=m.col_regions)
         return m
 
     def _buffer_all(self, *regions):
@@ -257,14 +257,14 @@ class BasePlotterHic(BasePlotterMatrix):
                  matrix_norm=True, oe=False, log=False, **kwargs):
         """
         :param hic_data: Path to Hi-C data on disk or
-                        :class:`~kaic.data.genomic.Hic` or :class:`~kaic.data.genomic.RegionMatrix`
+                        :class:`~fanc.data.genomic.Hic` or :class:`~fanc.data.genomic.RegionMatrix`
         :param adjust_range: Draw a slider to adjust vmin/vmax interactively. Default: False
         :param buffering_strategy: A valid buffering strategy for :class:`~BufferedMatrix`
         :param buffering_arg: Adjust range of buffering for :class:`~BufferedMatrix`
         """
         super(BasePlotterHic, self).__init__(**kwargs)
         if isinstance(hic_data, string_types):
-            hic_data = kaic.load(hic_data, mode="r")
+            hic_data = fanc.load(hic_data, mode="r")
         self.hic_data = hic_data
         self.hic_buffer = prepare_hic_buffer(hic_data, buffering_strategy=buffering_strategy,
                                              buffering_arg=buffering_arg, weight_field=weight_field,
@@ -388,7 +388,7 @@ class HicSlicePlot(ScalarDataPlot):
                  buffering_strategy="relative", buffering_arg=1,
                  weight_field=None, default_value=None, **kwargs):
         """
-        :param hic_data: :class:`~kaic.Hic` or :class:`~kaic.RegionMatrix`. Can be list of
+        :param hic_data: :class:`~fanc.Hic` or :class:`~fanc.RegionMatrix`. Can be list of
                          multiple Hi-C datasets.
         :param slice_region: String ("2L:1000000-1500000") or :class:`~GenomicRegion`.
                              All interactions involving this region are shown.
@@ -522,7 +522,7 @@ class TriangularMatrixPlot(BasePlotterHic, BasePlotter1D):
 
     def _mesh_data(self, region):
         hm = self.hic_buffer.get_matrix(region, region)
-        hm_copy = kaic.matrix.RegionMatrix(np.copy(hm), col_regions=hm.col_regions,
+        hm_copy = fanc.matrix.RegionMatrix(np.copy(hm), col_regions=hm.col_regions,
                                            row_regions=hm.row_regions)
         # update coordinates
         bin_coords = np.r_[[x.start for x in hm_copy.row_regions], hm_copy.row_regions[-1].end]
@@ -591,12 +591,12 @@ HicPlot = TriangularMatrixPlot
 class HicPeakPlot(BaseOverlayPlotter):
     """
     Overlay peaks onto Hicplot or HicPlot2D. Accepts
-    :class:`~kaic.data.network.PeakInfo`.
+    :class:`~fanc.data.network.PeakInfo`.
     Add to HicPlot or HicPlot2D using add_overlay method.
     """
     def __init__(self, peaks, radius=None, circle_props={}, **kwargs):
         """
-        :param peaks: Kaic peaks instance
+        :param peaks: fanc peaks instance
         :param radius: Radius in bp for plotted circles.
                        If not specified (default), use the radius of the
                        peak itself. This is often too small to see,

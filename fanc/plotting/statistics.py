@@ -56,7 +56,7 @@ def ligation_bias_plot(pairs, ax=None, log=False, **kwargs):
     """
     Plot the ligation error structure of a dataset.
 
-    :param pairs: Read pairs mapped to genomic regions (:class:`~kaic.pairs.ReadPairs`)
+    :param pairs: Read pairs mapped to genomic regions (:class:`~fanc.pairs.ReadPairs`)
     :param ax: (optional) axis in which to plot the bars.
                Will use :code:`plt.gca()` if not specified
     :param log: log2-transform ratios if True
@@ -112,10 +112,10 @@ def restriction_site_distance_plot(pairs, ax=None, max_percentile=95,
     is equivalent to the insert size of the sequenced DNA molecule. As
     such, this plot can serve as a quality control for DNA fragmentation
     prior to sequencing. It can also be used to derive a cutoff for the
-    :class:`~kaic.pairs.ReDistanceFilter`, which excludes mate pairs with
+    :class:`~fanc.pairs.ReDistanceFilter`, which excludes mate pairs with
     very large insert sizes.
 
-    :param pairs: :class:`~kaic.pairs.ReadPairs`
+    :param pairs: :class:`~fanc.pairs.ReadPairs`
     :param ax: (optional) matplotlib axis
     :param max_percentile: Percentile of values up to which the distribution
                            is plotted. If this is set to 100, the distribution
@@ -173,16 +173,16 @@ def marginals_plot(matrix, chromosome, ax=None, lower=None, rel_cutoff=0.1, colo
 
     Marginals are the sum of values in each column of the matrix.
     This plot can be used to determine sensible low coverage thresholds
-    for the :class:`~kaic.hic.LowCoverageFilter`.
+    for the :class:`~fanc.hic.LowCoverageFilter`.
 
-    :param matrix: :class:`~kaic.matrix.RegionMatrixContainer`
+    :param matrix: :class:`~fanc.matrix.RegionMatrixContainer`
     :param chromosome: Name of a chromosome to plot marginals for.
     :param ax: Matplotlib axis
     :param lower: Absolute lower cutoff for drawing threshold line
     :param rel_cutoff: Relative lower cutoff for drawing thresold line
     :param color: Color of line in plot
     :param kwargs: Keyword arguments passed to
-                   :func:`~kaic.matrix.RegionMatrixContainer.matrix`
+                   :func:`~fanc.matrix.RegionMatrixContainer.matrix`
     :return: ax
     """
     if ax is None:

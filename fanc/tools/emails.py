@@ -2,7 +2,7 @@ import smtplib
 from future.utils import string_types
 from email.mime.text import MIMEText
 
-from kaic import config
+from fanc import config
 
 
 def send_email(to_address, message, subject='', from_address=None, server=None, credentials=None,
@@ -17,7 +17,7 @@ def send_email(to_address, message, subject='', from_address=None, server=None, 
         if config.email_from_address is None:
             raise ValueError("No from_address. "
                              "Must directly provide email sender information "
-                             "or modify kaic.conf file accordingly!")
+                             "or modify fanc.conf file accordingly!")
         from_address = config.email_from_address
 
     port = None
@@ -25,7 +25,7 @@ def send_email(to_address, message, subject='', from_address=None, server=None, 
         if config.email_smtp_server is None:
             raise ValueError("No server address. "
                              "Must directly provide server address "
-                             "or modify kaic.conf file accordingly!")
+                             "or modify fanc.conf file accordingly!")
         server = config.email_smtp_server
         port = config.email_smtp_port
     else:

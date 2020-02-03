@@ -467,7 +467,7 @@ class Boundaries(RegionScoreTable):
         :param sub_bin_precision: Call boundaries with sub bin precision, by taking
                                   into account the precise zero transition of the delta vector.
         :param call_maxima: Call maxima instead of minima as boundaries
-        :return: list of :class:`~kaic.data.genomic.GenomicRegion`
+        :return: list of :class:`~fanc.data.genomic.GenomicRegion`
         """
         index = list(insulation_score.region_data(score_field))
         if log:

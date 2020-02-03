@@ -1,7 +1,7 @@
-.. _kaic-api:
+.. _fanc-api:
 
 ==================
-kaic Python module
+fanc Python module
 ==================
 
 .. toctree::

@@ -1,7 +1,7 @@
 Matrix module
 =============
 
-.. automodule:: kaic.matrix
+.. automodule:: fanc.matrix
    :members:
    :inherited-members:
    :show-inheritance:

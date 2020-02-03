@@ -10,12 +10,12 @@ import tempfile
 logger = logging.getLogger(__name__)
 
 
-def kaic_parser():
-    usage = "kaic <command> [options]\n\n"
+def fanc_parser():
+    usage = "fanc <command> [options]\n\n"
 
     command_descriptions = dict()
     for name, function in globals().items():
-        if name.endswith("_parser") and name != 'kaic_parser':
+        if name.endswith("_parser") and name != 'fanc_parser':
             parser = function()
             short_name = name[:-7].replace('_', '-')
             command_descriptions[short_name] = parser.description.split(".")[0]
@@ -40,7 +40,7 @@ def kaic_parser():
         usage += "{}{}{}\n".format(name, padding, command_descriptions.get(name))
 
     parser = argparse.ArgumentParser(
-        description="kaic processing tool for Hi-C data",
+        description="fanc processing tool for Hi-C data",
         usage=textwrap.dedent(usage)
     )
 
@@ -76,7 +76,7 @@ def kaic_parser():
 
     parser.add_argument(
         '-m', '--email', dest='email_to_address',
-        help='Email address for kaic command summary.'
+        help='Email address for fanc command summary.'
     )
 
     parser.add_argument(
@@ -105,18 +105,18 @@ def kaic_parser():
 
 
 def auto_parser():
-    import kaic.commands.auto
-    return kaic.commands.auto.auto_parser()
+    import fanc.commands.auto
+    return fanc.commands.auto.auto_parser()
 
 
 def auto(argv, **kwargs):
-    import kaic.commands.auto
-    return kaic.commands.auto.auto(argv, **kwargs)
+    import fanc.commands.auto
+    return fanc.commands.auto.auto(argv, **kwargs)
 
 
 def map_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic map",
+        prog="fanc map",
         description='Map reads in a FASTQ file to a reference genome.'
     )
 
@@ -213,7 +213,7 @@ def map_parser():
     )
 
     parser.add_argument(
-        '--kaic-parallel', dest='mapper_parallel',
+        '--fanc-parallel', dest='mapper_parallel',
         action='store_false',
         default=True,
         help='Use Kai-C parallelisation, which launches multiple mapper jobs. '
@@ -285,10 +285,10 @@ def map(argv, **kwargs):
     else:
         threads, mapper_threads = args.threads, 1
 
-    import kaic.map as map
-    from kaic.tools.general import mkdir
+    import fanc.map as map
+    from fanc.tools.general import mkdir
     from genomic_regions.files import create_temporary_copy
-    from kaic.tools.files import random_name
+    from fanc.tools.files import random_name
     import subprocess
     import tempfile
     import shutil
@@ -388,7 +388,7 @@ def map(argv, **kwargs):
                         tmp = False
                         input_file = create_temporary_copy(input_file, preserve_extension=True)
                         tmp_file = tempfile.NamedTemporaryFile(suffix=os.path.splitext(output_file)[1],
-                                                               prefix='kaic_', delete=False)
+                                                               prefix='fanc_', delete=False)
                         tmp_file_name = tmp_file.name
                         output_file = tmp_file_name
                         tmp = True
@@ -404,7 +404,7 @@ def map(argv, **kwargs):
                         os.remove(output_file)
                     mapper.close()
             else:
-                from kaic.tools.files import split_fastq, merge_sam, gzip_splitext
+                from fanc.tools.files import split_fastq, merge_sam, gzip_splitext
 
                 logger.info("Splitting FASTQ files for mapping")
                 if os.path.isdir(output_folder):
@@ -421,7 +421,7 @@ def map(argv, **kwargs):
                         split_bam_file = split_sam_tmpdir + '/{}.bam'.format(basename)
                         split_bam_files.append(split_bam_file)
 
-                        split_command = ['kaic', 'map', split_file, index_path, split_bam_file,
+                        split_command = ['fanc', 'map', split_file, index_path, split_bam_file,
                                          '-m', str(min_size), '-s', str(step_size), '-t', str(threads),
                                          '-q', str(args.quality), '-b', str(batch_size)]
                         if not iterative:
@@ -429,7 +429,7 @@ def map(argv, **kwargs):
                         if tmp:
                             split_command += ['-tmp']
                         if not mapper_parallel:
-                            split_command += ['--kaic-parallel']
+                            split_command += ['--fanc-parallel']
                         if not memory_map:
                             split_command += ['--no-memory-map']
                         if trim_front:
@@ -455,7 +455,7 @@ def map(argv, **kwargs):
 
 def fragments_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic fragments",
+        prog="fanc fragments",
         description='In-silico genome digestion'
     )
 
@@ -498,10 +498,10 @@ def fragments(argv, **kwargs):
     output_file = os.path.expanduser(args.output)
     chromosomes = args.chromosomes
 
-    from kaic.regions import genome_regions
+    from fanc.regions import genome_regions
     regions = genome_regions(genome_file, re_or_bin_size)
 
-    from kaic.tools.files import write_bed
+    from fanc.tools.files import write_bed
     import warnings
     from collections import defaultdict
 
@@ -524,7 +524,7 @@ def fragments(argv, **kwargs):
 
 def sort_sam_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic sort_sam",
+        prog="fanc sort_sam",
         description="Convenience function to sort a SAM file by name. "
                     "Exactly the same as 'samtools sort -n', but potentially"
                     "faster if sambamba is available."
@@ -561,7 +561,7 @@ def sort_sam(argv, **kwargs):
     tmp = args.tmp
 
     from genomic_regions.files import create_temporary_copy
-    from kaic.tools.files import sort_natural_sam
+    from fanc.tools.files import sort_natural_sam
     import tempfile
     import shutil
 
@@ -574,7 +574,7 @@ def sort_sam(argv, **kwargs):
             sam_file = create_temporary_copy(sam_file)
             if output_file is not None:
                 basename, extension = os.path.splitext(output_file)
-                with tempfile.NamedTemporaryFile(delete=False, prefix='kaic_', suffix=extension) as f:
+                with tempfile.NamedTemporaryFile(delete=False, prefix='fanc_', suffix=extension) as f:
                     output_file = f.name
             tmp = True
             logger.info("Working in tmp: {}, ".format(sam_file, output_file))
@@ -595,7 +595,7 @@ def sort_sam(argv, **kwargs):
 
 def pairs_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic pairs",
+        prog="fanc pairs",
         description='Process and filter read pairs'
     )
 
@@ -613,7 +613,7 @@ def pairs_parser():
              'and an output file; a pairs file in 4D Nucleome format '
              '(https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md) '
              'and an output file, ' 
-             'or an existing kaic Pairs object. ' 
+             'or an existing fanc Pairs object. ' 
              'In case of SAM/BAM, HiC-Pro, or 4D Nucleome you must also provide the ' 
              '--genome argument, and if --genome is not a file with '
              'restriction fragments (or Hi-C bins), you must also provide the ' 
@@ -854,7 +854,7 @@ def pairs(argv, **kwargs):
                 parser.error("Must provide genome file (-g) when loading reads or pairs!")
 
             logger.info("Getting genome regions (fragments or bins)")
-            from kaic.regions import genome_regions
+            from fanc.regions import genome_regions
             try:
                 if tmp:
                     tmp = False
@@ -870,7 +870,7 @@ def pairs(argv, **kwargs):
                 else:
                     raise
 
-        import kaic
+        import fanc
 
         if len(input_files) == 3:
             logger.info("Three arguments detected, assuming SAM/BAM input.")
@@ -887,13 +887,13 @@ def pairs(argv, **kwargs):
                 pairs_file = create_temporary_output(pairs_file)
                 tmp = True
 
-            from kaic.tools.general import get_sam_mapper
+            from fanc.tools.general import get_sam_mapper
             bwa = get_sam_mapper(sam1_file) == 'bwa' or args.bwa
             logger.info("Using filters appropriate for {}.".format('BWA' if bwa else 'Bowtie2'))
 
-            from kaic.pairs import BwaMemQualityFilter, BwaMemUniquenessFilter, \
+            from fanc.pairs import BwaMemQualityFilter, BwaMemUniquenessFilter, \
                 UniquenessFilter, ContaminantFilter, QualityFilter, UnmappedFilter
-            from kaic.general import Mask
+            from fanc.general import Mask
 
             read_filters = []
             if filter_unmappable:
@@ -920,7 +920,7 @@ def pairs(argv, **kwargs):
                 f = ContaminantFilter(filter_contaminant, mask=Mask(ix=3, name='contaminant'))
                 read_filters.append(f)
 
-            from kaic.pairs import generate_pairs_split as generate_pairs
+            from fanc.pairs import generate_pairs_split as generate_pairs
             pairs = generate_pairs(sam1_file, sam2_file, regions,
                                    restriction_enzyme=restriction_enzyme,
                                    read_filters=read_filters, output_file=pairs_file,
@@ -929,8 +929,8 @@ def pairs(argv, **kwargs):
             pairs.close()
         elif len(input_files) == 2:
             logger.info("Two arguments detected, assuming HiC-Pro or 4D Nucleome input.")
-            from kaic.pairs import HicProPairGenerator, FourDNucleomePairGenerator, ReadPairs
-            from kaic.regions import genome_regions
+            from fanc.pairs import HicProPairGenerator, FourDNucleomePairGenerator, ReadPairs
+            from fanc.regions import genome_regions
 
             input_file = os.path.expanduser(input_files[0])
             pairs_file = os.path.expanduser(input_files[1])
@@ -971,13 +971,13 @@ def pairs(argv, **kwargs):
 
         if reset_filters:
             logger.info("Resetting all filters")
-            pairs = kaic.load(pairs_file, mode='a')
+            pairs = fanc.load(pairs_file, mode='a')
             pairs.reset_filters()
             pairs.close()
 
         if (filter_le_auto or filter_inward or filter_outward or filter_re_distance or
                 filter_self_ligations or filter_pcr_duplicates):
-            pairs = kaic.load(pairs_file, mode='a')
+            pairs = fanc.load(pairs_file, mode='a')
 
             logger.debug("Preparing read pair filters")
             if filter_le_auto:
@@ -1017,7 +1017,7 @@ def pairs(argv, **kwargs):
             matplotlib.use('agg')
             import matplotlib.pyplot as plt
 
-            pairs = kaic.load(pairs_file, mode='r')
+            pairs = fanc.load(pairs_file, mode='r')
             if statistics_file is not None or statistics_plot_file is not None:
                 statistics = pairs.filter_statistics()
 
@@ -1028,7 +1028,7 @@ def pairs(argv, **kwargs):
 
                 if statistics_plot_file is not None:
                     logger.info("Saving statistics...")
-                    from kaic.plotting.statistics import summary_statistics_plot
+                    from fanc.plotting.statistics import summary_statistics_plot
                     statistics_plot_file = os.path.expanduser(statistics_plot_file)
                     fig, ax = plt.subplots()
                     summary_statistics_plot(statistics)
@@ -1036,14 +1036,14 @@ def pairs(argv, **kwargs):
                     plt.close(fig)
 
             if re_dist_plot_file is not None:
-                from kaic.plotting.statistics import restriction_site_distance_plot
+                from fanc.plotting.statistics import restriction_site_distance_plot
                 fig, ax = plt.subplots()
                 restriction_site_distance_plot(pairs, ax=ax)
                 fig.savefig(re_dist_plot_file)
                 plt.close(fig)
 
             if ligation_error_plot_file is not None:
-                from kaic.plotting.statistics import ligation_bias_plot
+                from fanc.plotting.statistics import ligation_bias_plot
                 fig, ax = plt.subplots()
                 ligation_bias_plot(pairs, ax=ax)
                 fig.savefig(ligation_error_plot_file)
@@ -1063,7 +1063,7 @@ def pairs(argv, **kwargs):
 
 def hic_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic hic",
+        prog="fanc hic",
         description='Process, filter, and correct Hic files'
     )
 
@@ -1075,7 +1075,7 @@ def hic_parser():
                 is provided. In that case, binning, filtering and 
                 correcting will be done in place.
                 Input files. If these are Kai-C Pairs objects 
-                (see "kaic pairs"), they will be turned into 
+                (see "fanc pairs"), they will be turned into 
                 Hic objects. Hic objects (also the ones converted 
                 from Pairs) will first be merged and the merged 
                 object will be binned, filtered and corrected as 
@@ -1224,7 +1224,7 @@ def hic(argv, **kwargs):
     args = parser.parse_args(argv[2:])
 
     import os
-    from kaic.tools.general import str_to_int
+    from fanc.tools.general import str_to_int
 
     input_files = [os.path.expanduser(file_name) for file_name in args.input]
     bin_size = str_to_int(args.bin_size) if args.bin_size is not None else None
@@ -1268,7 +1268,7 @@ def hic(argv, **kwargs):
         whole_matrix = True
 
     import tempfile
-    import kaic
+    import fanc
     from genomic_regions.files import create_temporary_copy, create_temporary_output
 
     original_output_file = None
@@ -1303,10 +1303,10 @@ def hic(argv, **kwargs):
 
             o = None
             try:
-                o = kaic.load(input_file)
-                if isinstance(o, kaic.Hic) or isinstance(o, kaic.hic.LegacyHic):
+                o = fanc.load(input_file)
+                if isinstance(o, fanc.Hic) or isinstance(o, fanc.hic.LegacyHic):
                     hic_files.append(input_file)
-                elif isinstance(o, kaic.ReadPairs):
+                elif isinstance(o, fanc.ReadPairs):
                     pairs_files.append(input_file)
                 else:
                     parser.error("File ({}) type {} not supported."
@@ -1319,7 +1319,7 @@ def hic(argv, **kwargs):
             logger.info("Converting Pairs files")
 
             for pairs_file in pairs_files:
-                with kaic.load(pairs_file) as pairs:
+                with fanc.load(pairs_file) as pairs:
                     tmp_output_file = tempfile.NamedTemporaryFile(suffix='.hic', delete=False)
                     tmp_input_files.append(tmp_output_file.name)
                     logger.info("Converting {} to Hic".format(pairs_file))
@@ -1332,12 +1332,12 @@ def hic(argv, **kwargs):
             hics = []
             try:
                 for hic_file in hic_files:
-                    hics.append(kaic.load(hic_file))
+                    hics.append(fanc.load(hic_file))
 
                 tmp_output_file = tempfile.NamedTemporaryFile(suffix='.hic', delete=False)
                 merged_hic_file = tmp_output_file.name
                 tmp_input_files.append(merged_hic_file)
-                merged_hic = kaic.Hic.merge(hics, file_name=merged_hic_file, mode='w')
+                merged_hic = fanc.Hic.merge(hics, file_name=merged_hic_file, mode='w')
                 merged_hic.close()
             finally:
                 for hic in hics:
@@ -1346,7 +1346,7 @@ def hic(argv, **kwargs):
             merged_hic_file = hic_files[0]
 
         if bin_size is not None:
-            merged_hic = kaic.load(merged_hic_file)
+            merged_hic = fanc.load(merged_hic_file)
 
             logger.info("Binning Hic file ({})".format(bin_size))
             if downsample is None:
@@ -1361,7 +1361,7 @@ def hic(argv, **kwargs):
             if downsample is None and output_file is not None:
                 shutil.copy(merged_hic_file, output_file)
                 merged_hic_file = output_file
-            binned_hic = kaic.load(merged_hic_file, mode='a')
+            binned_hic = fanc.load(merged_hic_file, mode='a')
 
         if downsample is not None:
             downsampled_hic = binned_hic.downsample(downsample, file_name=output_file)
@@ -1373,7 +1373,7 @@ def hic(argv, **kwargs):
 
         filters = []
         if filter_low_coverage_auto:
-            from kaic.hic import LowCoverageFilter
+            from fanc.hic import LowCoverageFilter
             logger.info("Filtering low-coverage bins at 10%%")
             mask = binned_hic.add_mask_description('low_coverage',
                                                    'Mask low coverage regions in the Hic matrix '
@@ -1384,7 +1384,7 @@ def hic(argv, **kwargs):
             filters.append(low_coverage_auto_filter)
 
         if filter_low_coverage is not None or filter_low_coverage_relative is not None:
-            from kaic.hic import LowCoverageFilter
+            from fanc.hic import LowCoverageFilter
             logger.info("Filtering low-coverage bins using absolute cutoff {:.4}, "
                         "relative cutoff {:.1%}".format(float(filter_low_coverage)
                                                         if filter_low_coverage else 0.,
@@ -1405,7 +1405,7 @@ def hic(argv, **kwargs):
             filters.append(low_coverage_filter)
 
         if filter_diagonal is not None:
-            from kaic.hic import DiagonalFilter
+            from fanc.hic import DiagonalFilter
             logger.info("Filtering diagonal at distance {}".format(filter_diagonal))
             mask = binned_hic.add_mask_description('diagonal',
                                                    'Mask the diagonal of the Hic matrix '
@@ -1434,7 +1434,7 @@ def hic(argv, **kwargs):
 
                 if statistics_plot_file is not None:
                     logger.info("Saving statistics...")
-                    from kaic.plotting.statistics import summary_statistics_plot
+                    from fanc.plotting.statistics import summary_statistics_plot
                     statistics_plot_file = os.path.expanduser(statistics_plot_file)
                     fig, ax = plt.subplots()
                     summary_statistics_plot(statistics)
@@ -1442,7 +1442,7 @@ def hic(argv, **kwargs):
                     plt.close(fig)
 
             if marginals_plot_file is not None:
-                from kaic.plotting.statistics import marginals_plot
+                from fanc.plotting.statistics import marginals_plot
                 chromosomes = binned_hic.chromosomes()
                 cols = min(len(chromosomes), 4)
                 rows, remainder = divmod(len(chromosomes), cols)
@@ -1461,7 +1461,7 @@ def hic(argv, **kwargs):
 
         if ice or kr:
             logger.info("Correcting binned Hic file")
-            from kaic.hic import ice_balancing, kr_balancing
+            from fanc.hic import ice_balancing, kr_balancing
 
             if ice:
                 ice_balancing(binned_hic, whole_matrix=whole_matrix,
@@ -1486,7 +1486,7 @@ def hic(argv, **kwargs):
 
 def from_juicer_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic from_juicer",
+        prog="fanc from_juicer",
         description='Import a Hi-C object from juicer (Aiden lab)'
     )
 
@@ -1534,7 +1534,7 @@ def from_juicer_parser():
 
     parser.add_argument(
         '--juicer-tools-jar', dest='juicer_tools_jar_path',
-        help='Path to juicer jar. You can also specify this in kaic.conf'
+        help='Path to juicer jar. You can also specify this in fanc.conf'
     )
 
     parser.add_argument(
@@ -1576,7 +1576,7 @@ def from_juicer(argv, **kwargs):
             logger.info("Temporary output file: %s" % output_file)
             tmp = True
 
-        from kaic.compatibility.juicer import convert_juicer_to_hic
+        from fanc.compatibility.juicer import convert_juicer_to_hic
         hic = convert_juicer_to_hic(input_file, genome_path, resolution,
                                     juicer_tools_jar_path=juicer_tools_jar_path,
                                     norm=juicer_norm, output_file=output_file,
@@ -1595,7 +1595,7 @@ def from_juicer(argv, **kwargs):
 
 def to_cooler_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic hic_to_cooler",
+        prog="fanc hic_to_cooler",
         description="""Convert a Hic file into cooler format.
                        See https://github.com/mirnylab/cooler for details.
                        If input Hi-C matrix is uncorrected, the uncorrected matrix is stored.
@@ -1606,7 +1606,7 @@ def to_cooler_parser():
 
     parser.add_argument(
         'input',
-        help='''Input .hic file, kaic format.'''
+        help='''Input .hic file, fanc format.'''
     )
 
     parser.add_argument(
@@ -1680,14 +1680,14 @@ def to_cooler(argv, **kwargs):
 
     resolutions = args.resolutions
 
-    import kaic
-    from kaic.tools.general import str_to_int
+    import fanc
+    from fanc.tools.general import str_to_int
 
     try:
         import cooler
     except ImportError:
         parser.error("Cannot import cooler. Install cooler with 'pip install cooler'.")
-    from kaic.compatibility.cooler import to_cooler
+    from fanc.compatibility.cooler import to_cooler
 
     if resolutions is not None:
         resolutions = [str_to_int(r) for r in resolutions]
@@ -1704,7 +1704,7 @@ def to_cooler(argv, **kwargs):
             tmp_files = [output_file]
             tmp = True
 
-        with kaic.load(input_file, mode='r', tmpdir=tmp) as hic:
+        with fanc.load(input_file, mode='r', tmpdir=tmp) as hic:
             to_cooler(hic, output_file, balance=norm, multires=multi, resolutions=resolutions,
                       threads=threads, natural_order=natural_sort)
     finally:
@@ -1717,7 +1717,7 @@ def to_cooler(argv, **kwargs):
 
 def to_juicer_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic hic_to_juicer",
+        prog="fanc hic_to_juicer",
         description="Convert a ReadPairs file to Juicer .hic format"
     )
 
@@ -1734,7 +1734,7 @@ def to_juicer_parser():
 
     parser.add_argument(
         '--juicer-tools-jar', dest='juicer_tools_jar_path',
-        help='Path to juicer jar. You can also specify this in kaic.conf'
+        help='Path to juicer jar. You can also specify this in fanc.conf'
     )
 
     parser.add_argument(
@@ -1763,13 +1763,13 @@ def to_juicer(argv, **kwargs):
     resolutions = args.resolutions
     tmp = args.tmp
 
-    import kaic
-    from kaic.tools.general import str_to_int
-    from kaic.compatibility.juicer import to_juicer
+    import fanc
+    from fanc.tools.general import str_to_int
+    from fanc.compatibility.juicer import to_juicer
     if resolutions is not None:
         resolutions = [str_to_int(r) for r in resolutions]
 
-    pairs = [kaic.load(f, tmpdir=tmp) for f in input_files]
+    pairs = [fanc.load(f, tmpdir=tmp) for f in input_files]
     try:
         to_juicer(pairs, output_file, resolutions=resolutions,
                   juicer_tools_jar_path=juicer_tools_jar_path,
@@ -1782,7 +1782,7 @@ def to_juicer(argv, **kwargs):
 
 def dump_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic dump",
+        prog="fanc dump",
         description='Dump Hic file to txt file(s).'
     )
 
@@ -1874,7 +1874,7 @@ def dump(argv, **kwargs):
     norm = args.norm
     tmp = args.tmp
 
-    import kaic
+    import fanc
     import sys
     import numpy as np
     import signal
@@ -1889,13 +1889,13 @@ def dump(argv, **kwargs):
             row_subset_string, col_subset_string = subset_string.split('--')
         else:
             row_subset_string = subset_string
-        row_subset_region = kaic.GenomicRegion.from_string(row_subset_string)
+        row_subset_region = fanc.GenomicRegion.from_string(row_subset_string)
         if col_subset_string is not None:
-            col_subset_region = kaic.GenomicRegion.from_string(col_subset_string)
+            col_subset_region = fanc.GenomicRegion.from_string(col_subset_string)
 
     logger.info("Extracting the following matrix region: {} vs {}".format(row_subset_region, col_subset_region))
 
-    with kaic.load(hic_file, mode='r', tmpdir=tmp) as hic:
+    with fanc.load(hic_file, mode='r', tmpdir=tmp) as hic:
         ix_to_chromosome = dict()
         for i, region in enumerate(hic.regions):
             ix_to_chromosome[region.ix] = region.chromosome
@@ -1980,7 +1980,7 @@ def dump(argv, **kwargs):
 
 def pca_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic pca",
+        prog="fanc pca",
         description='Do a PCA on multiple Hi-C objects'
     )
 
@@ -2177,17 +2177,17 @@ def pca(argv, **kwargs):
 
     eigenvectors = [eigenvectors[0] - 1, eigenvectors[1] - 1]
 
-    from kaic.tools.general import str_to_int
+    from fanc.tools.general import str_to_int
     min_distance = str_to_int(min_distance) if min_distance is not None else None
     max_distance = str_to_int(max_distance) if max_distance is not None else None
 
-    import kaic
+    import fanc
     matrices = []
     try:
         if len(input_files) > 1:
-            matrices = [kaic.load(file_name, tmpdir=tmp) for file_name in input_files]
+            matrices = [fanc.load(file_name, tmpdir=tmp) for file_name in input_files]
 
-            from kaic.architecture.comparisons import hic_pca
+            from fanc.architecture.comparisons import hic_pca
 
             pca_info, pca_res = hic_pca(*matrices, sample_size=sample_size, region=sub_region,
                                         strategy=strategy, ignore_zeros=ignore_zeros,
@@ -2221,7 +2221,7 @@ def pca(argv, **kwargs):
 
             import matplotlib
             matplotlib.use("agg")
-            from kaic.plotting.statistics import pca_plot
+            from fanc.plotting.statistics import pca_plot
             fig, ax = pca_plot(np.array(pca_res), variance=variance, names=sample_names,
                                markers=args.markers, colors=args.colors,
                                eigenvectors=eigenvectors)
@@ -2235,7 +2235,7 @@ def pca(argv, **kwargs):
 
 def loops_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic loops",
+        prog="fanc loops",
         description='Call loops in a Hic object using Kai-C '
                     'implementation of HICCUPS. See. Rao, Huntley et '
                     'al. (2014), Cell, for details.'
@@ -2425,7 +2425,7 @@ def loops_parser():
         action='store_true',
         default=False,
         help='Run on SGE cluster. This option is highly '
-             'recommended if you are running "kaic loops" on '
+             'recommended if you are running "fanc loops" on '
              'a Sun/Oracle Grid Engine Cluster. The "-t" option '
              'specifies the number of SGE slots if this flag '
              'is set. The main process will then submit jobs '
@@ -2549,8 +2549,8 @@ def loops(argv, **kwargs):
         parser.error("Output file {} exists! Use -f to force "
                      "overwriting it!".format(output_file))
 
-    import kaic
-    import kaic.peaks
+    import fanc
+    import fanc.peaks
     import shutil
     from genomic_regions.files import create_temporary_output
 
@@ -2565,10 +2565,10 @@ def loops(argv, **kwargs):
 
     matrix = None
     try:
-        matrix = kaic.load(input_file, mode='a', tmpdir=tmp)
-        is_rh_peaks = isinstance(matrix, kaic.peaks.RaoPeakInfo)
-        is_merged_peaks = isinstance(matrix, kaic.peaks.PeakInfo)
-        is_matrix = isinstance(matrix, kaic.matrix.RegionMatrixContainer)
+        matrix = fanc.load(input_file, mode='a', tmpdir=tmp)
+        is_rh_peaks = isinstance(matrix, fanc.peaks.RaoPeakInfo)
+        is_merged_peaks = isinstance(matrix, fanc.peaks.PeakInfo)
+        is_matrix = isinstance(matrix, fanc.matrix.RegionMatrixContainer)
 
         if not is_matrix:
             parser.error("Input type {} not supported".format(type(matrix)))
@@ -2580,7 +2580,7 @@ def loops(argv, **kwargs):
         # perform pixel loop probability estimate
         ran_peak_calling = False
         if is_matrix and not is_rh_peaks and not is_merged_peaks:
-            pk = kaic.peaks.RaoPeakCaller(p=peak_size, w_init=width, min_locus_dist=peak_size,
+            pk = fanc.peaks.RaoPeakCaller(p=peak_size, w_init=width, min_locus_dist=peak_size,
                                           n_processes=threads, slice_size=batch_size,
                                           cluster=sge, min_mappable_fraction=0.0)
             if chromosomes is not None:
@@ -2606,14 +2606,14 @@ def loops(argv, **kwargs):
                 matrix.close()
                 import shutil
                 shutil.copy(matrix.file.filename, output_file)
-                matrix = kaic.load(output_file, mode='a')
+                matrix = fanc.load(output_file, mode='a')
 
             filters = []
             if (fdr_cutoff_global is not None or fdr_cutoff_donut is not None or
                     fdr_cutoff_horizontal is not None or fdr_cutoff_lower_left is not None or
                     fdr_cutoff_vertical is not None):
                 fdr_mask = matrix.add_mask_description('fdr', 'FDR cutoff filter')
-                fdr_filter = kaic.peaks.FdrPeakFilter(fdr_cutoff=fdr_cutoff_global,
+                fdr_filter = fanc.peaks.FdrPeakFilter(fdr_cutoff=fdr_cutoff_global,
                                                       fdr_ll_cutoff=fdr_cutoff_lower_left,
                                                       fdr_d_cutoff=fdr_cutoff_donut,
                                                       fdr_h_cutoff=fdr_cutoff_horizontal,
@@ -2627,7 +2627,7 @@ def loops(argv, **kwargs):
                     mappability_cutoff_lower_left is not None or
                     mappability_cutoff_vertical is not None):
                 mappability_mask = matrix.add_mask_description('mappability', 'Mappability filter')
-                mappability_filter = kaic.peaks.MappabilityPeakFilter(
+                mappability_filter = fanc.peaks.MappabilityPeakFilter(
                     mappability_cutoff=mappability_cutoff_global,
                     mappability_ll_cutoff=mappability_cutoff_lower_left,
                     mappability_d_cutoff=mappability_cutoff_donut,
@@ -2642,7 +2642,7 @@ def loops(argv, **kwargs):
                     enrichment_cutoff_lower_left is not None or
                     enrichment_cutoff_vertical is not None):
                 enrichment_mask = matrix.add_mask_description('enrichment', 'O/E filter')
-                enrichment_filter = kaic.peaks.EnrichmentPeakFilter(
+                enrichment_filter = fanc.peaks.EnrichmentPeakFilter(
                     enrichment_cutoff=enrichment_cutoff_global,
                     enrichment_ll_cutoff=enrichment_cutoff_lower_left,
                     enrichment_d_cutoff=enrichment_cutoff_donut,
@@ -2654,19 +2654,19 @@ def loops(argv, **kwargs):
             if min_dist is not None:
                 if peak_size is None or min_dist > peak_size:
                     distance_mask = matrix.add_mask_description('distance', 'Min distance filter')
-                    distance_filter = kaic.peaks.DistancePeakFilter(min_dist,
+                    distance_filter = fanc.peaks.DistancePeakFilter(min_dist,
                                                                     mask=distance_mask)
                     filters.append(distance_filter)
 
             if min_observed is not None:
                 observed_mask = matrix.add_mask_description('observed', 'Min observed filter')
-                observed_filter = kaic.peaks.ObservedPeakFilter(min_observed,
+                observed_filter = fanc.peaks.ObservedPeakFilter(min_observed,
                                                                 mask=observed_mask)
                 filters.append(observed_filter)
 
             if rh_filter:
                 rh_mask = matrix.add_mask_description('rao_huntley', "Rao Huntley filter")
-                rh = kaic.peaks.RaoPeakFilter(mask=rh_mask)
+                rh = fanc.peaks.RaoPeakFilter(mask=rh_mask)
                 filters.append(rh)
 
             if len(filters) > 0:
@@ -2685,12 +2685,12 @@ def loops(argv, **kwargs):
             if remove_singlets:
                 mask = matrix.add_mask_description('rao', 'Mask singlet peaks'
                                                           'with a q-value sum > .02')
-                rao_filter = kaic.peaks.RaoMergedPeakFilter(mask=mask)
+                rao_filter = fanc.peaks.RaoMergedPeakFilter(mask=mask)
                 filters.append(rao_filter)
             if fdr_sum is not None:
                 mask = matrix.add_mask_description('fdr_sum', 'Mask merged peaks '
                                                               'with a q-value sum > cutoff')
-                fdr_sum_filter = kaic.peaks.FdrSumFilter(cutoff=fdr_sum, mask=mask)
+                fdr_sum_filter = fanc.peaks.FdrSumFilter(cutoff=fdr_sum, mask=mask)
                 filters.append(fdr_sum_filter)
 
             if len(filters) > 0:
@@ -2715,7 +2715,7 @@ def loops(argv, **kwargs):
 
 def overlap_peaks_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic overlap-peaks",
+        prog="fanc overlap-peaks",
         description='Overlap peaks from multiple samples'
     )
 
@@ -2758,7 +2758,7 @@ def overlap_peaks(argv, **kwargs):
 
     args = parser.parse_args(argv[2:])
 
-    import kaic.peaks as kn
+    import fanc.peaks as kn
     from genomic_regions.files import create_temporary_copy
 
     original_input_paths = [os.path.expanduser(i) for i in args.input]
@@ -2780,9 +2780,9 @@ def overlap_peaks(argv, **kwargs):
         input_paths = [create_temporary_copy(i) for i in original_input_paths]
     else:
         input_paths = original_input_paths
-    import kaic
+    import fanc
 
-    peaks = [kaic.load(i, mode="r") for i in input_paths]
+    peaks = [fanc.load(i, mode="r") for i in input_paths]
 
     if not args.distance:
         distance = peaks[0].bin_size*3
@@ -2808,7 +2808,7 @@ def overlap_peaks(argv, **kwargs):
 
 def boundaries_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic boundaries",
+        prog="fanc boundaries",
         description='Determine domain boundaries'
     )
 
@@ -2895,12 +2895,12 @@ def boundaries(argv, **kwargs):
     maxima = args.maxima
     log = args.log
 
-    import kaic
-    from kaic.tools.general import human_format, str_to_int
+    import fanc
+    from fanc.tools.general import human_format, str_to_int
     import genomic_regions as gr
-    from kaic.architecture.domains import InsulationScores, InsulationScore, Boundaries
+    from fanc.architecture.domains import InsulationScores, InsulationScore, Boundaries
 
-    insulation = kaic.load(input_file, mode='r')
+    insulation = fanc.load(input_file, mode='r')
 
     if isinstance(insulation, InsulationScores):
         if windows is None:
@@ -2939,7 +2939,7 @@ def boundaries(argv, **kwargs):
 
 def compare_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic compare",
+        prog="fanc compare",
         description='Create pairwise comparisons of Hi-C comparison maps'
     )
     parser.add_argument(
@@ -3047,15 +3047,15 @@ def compare(argv, **kwargs):
     log_matrix = args.log_matrix
     tmp = args.tmp
 
-    import kaic
-    from kaic.architecture.comparisons import FoldChangeMatrix, DifferenceMatrix, NonzeroFilter, \
+    import fanc
+    from fanc.architecture.comparisons import FoldChangeMatrix, DifferenceMatrix, NonzeroFilter, \
         FoldChangeScores, DifferenceScores, FoldChangeRegions, DifferenceRegions
-    from kaic.matrix import RegionMatrixContainer
-    from kaic.architecture.domains import RegionScoreParameterTable
+    from fanc.matrix import RegionMatrixContainer
+    from fanc.architecture.domains import RegionScoreParameterTable
     from genomic_regions import RegionBased
 
-    matrix1 = kaic.load(input_file1, mode='r')
-    matrix2 = kaic.load(input_file2, mode='r')
+    matrix1 = fanc.load(input_file1, mode='r')
+    matrix2 = fanc.load(input_file2, mode='r')
 
     if isinstance(matrix1, RegionMatrixContainer) and isinstance(matrix2, RegionMatrixContainer):
         if filter_zero:
@@ -3107,20 +3107,20 @@ def compare(argv, **kwargs):
                                              tmpdir=tmp, mode='w', log=log)
 
         if output_format == 'bed':
-            from kaic.tools.files import write_bed
+            from fanc.tools.files import write_bed
             write_bed(output_file, cmp.regions)
         elif output_format == 'bigwig' or output_format == 'bw':
-            from kaic.tools.files import write_bigwig
+            from fanc.tools.files import write_bigwig
             write_bigwig(output_file, cmp.regions)
         elif output_format == 'gff':
-            from kaic.tools.files import write_gff
+            from fanc.tools.files import write_gff
             write_gff(output_file, cmp.regions)
         cmp.close()
 
 
 def directionality_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic directionality",
+        prog="fanc directionality",
         description='Calculate directionality index for Hic object'
     )
     parser.add_argument(
@@ -3183,7 +3183,7 @@ def directionality(argv, **kwargs):
 
     args = parser.parse_args(argv[2:])
 
-    from kaic.architecture.domains import DirectionalityIndexes
+    from fanc.architecture.domains import DirectionalityIndexes
     import os
 
     input_file = os.path.expanduser(args.input)
@@ -3204,7 +3204,7 @@ def directionality(argv, **kwargs):
 
 def insulation_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic insulation",
+        prog="fanc insulation",
         description='Calculate insulation scores for Hic object'
     )
     parser.add_argument(
@@ -3310,7 +3310,7 @@ def insulation_parser():
         help='Use geometric mean for normalisation (rather than arithmetic mean). '
              'Useful in conjunction with --log to center the distribution at 0. '
              'This is very important when comparing insulation scores, for example '
-             'using the "kaic compare" command!'
+             'using the "fanc compare" command!'
     )
 
     parser.add_argument(
@@ -3336,7 +3336,7 @@ def insulation(argv, **kwargs):
 
     args = parser.parse_args(argv[2:])
 
-    from kaic.architecture.domains import InsulationScores
+    from fanc.architecture.domains import InsulationScores
     import os
 
     input_file = os.path.expanduser(args.input)
@@ -3370,8 +3370,8 @@ def insulation(argv, **kwargs):
 def _domain_scores(parser, input_file, output_file, output_format, default_output_format,
                    score_class, sub_region=None, tmp=False,
                    **kwargs):
-    import kaic
-    from kaic.tools.general import str_to_int, human_format
+    import fanc
+    from fanc.tools.general import str_to_int, human_format
     output_format = output_format.lower()
     window_sizes = kwargs.get('window_sizes', None)
 
@@ -3393,7 +3393,7 @@ def _domain_scores(parser, input_file, output_file, output_format, default_outpu
 
     scores = None
     try:
-        matrix = kaic.load(input_file, mode='r')
+        matrix = fanc.load(input_file, mode='r')
 
         if not isinstance(matrix, score_class):
             if output_file is None:
@@ -3453,7 +3453,7 @@ def _domain_scores(parser, input_file, output_file, output_format, default_outpu
 
 def compartments_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic compartments",
+        prog="fanc compartments",
         description='Calculate AB compartment matrix'
     )
     parser.add_argument(
@@ -3666,16 +3666,16 @@ def compartments(argv, **kwargs):
         if output_file is None:
             parser.error("Need Input matrix for AB compartment profile!")
 
-    import kaic
+    import fanc
     import warnings
-    from kaic.tools.files import write_bed
-    from kaic.matrix import RegionMatrixContainer
-    from kaic.architecture.compartments import ABCompartmentMatrix
+    from fanc.tools.files import write_bed
+    from fanc.matrix import RegionMatrixContainer
+    from fanc.architecture.compartments import ABCompartmentMatrix
 
     matrix = None
     ab_matrix = None
     try:
-        matrix = kaic.load(input_file, tmpdir=tmp)
+        matrix = fanc.load(input_file, tmpdir=tmp)
         # input is Hic or other matrix
         if not isinstance(matrix, ABCompartmentMatrix):
             if not isinstance(matrix, RegionMatrixContainer):
@@ -3687,7 +3687,7 @@ def compartments(argv, **kwargs):
                              "first argument is already an AB compartment matrix!")
 
             if os.path.exists(output_file) and not recalculate:
-                ab_matrix = kaic.load(output_file)
+                ab_matrix = fanc.load(output_file)
                 if not isinstance(ab_matrix, ABCompartmentMatrix):
                     parser.error("Found existing file {}, but it is not an AB compartment matrix."
                                  "Use -f to overwrite it.")
@@ -3701,13 +3701,13 @@ def compartments(argv, **kwargs):
         else:
             matrix.close()
             matrix = None
-            ab_matrix = kaic.load(input_file, mode='a', tmpdir=tmp)
+            ab_matrix = fanc.load(input_file, mode='a', tmpdir=tmp)
 
         # calculate eigenvector
         ev = None
         if eigenvector_file is not None:
             if os.path.exists(eigenvector_file) and not force:
-                ev_regions = kaic.load(eigenvector_file)
+                ev_regions = fanc.load(eigenvector_file)
                 ev = [r.score for r in ev_regions.regions]
             else:
                 ev = ab_matrix.eigenvector(sub_region=region_subset, genome=genome_file,
@@ -3794,7 +3794,7 @@ def compartments(argv, **kwargs):
 
 def expected_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic expected",
+        prog="fanc expected",
         description='Calculate Hi-C expected values '
                     '(distance decay)'
     )
@@ -3855,7 +3855,7 @@ def expected(argv, **kwargs):
 
     args = parser.parse_args(argv[2:])
 
-    import kaic
+    import fanc
     import os.path
 
     input_files = [os.path.expanduser(file_name) for file_name in args.input]
@@ -3878,7 +3878,7 @@ def expected(argv, **kwargs):
     distances = dict()
     equal_distances = True
     for label, input_file in zip(labels, input_files):
-        with kaic.load(input_file, mode='a', tmpdir=tmp) as matrix:
+        with fanc.load(input_file, mode='a', tmpdir=tmp) as matrix:
             intra_expected, intra_expected_chromosome, inter_expected = matrix.expected_values(
                 force=recalculate, norm=norm)
 
@@ -3948,7 +3948,7 @@ def expected(argv, **kwargs):
 
 def subset_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic subset",
+        prog="fanc subset",
         description='Create a new Hic object by subsetting.'
     )
     parser.add_argument(
@@ -3981,20 +3981,20 @@ def subset(argv, **kwargs):
     args = parser.parse_args(argv[2:])
 
     import os.path
-    import kaic
+    import fanc
 
     input_file = os.path.expanduser(args.input)
     output_file = os.path.expanduser(args.output)
     regions = args.regions
 
-    old_hic = kaic.load(input_file, mode='r')
+    old_hic = fanc.load(input_file, mode='r')
     new_hic = old_hic.subset(*regions, file_name=output_file)
     new_hic.close()
 
 
 def aggregate_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic aggregate",
+        prog="fanc aggregate",
         description='Make aggregate plots with Kai-C'
     )
 
@@ -4280,12 +4280,12 @@ def aggregate(argv, **kwargs):
     if pixels is None:
         pixels = 90
 
-    import kaic
+    import fanc
     import numpy as np
     import genomic_regions as gr
     import warnings
-    from kaic.architecture.aggregate import AggregateMatrix
-    from kaic.tools.general import human_format, str_to_int
+    from fanc.architecture.aggregate import AggregateMatrix
+    from fanc.tools.general import human_format, str_to_int
 
     if window is not None:
         window = str_to_int(window)
@@ -4293,9 +4293,9 @@ def aggregate(argv, **kwargs):
     aggregate_matrix = None
     regions = None
     try:
-        with kaic.load(input_file, mode='r') as matrix:
+        with fanc.load(input_file, mode='r') as matrix:
             if not isinstance(matrix, AggregateMatrix):
-                regions = kaic.load(regions_file)
+                regions = fanc.load(regions_file)
 
                 b = matrix.bin_size
 
@@ -4366,7 +4366,7 @@ def aggregate(argv, **kwargs):
                 import matplotlib
                 matplotlib.use('agg')
                 import matplotlib.pyplot as plt
-                import kaic.plotting
+                import fanc.plotting
 
                 m = aggregate_matrix.matrix()
 
@@ -4401,7 +4401,7 @@ def aggregate(argv, **kwargs):
 
 def stats_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic stats",
+        prog="fanc stats",
         description='Get statistics on number of reads used at each step of a pipeline.'
     )
 
@@ -4498,12 +4498,12 @@ def stats(argv, **kwargs):
     # 2. Pairs statistics
     if args.pairs is not None:
         logger.info("Processing Pairs files.")
-        import kaic
+        import fanc
         pairs_files = get_files(args.pairs, ('.pairs',))
         pairs_summary = defaultdict(int)
         for pairs_file in pairs_files:
             logger.info("{}".format(pairs_file))
-            pairs = kaic.load(pairs_file, mode='r')
+            pairs = fanc.load(pairs_file, mode='r')
             statistics, total = stats(pairs, pairs._pairs)
 
             with open(output_file, 'a') as o:
@@ -4528,13 +4528,13 @@ def stats(argv, **kwargs):
     # 3. Hic statistics
     if args.hic is not None:
         logger.info("Processing Hic files.")
-        import kaic
+        import fanc
         hic_files = get_files(args.hic, ('.hic',))
 
         hic_summary = defaultdict(int)
         for hic_file in hic_files:
             logger.info("{}".format(hic_file))
-            hic = kaic.load(hic_file, mode='r')
+            hic = fanc.load(hic_file, mode='r')
             statistics, total = stats(hic, hic._edges)
 
             with open(output_file, 'a') as o:
@@ -4559,7 +4559,7 @@ def stats(argv, **kwargs):
 
 def write_config_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic write_config",
+        prog="fanc write_config",
         description='Write default config file to specified location.'
     )
 
@@ -4584,13 +4584,13 @@ def write_config(argv, **kwargs):
     args = parser.parse_args(argv[2:])
     file_name = args.config_file
 
-    from kaic.config import write_default_config
+    from fanc.config import write_default_config
     write_default_config(file_name, overwrite=args.force)
 
 
 def cis_trans_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic cis_trans",
+        prog="fanc cis_trans",
         description='Calculate cis/trans ratio of this Hi-C object.'
     )
 
@@ -4622,15 +4622,15 @@ def cis_trans(argv, **kwargs):
     output_file = os.path.expanduser(args.output) if args.output is not None else None
     normalise = args.normalise
 
-    import kaic
-    from kaic.architecture.stats import cis_trans_ratio
+    import fanc
+    from fanc.architecture.stats import cis_trans_ratio
 
     if output_file:
         with open(output_file, 'w') as o:
             o.write("file\tcis\ttrans\tratio\tfactor\n")
 
     for hic_file in hic_files:
-        hic = kaic.load(hic_file, mode='r')
+        hic = fanc.load(hic_file, mode='r')
 
         r, cis, trans, f = cis_trans_ratio(hic, normalise)
 
@@ -4647,7 +4647,7 @@ def cis_trans(argv, **kwargs):
 
 def downsample_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic downsample",
+        prog="fanc downsample",
         description='Downsample contacts from a Hic object.'
     )
 
@@ -4680,13 +4680,13 @@ def downsample_parser():
 def downsample(argv, **kwargs):
     parser = downsample_parser()
 
-    print("*** kaic downsample is deprecated. Please use kaic hic --downsample instead! ***")
+    print("*** fanc downsample is deprecated. Please use fanc hic --downsample instead! ***")
 
     args = parser.parse_args(argv[2:])
 
     import os
     import shutil
-    import kaic
+    import fanc
     from genomic_regions.files import create_temporary_copy, create_temporary_output
 
     hic_file = args.hic
@@ -4704,7 +4704,7 @@ def downsample(argv, **kwargs):
                 n = create_temporary_copy(n)
                 tmp_files.append(n)
                 tmp = True
-            n = kaic.load(n)
+            n = fanc.load(n)
         else:
             n = float(n)
 
@@ -4717,7 +4717,7 @@ def downsample(argv, **kwargs):
             tmp_files.append(output_file)
             tmp = True
 
-        with kaic.load(hic_file) as hic:
+        with fanc.load(hic_file) as hic:
             output_hic = hic.downsample(n, file_name=output_file)
             output_hic.close()
     finally:
@@ -4730,7 +4730,7 @@ def downsample(argv, **kwargs):
 
 def upgrade_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic upgrade",
+        prog="fanc upgrade",
         description='Upgrade objects from old Kai-C versions.'
     )
 
@@ -4772,11 +4772,11 @@ def upgrade(argv, **kwargs):
     force = args.force
     tmp = args.tmp
 
-    import kaic
+    import fanc
     import numpy as np
-    from kaic.hic import LegacyHic
+    from fanc.hic import LegacyHic
     import tables
-    from kaic.tools.general import RareUpdateProgressBar
+    from fanc.tools.general import RareUpdateProgressBar
 
     original_output_file = None
     tmp_files = []
@@ -4792,7 +4792,7 @@ def upgrade(argv, **kwargs):
 
         if not force:
             try:
-                f = kaic.load(input_file)
+                f = fanc.load(input_file)
                 f.close()
 
                 parser.error("Can already load input file. "
@@ -4802,21 +4802,21 @@ def upgrade(argv, **kwargs):
                 pass
 
         try:
-            old_kaic = kaic.load(input_file, mode='a')
+            old_fanc = fanc.load(input_file, mode='a')
 
-            if isinstance(old_kaic, LegacyHic):
-                import kaic
+            if isinstance(old_fanc, LegacyHic):
+                import fanc
 
                 if output_file is None:
                     raise ValueError("Must provide an output file to upgrade to latest Hi-C version!")
 
-                new_hic = kaic.Hic(file_name=output_file, mode='w')
-                new_hic.add_regions(old_kaic.regions)
+                new_hic = fanc.Hic(file_name=output_file, mode='w')
+                new_hic.add_regions(old_fanc.regions)
 
-                bv = [row['bias'] for row in old_kaic.file.get_node('/', 'node_annot').iterrows()]
+                bv = [row['bias'] for row in old_fanc.file.get_node('/', 'node_annot').iterrows()]
 
-                with RareUpdateProgressBar(prefix="Upgrade", max_value=len(old_kaic.edges)) as pb:
-                    for i, edge in enumerate(old_kaic.edges(lazy=True)):
+                with RareUpdateProgressBar(prefix="Upgrade", max_value=len(old_fanc.edges)) as pb:
+                    for i, edge in enumerate(old_fanc.edges(lazy=True)):
                         source = edge.source
                         sink = edge.sink
                         weight = int(np.round(edge.weight / bv[source] / bv[sink]))
@@ -4826,29 +4826,29 @@ def upgrade(argv, **kwargs):
                 new_hic.flush()
                 new_hic.bias_vector(bv)
 
-                old_kaic.close()
+                old_fanc.close()
                 new_hic.close()
                 return
-            elif isinstance(old_kaic, kaic.ReadPairs) or isinstance(old_kaic, kaic.Hic):
-                if old_kaic._chromosomes_info is None:
+            elif isinstance(old_fanc, fanc.ReadPairs) or isinstance(old_fanc, fanc.Hic):
+                if old_fanc._chromosomes_info is None:
                     if output_file is not None:
                         raise ValueError("Can only do upgrade in place for chromosome table")
                     logger.info("Updating chromosome info table")
-                    old_kaic._update_chromosomes_info()
-                    old_kaic.close()
+                    old_fanc._update_chromosomes_info()
+                    old_fanc.close()
                 return
         except (ValueError, TypeError):
             pass
 
-        file_based = kaic.FileBased(input_file, mode='r')
+        file_based = fanc.FileBased(input_file, mode='r')
         class_id = file_based.meta._classid
         logger.info("Detected class ID '{}'".format(class_id))
 
         target_class = None
         if class_id == 'ACCESSOPTIMISEDHIC' or class_id == 'HIC':
-            target_class = kaic.Hic
+            target_class = fanc.Hic
         elif class_id == 'RAOPEAKINFO':
-            target_class = kaic.RaoPeakInfo
+            target_class = fanc.RaoPeakInfo
         else:
             parser.error("No suitable upgrade method for {} - "
                          "please consult the developer!".format(class_id))
@@ -4866,7 +4866,7 @@ def upgrade(argv, **kwargs):
         for i, row in enumerate(nodes_table.iterrows()):
             kwargs = {name: row[name] for name in region_fields.keys()}
             kwargs['bias'] = bias[i]
-            r = kaic.GenomicRegion(**kwargs)
+            r = fanc.GenomicRegion(**kwargs)
             regions.append(r)
 
         edges_table = file_based.file.get_node('/', 'edges')
@@ -4889,7 +4889,7 @@ def upgrade(argv, **kwargs):
                 # uncorrect matrix
                 uncorrected = weight / bias[source] / bias[sink]
                 kwargs['weight'] = uncorrected
-                edge = kaic.Edge(**kwargs)
+                edge = fanc.Edge(**kwargs)
                 upgraded_hic.add_edge(edge)
         else:
             for table in edges_table:
@@ -4901,7 +4901,7 @@ def upgrade(argv, **kwargs):
                     # uncorrect matrix
                     uncorrected = weight / bias[source] / bias[sink]
                     kwargs['weight'] = uncorrected
-                    edge = kaic.Edge(**kwargs)
+                    edge = fanc.Edge(**kwargs)
                     upgraded_hic.add_edge(edge)
         upgraded_hic.flush()
     finally:

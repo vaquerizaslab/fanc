@@ -1,5 +1,5 @@
 from __future__ import division
-from kaic.config import config
+from fanc.config import config
 import seaborn as sns
 import pandas
 import numpy as np

@@ -5,7 +5,7 @@ import sys
 import traceback
 import os
 from itertools import groupby
-from kaic.commands import klot_command_parsers as klot_parsers
+from fanc.commands import klot_command_parsers as klot_parsers
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
@@ -34,8 +34,8 @@ class Klot(object):
         global_args, subplot_data = self._parse_argument_vector(argv)
 
         if global_args.print_version:
-            import kaic
-            print(kaic.__version__)
+            import fanc
+            print(fanc.__version__)
             exit()
 
         if global_args.script is not None:
@@ -61,8 +61,8 @@ class Klot(object):
             output_file = os.path.expanduser(global_args.output)
 
         try:
-            import kaic.plotting as kplot
-            from kaic.commands import klot_commands as commands
+            import fanc.plotting as kplot
+            from fanc.commands import klot_commands as commands
         except ModuleNotFoundError:
             self.global_parser.error("Your Python installation does not seem to support "
                                      "interactive plotting. Please use klot -o ... to plot "
@@ -116,21 +116,21 @@ class Klot(object):
         logger.info("Found {} regions".format(len(regions)))
 
         if len(regions) > 1 and output_file is not None:
-            from kaic.tools.general import mkdir
+            from fanc.tools.general import mkdir
             mkdir(output_file)
 
         figure_width = global_args.width
 
-        import kaic.plotting as kplt
-        from kaic.tools.general import str_to_int
+        import fanc.plotting as kplt
+        from fanc.tools.general import str_to_int
         for i, region in enumerate(regions):
             if global_args.window_size is not None:
                 window_size = str_to_int(global_args.window_size)
                 chromosome = region.chromosome
                 start = max(1, region.center - int(window_size / 2))
                 end = region.center + int(window_size / 2)
-                import kaic
-                plot_region = kaic.GenomicRegion(chromosome=chromosome, start=start, end=end)
+                import fanc
+                plot_region = fanc.GenomicRegion(chromosome=chromosome, start=start, end=end)
             else:
                 plot_region = region
 

@@ -3,7 +3,7 @@ import seaborn as sns
 import numpy as np
 import itertools
 import tables as t
-from kaic.plotting.plot_genomic_data import _prepare_backend, _plot_figure
+from fanc.plotting.plot_genomic_data import _prepare_backend, _plot_figure
 
 
 def statistics_plot(stats, ax=None):

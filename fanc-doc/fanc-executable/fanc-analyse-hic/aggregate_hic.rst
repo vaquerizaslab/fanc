@@ -1,4 +1,4 @@
-.. _kaic-aggregate:
+.. _fanc-aggregate:
 
 
 #######################
@@ -15,16 +15,16 @@ Here are examples of TAD and loop aggregate plots from our recent preprint
 
 .. image:: images/aggregate_examples_biorxiv.png
 
-You can easily create your own aggregate plots using ``kaic aggregate``.
+You can easily create your own aggregate plots using ``fanc aggregate``.
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
+   :module: fanc.commands.fanc_commands
    :func: aggregate_parser
-   :prog: kaic aggregate
+   :prog: fanc aggregate
    :nodescription:
    :nodefault:
 
-You can provide ``kaic aggregate`` with a list of genomic regions in any of the common
+You can provide ``fanc aggregate`` with a list of genomic regions in any of the common
 region-based formats (BED, GFF, BigWig, ...) or with a list of genomic region pairs in
 BEDPE format. For lists of regions, the aggregate matrix will be located at the Hi-C
 matrix diagonal. For pairs of regions, matrix subsets can be anywhere in the genome.
@@ -33,13 +33,13 @@ matrix diagonal. For pairs of regions, matrix subsets can be anywhere in the gen
 Aggregate over variable size regions
 ************************************
 
-By default, if you provide ``kaic aggregate`` with a list of regions, it will extract
+By default, if you provide ``fanc aggregate`` with a list of regions, it will extract
 the square Hi-C sub-matrices along the diagonal for each region and interpolate them
 to match the width set by ``--pixels`` (90 by default). It will then calculate the
 average value for each pixel, which then form the aggregate matrix.
 
 Let's try this on TADs called using the arrowhead algorithm (`Rao and Huntley et al.,
-2014 <http://dx.doi.org/10.1016/j.cell.2014.11.021>`_). ``kaic aggregate`` will ignore
+2014 <http://dx.doi.org/10.1016/j.cell.2014.11.021>`_). ``fanc aggregate`` will ignore
 all regions in the file that are not present in the Hi-C matrix. In our example Hic file,
 that is everything outside of chromosomes 18 and 19:
 
@@ -48,7 +48,7 @@ that is everything outside of chromosomes 18 and 19:
     :start-after: start snippet aggregate basic
     :end-before: end snippet aggregate basic
 
-This command only produces an AggregateMatrix file (``kaic_example_100kb.agg``), which
+This command only produces an AggregateMatrix file (``fanc_example_100kb.agg``), which
 is useful for further usage with Kai-C, but not easily readable. To extract the aggregate
 matrix in txt format, simply add ``-m`` and to plot it just use ``-p``:
 
@@ -59,7 +59,7 @@ matrix in txt format, simply add ``-m`` and to plot it just use ``-p``:
 
 The resulting plot looks a bit strange:
 
-.. image:: images/kaic_example_100kb.agg.png
+.. image:: images/fanc_example_100kb.agg.png
 
 
 Important note: if your input regions have variable sizes, as assumed in this section,
@@ -74,7 +74,7 @@ log2-transformed data (``-l``). Let's see how this changes your matrix:
     :start-after: start snippet aggregate oe
     :end-before: end snippet aggregate oe
 
-.. image:: images/kaic_example_100kb_oe.agg.png
+.. image:: images/fanc_example_100kb_oe.agg.png
 
 This still does not look like much of a TAD, but we can add a little more context by
 expanding the plotting region relative to the region size using ``-r``:
@@ -84,7 +84,7 @@ expanding the plotting region relative to the region size using ``-r``:
     :start-after: start snippet aggregate expand
     :end-before: end snippet aggregate expand
 
-.. image:: images/kaic_example_100kb_oe_large.agg.png
+.. image:: images/fanc_example_100kb_oe_large.agg.png
 
 
 That plot depicts a region that is 3x the size of the TAD located in its center and
@@ -99,7 +99,7 @@ look more like a Hi-C matrix:
     :start-after: start snippet aggregate rescale
     :end-before: end snippet aggregate rescale
 
-.. image:: images/kaic_example_100kb_oe_large_res.agg.png
+.. image:: images/fanc_example_100kb_oe_large_res.agg.png
 
 Here, we are not log-transforming the data and we are setting the saturation of the
 pixel values at 0.045 using ``--vmax``.
@@ -127,7 +127,7 @@ Fixed-width regions
 *******************
 
 Sometimes, you may want to use a fixed window surrounding a set of features in the
-aggregate analysis, such as TAD boundaries. ``kaic aggregate`` provides the ``-w``
+aggregate analysis, such as TAD boundaries. ``fanc aggregate`` provides the ``-w``
 option to plot the aggregate Hi-C matrix in a window os size w around the center
 of each region in the list provided.
 
@@ -136,7 +136,7 @@ of each region in the list provided.
     :start-after: start snippet aggregate fixed
     :end-before: end snippet aggregate fixed
 
-.. image:: images/kaic_example_100kb_boundaries.agg.png
+.. image:: images/fanc_example_100kb_boundaries.agg.png
 
 
 You can see the relatively faint "average boundary" in the centre of the plot. When using
@@ -147,7 +147,7 @@ O/E and log2-transformed matrices, this becomes much more obvious:
     :start-after: start snippet aggregate oefixed
     :end-before: end snippet aggregate oefixed
 
-.. image:: images/kaic_example_100kb_boundaries_oe.agg.png
+.. image:: images/fanc_example_100kb_boundaries_oe.agg.png
 
 
 You can change the viewpoint to other positions within a region, such as the 5' end,
@@ -159,7 +159,7 @@ Loops and other pairwise genomic regions
 ****************************************
 
 When you have loop calls or other pairwise genomic regions in BEDPE format, you can use
-``kaic aggregate`` to make aggregate loop plots. The preset for this is ``--loops``.
+``fanc aggregate`` to make aggregate loop plots. The preset for this is ``--loops``.
 
 .. literalinclude:: code/aggregate_example_code
     :language: bash

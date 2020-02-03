@@ -943,7 +943,7 @@ class FragmentRead(object):
 
     .. attribute:: fragment
 
-        A :class:`~kaic.GenomicRegion` delineated by
+        A :class:`~fanc.GenomicRegion` delineated by
         restriction sites.
 
     .. attribute:: position
@@ -965,7 +965,7 @@ class FragmentRead(object):
         """
         Initialize this :class:`~FragmentRead` object.
 
-        :param fragment: A :class:`~kaic.GenomicRegion` delineated by
+        :param fragment: A :class:`~fanc.GenomicRegion` delineated by
                          restriction sites.
         :param position: The position of this read in base-pairs (1-based) from the
                          start of the chromosome it maps to.
@@ -998,7 +998,7 @@ class LazyFragmentRead(FragmentRead):
 
     .. attribute:: fragment
 
-        A :class:`~kaic.GenomicRegion` delineated by
+        A :class:`~fanc.GenomicRegion` delineated by
         restriction sites.
 
     .. attribute:: position
@@ -1039,7 +1039,7 @@ class LazyFragmentRead(FragmentRead):
 
 class LazyFragment(GenomicRegion):
     """
-    :class:`~kaic.GenomicRegion` representing a fragment with lazy attribute loading.
+    :class:`~fanc.GenomicRegion` representing a fragment with lazy attribute loading.
 
     .. attribute:: chromosome
 
@@ -1094,21 +1094,21 @@ class ReadPairs(RegionPairsTable):
     """
     Class representing a collection of read pairs mapped to restriction fragments.
 
-    This class is a :class:`~kaic.RegionBased` object, where each
-    :class:`~kaic.GenomicRegion` represents a restriction fragment
+    This class is a :class:`~fanc.RegionBased` object, where each
+    :class:`~fanc.GenomicRegion` represents a restriction fragment
     from a Hi-C experiment. A list of fragments can be obtained with
-    the :func:`~kaic.regions.genome_regions` function, for example.
+    the :func:`~fanc.regions.genome_regions` function, for example.
 
     To create a :class:`~ReadPairs` object, you first have to add
     the restriction fragments before adding read pairs:
 
     .. code::
 
-        import kaic
+        import fanc
 
-        re_fragments = kaic.genome_regions("hg19_chr18_19.fa", "HindIII")
+        re_fragments = fanc.genome_regions("hg19_chr18_19.fa", "HindIII")
 
-        rp = kaic.ReadPairs()
+        rp = fanc.ReadPairs()
         rp.add_regions(re_fragments.regions)
 
     Read pairs can easily be generate fro different types of input using
@@ -1117,12 +1117,12 @@ class ReadPairs(RegionPairsTable):
 
     .. code::
 
-        rp_generator = kaic.SamBamReadPairGenerator("output/sam/SRR4271982_chr18_19_1_sort.bam",
+        rp_generator = fanc.SamBamReadPairGenerator("output/sam/SRR4271982_chr18_19_1_sort.bam",
                                                     "output/sam/SRR4271982_chr18_19_2_sort.bam")
         rp.add_read_pairs(rp_generator, threads=4)
 
 
-    You can query regions using the :class:`~kaic.RegionBased` interface:
+    You can query regions using the :class:`~fanc.RegionBased` interface:
 
     .. code::
 
@@ -1442,14 +1442,14 @@ class ReadPairs(RegionPairsTable):
 
         .. code::
 
-            import kaic
+            import fanc
 
-            re_fragments = kaic.genome_regions("hg19_chr18_19.fa", "HindIII")
-            rp = kaic.ReadPairs()
+            re_fragments = fanc.genome_regions("hg19_chr18_19.fa", "HindIII")
+            rp = fanc.ReadPairs()
             rp.add_regions(re_fragments.regions)
 
             # read pairs are added here from BAM files
-            rp_generator = kaic.SamBamReadPairGenerator("output/sam/SRR4271982_chr18_19_1_sort.bam",
+            rp_generator = fanc.SamBamReadPairGenerator("output/sam/SRR4271982_chr18_19_1_sort.bam",
                                                         "output/sam/SRR4271982_chr18_19_2_sort.bam")
             rp.add_read_pairs(rp_generator, threads=4)
 
@@ -1851,7 +1851,7 @@ class ReadPairs(RegionPairsTable):
         Iterate over the :class:`~FragmentReadPair` objects.
 
         :param key: Region string of the form <chromosome>[:<start>-<end>],
-                    :class:`~kaic.GenomicRegion` or tuples thereof
+                    :class:`~fanc.GenomicRegion` or tuples thereof
         :param lazy: If True, use lazy loading of objects and their attributes.
                      Much faster, but can lead to unexpected results if one is
                      not careful. For example, this: :code:`list(object.pairs())`
@@ -1923,9 +1923,9 @@ class ReadPairs(RegionPairsTable):
 
     def to_hic(self, file_name=None, tmpdir=None, _hic_class=Hic):
         """
-        Convert this :class:`~ReadPairs` to a :class:`~kaic.Hic` object.
+        Convert this :class:`~ReadPairs` to a :class:`~fanc.Hic` object.
 
-        :param file_name: Path to the :class:`~kaic.Hic` output file
+        :param file_name: Path to the :class:`~fanc.Hic` output file
         :param tmpdir: If True (or path to temporary directory) will
                        work in temporary directory until closed
         """
@@ -2126,7 +2126,7 @@ class ReadFilter(object):
         """
         Initialize ReadFilter.
 
-        :param mask: The :class:`~kaic.general.Mask` object that
+        :param mask: The :class:`~fanc.general.Mask` object that
                      should be used to mask
                      filtered Read objects. If None the default
                      Mask will be used.

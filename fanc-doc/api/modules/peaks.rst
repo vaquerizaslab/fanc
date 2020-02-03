@@ -1,7 +1,7 @@
 Peaks module
 ============
 
-.. automodule:: kaic.peaks
+.. automodule:: fanc.peaks
    :members:
    :inherited-members:
    :show-inheritance:

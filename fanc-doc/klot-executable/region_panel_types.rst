@@ -104,8 +104,8 @@ The ``scores`` panel type is designed for genome-wide, region-based scores, such
 the insulation score, that depend on a central parameter, such as a window size. It
 represents scores in a heatmap, where each line corresponds to a different parameter
 value, which allows a quick survey of scores without having to commit to a specific
-parameter choice. It currently supports the :class:`~kaic.architecture.domains.InsulationScores`
-and :class:`~kaic.architecture.domains.DirectionalityIndexes` objects, but can in
+parameter choice. It currently supports the :class:`~fanc.architecture.domains.InsulationScores`
+and :class:`~fanc.architecture.domains.DirectionalityIndexes` objects, but can in
 principle be extended to other data containers.
 
 .. literalinclude:: code/region_panel_types_commands
@@ -152,7 +152,7 @@ recommend you read about ``line`` first. Here is an example:
 
 However, ``bar`` may be most useful when dealing with sparse data that does not cover every
 genomic interval. One example are domain boundaries. Here is a larger region of ``chr18``
-showing all possible domain boundaries called from the insulation score (``kaic boundaries``).
+showing all possible domain boundaries called from the insulation score (``fanc boundaries``).
 The bar height corresponds to the boundary score:
 
 .. literalinclude:: code/region_panel_types_commands

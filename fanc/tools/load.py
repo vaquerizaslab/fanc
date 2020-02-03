@@ -9,7 +9,7 @@ import tables
 
 logger = logging.getLogger(__name__)
 
-kaic_access_lock = threading.Lock()
+fanc_access_lock = threading.Lock()
 
 
 def load(file_name, *args, **kwargs):
@@ -28,7 +28,7 @@ def load(file_name, *args, **kwargs):
 
     .. code::
 
-        o = kaic.load("/path/to/file")
+        o = fanc.load("/path/to/file")
 
     Depending on the file type, the returned object can be the instance of
     one (or more) of these classes:
@@ -73,14 +73,14 @@ def load(file_name, *args, **kwargs):
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            from kaic.compatibility.cooler import is_cooler, CoolerHic
+            from fanc.compatibility.cooler import is_cooler, CoolerHic
         if is_cooler(file_name):
             logger.debug("Cooler file detected")
             return CoolerHic(file_name, *args, **kwargs)
     except (ImportError, OSError, FileNotFoundError):
         pass
 
-    from kaic.compatibility.juicer import JuicerHic, is_juicer
+    from fanc.compatibility.juicer import JuicerHic, is_juicer
     if is_juicer(file_name):
         return JuicerHic(file_name, *args, **kwargs)
 

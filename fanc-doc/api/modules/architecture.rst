@@ -1,4 +1,4 @@
-.. _kaic-architecture:
+.. _fanc-architecture:
 
 =================================
 Kai-C Python architecture modules

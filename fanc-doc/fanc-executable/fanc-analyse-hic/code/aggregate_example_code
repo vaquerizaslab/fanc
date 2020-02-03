@@ -1,115 +1,115 @@
 # start snippet aggregate basic
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
                architecture/domains/gm12878_tads.bed \
-               architecture/aggregate/kaic_example_100kb.agg
+               architecture/aggregate/fanc_example_100kb.agg
 # end snippet aggregate basic
 
 # start snippet aggregate plot
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
                architecture/domains/gm12878_tads.bed \
-               architecture/aggregate/kaic_example_100kb.agg \
-               -p architecture/aggregate/kaic_example_100kb.agg.png \
-               -m architecture/aggregate/kaic_example_100kb.agg.txt
+               architecture/aggregate/fanc_example_100kb.agg \
+               -p architecture/aggregate/fanc_example_100kb.agg.png \
+               -m architecture/aggregate/fanc_example_100kb.agg.txt
 # end snippet aggregate plot
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
                architecture/domains/gm12878_tads.bed \
-               architecture/aggregate/kaic_example_100kb.agg \
-               -p ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_100kb.agg.png \
-               -m architecture/aggregate/kaic_example_100kb.agg.txt
+               architecture/aggregate/fanc_example_100kb.agg \
+               -p ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_100kb.agg.png \
+               -m architecture/aggregate/fanc_example_100kb.agg.txt
 
 # start snippet aggregate oe
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
                architecture/domains/gm12878_tads.bed \
-               architecture/aggregate/kaic_example_100kb.agg \
-               -p architecture/aggregate/kaic_example_100kb_oe.agg.png \
-               -m architecture/aggregate/kaic_example_100kb_oe.agg.txt \
+               architecture/aggregate/fanc_example_100kb.agg \
+               -p architecture/aggregate/fanc_example_100kb_oe.agg.png \
+               -m architecture/aggregate/fanc_example_100kb_oe.agg.txt \
                -e -l
 # end snippet aggregate oe
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
                architecture/domains/gm12878_tads.bed \
-               architecture/aggregate/kaic_example_100kb.agg \
-               -p ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_100kb_oe.agg.png \
-               -m architecture/aggregate/kaic_example_100kb_oe.agg.txt \
+               architecture/aggregate/fanc_example_100kb.agg \
+               -p ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_100kb_oe.agg.png \
+               -m architecture/aggregate/fanc_example_100kb_oe.agg.txt \
                -e -l
 
 # start snippet aggregate expand
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
                architecture/domains/gm12878_tads.bed \
-               architecture/aggregate/kaic_example_100kb.agg \
-               -p architecture/aggregate/kaic_example_100kb_oe_large.agg.png \
-               -m architecture/aggregate/kaic_example_100kb_oe_large.agg.txt \
+               architecture/aggregate/fanc_example_100kb.agg \
+               -p architecture/aggregate/fanc_example_100kb_oe_large.agg.png \
+               -m architecture/aggregate/fanc_example_100kb_oe_large.agg.txt \
                -e -l -r 1.0
 # end snippet aggregate expand
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
                architecture/domains/gm12878_tads.bed \
-               architecture/aggregate/kaic_example_100kb.agg \
-               -p ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_100kb_oe_large.agg.png \
-               -m architecture/aggregate/kaic_example_100kb_oe_large.agg.txt \
+               architecture/aggregate/fanc_example_100kb.agg \
+               -p ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_100kb_oe_large.agg.png \
+               -m architecture/aggregate/fanc_example_100kb_oe_large.agg.txt \
                -e -l -r 1.0
 
 # start snippet aggregate rescale
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
                architecture/domains/gm12878_tads.bed \
-               architecture/aggregate/kaic_example_100kb.agg \
-               -p architecture/aggregate/kaic_example_100kb_oe_large_res.png \
-               -m architecture/aggregate/kaic_example_100kb_oe_large.agg.txt \
+               architecture/aggregate/fanc_example_100kb.agg \
+               -p architecture/aggregate/fanc_example_100kb_oe_large_res.png \
+               -m architecture/aggregate/fanc_example_100kb_oe_large.agg.txt \
                -e -r 1.0 --rescale --vmax 0.045
 # end snippet aggregate rescale
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
                architecture/domains/gm12878_tads.bed \
-               architecture/aggregate/kaic_example_100kb.agg \
-               -p ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_100kb_oe_large_res.png \
-               -m architecture/aggregate/kaic_example_100kb_oe_large.agg.txt \
+               architecture/aggregate/fanc_example_100kb.agg \
+               -p ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_100kb_oe_large_res.png \
+               -m architecture/aggregate/fanc_example_100kb_oe_large.agg.txt \
                -e -r 1.0 --rescale --vmax 0.045
 
 # start snippet aggregate tads
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
                architecture/domains/gm12878_tads.bed \
-               architecture/aggregate/kaic_example_100kb.agg \
-               -p architecture/aggregate/kaic_example_100kb_oe_large.agg.png \
-               -m architecture/aggregate/kaic_example_100kb_oe_large.agg.txt \
+               architecture/aggregate/fanc_example_100kb.agg \
+               -p architecture/aggregate/fanc_example_100kb_oe_large.agg.png \
+               -m architecture/aggregate/fanc_example_100kb_oe_large.agg.txt \
                --tads
 # end snippet aggregate tads
 
 # start snippet aggregate fixed
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
-               architecture/domains/kaic_example_100kb.insulation_boundaries_score0.7_1mb.bed \
-               architecture/aggregate/kaic_example_100kb_boundaries.agg \
-               -w 5mb -p architecture/aggregate/kaic_example_100kb_boundaries.agg.png \
-               -m architecture/aggregate/kaic_example_100kb_boundaries.agg.txt \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
+               architecture/domains/fanc_example_100kb.insulation_boundaries_score0.7_1mb.bed \
+               architecture/aggregate/fanc_example_100kb_boundaries.agg \
+               -w 5mb -p architecture/aggregate/fanc_example_100kb_boundaries.agg.png \
+               -m architecture/aggregate/fanc_example_100kb_boundaries.agg.txt \
                --vmin 0 --vmax 0.03
 # end snippet aggregate fixed
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
-               architecture/domains/kaic_example_100kb.insulation_boundaries_score0.7_1mb.bed \
-               architecture/aggregate/kaic_example_100kb_boundaries.agg \
-               -w 5mb -p ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_100kb_boundaries.agg.png \
-               -m architecture/aggregate/kaic_example_100kb_boundaries.agg.txt \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
+               architecture/domains/fanc_example_100kb.insulation_boundaries_score0.7_1mb.bed \
+               architecture/aggregate/fanc_example_100kb_boundaries.agg \
+               -w 5mb -p ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_100kb_boundaries.agg.png \
+               -m architecture/aggregate/fanc_example_100kb_boundaries.agg.txt \
                --vmin 0 --vmax 0.03
 
 # start snippet aggregate oefixed
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
-               architecture/domains/kaic_example_100kb.insulation_boundaries_score0.7_1mb.bed \
-               architecture/aggregate/kaic_example_100kb_boundaries_oe.agg \
-               -w 5mb -p architecture/aggregate/kaic_example_100kb_boundaries_oe.agg.png \
-               -m architecture/aggregate/kaic_example_100kb_boundaries_oe.agg.txt \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
+               architecture/domains/fanc_example_100kb.insulation_boundaries_score0.7_1mb.bed \
+               architecture/aggregate/fanc_example_100kb_boundaries_oe.agg \
+               -w 5mb -p architecture/aggregate/fanc_example_100kb_boundaries_oe.agg.png \
+               -m architecture/aggregate/fanc_example_100kb_boundaries_oe.agg.txt \
                -e -l
 # end snippet aggregate oefixed
-kaic aggregate output/hic/binned/kaic_example_100kb.hic \
-               architecture/domains/kaic_example_100kb.insulation_boundaries_score0.7_1mb.bed \
-               architecture/aggregate/kaic_example_100kb_boundaries_oe.agg \
-               -w 5mb -p ../kaic-doc/kaic-executable/kaic-analyse-hic/images/kaic_example_100kb_boundaries_oe.agg.png \
-               -m architecture/aggregate/kaic_example_100kb_boundaries_oe.agg.txt \
+fanc aggregate output/hic/binned/fanc_example_100kb.hic \
+               architecture/domains/fanc_example_100kb.insulation_boundaries_score0.7_1mb.bed \
+               architecture/aggregate/fanc_example_100kb_boundaries_oe.agg \
+               -w 5mb -p ../fanc-doc/fanc-executable/fanc-analyse-hic/images/fanc_example_100kb_boundaries_oe.agg.png \
+               -m architecture/aggregate/fanc_example_100kb_boundaries_oe.agg.txt \
                -e -l
 
 # start snippet aggregate loops
-kaic aggregate architecture/loops/rao2014.chr11_77400000_78600000.hic \
+fanc aggregate architecture/loops/rao2014.chr11_77400000_78600000.hic \
                architecture/loops/rao2014.chr11_77400000_78600000.loops_no_singlets.bedpe \
                architecture/loops/rao2014.chr11_77400000_78600000.loops_no_singlets.agg \
                -p architecture/aggregate/rao2014.chr11_77400000_78600000.loops_no_singlets.agg.png \
                --loops
 # end snippet aggregate loops
-kaic aggregate architecture/loops/rao2014.chr11_77400000_78600000.hic \
+fanc aggregate architecture/loops/rao2014.chr11_77400000_78600000.hic \
                architecture/loops/rao2014.chr11_77400000_78600000.loops_no_singlets.bedpe \
                architecture/loops/rao2014.chr11_77400000_78600000.loops_no_singlets.agg \
-               -p ../kaic-doc/kaic-executable/kaic-analyse-hic/images/rao2014.chr11_77400000_78600000.loops_no_singlets.agg.png \
+               -p ../fanc-doc/fanc-executable/fanc-analyse-hic/images/rao2014.chr11_77400000_78600000.loops_no_singlets.agg.png \
                --loops

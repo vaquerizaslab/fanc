@@ -12,9 +12,9 @@ Example usage:
 
 .. code::
 
-    import kaic
-    mapper = kaic.BwaMapper("bwa-index/hg19_chr18_19.fa", min_quality=3)
-    kaic.iterative_mapping("SRR4271982_chr18_19_1.fastq.gzip", "SRR4271982_chr18_19_1.bam",
+    import fanc
+    mapper = fanc.BwaMapper("bwa-index/hg19_chr18_19.fa", min_quality=3)
+    fanc.iterative_mapping("SRR4271982_chr18_19_1.fastq.gzip", "SRR4271982_chr18_19_1.bam",
                            mapper, threads=4, restriction_enzyme="HindIII")
 
 """

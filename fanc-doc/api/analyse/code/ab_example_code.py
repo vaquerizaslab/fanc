@@ -1,14 +1,14 @@
 # start snippet ab setup
-import kaic
-import kaic.plotting as klot
+import fanc
+import fanc.plotting as klot
 import matplotlib.pyplot as plt
 
-hic_1mb = kaic.load("output/hic/binned/kaic_example_1mb.hic")
+hic_1mb = fanc.load("output/hic/binned/fanc_example_1mb.hic")
 # end snippet ab setup
 
 
 # start snippet ab matrix
-ab = kaic.ABCompartmentMatrix.from_hic(hic_1mb)
+ab = fanc.ABCompartmentMatrix.from_hic(hic_1mb)
 # end snippet ab matrix
 
 # start snippet ab subset
@@ -24,7 +24,7 @@ mp = klot.SquareMatrixPlot(ab, ax=ax,
 mp.plot('chr18')
 plt.show()
 # end snippet ab klot-correlation
-fig.savefig('../kaic-doc/api/analyse/images/ab_1mb_correlation.png')
+fig.savefig('../fanc-doc/api/analyse/images/ab_1mb_correlation.png')
 
 
 # start snippet ab ev
@@ -42,5 +42,5 @@ lp = klot.LinePlot(ab)
 lp.plot('chr18')
 plt.show()
 # end snippet ab plot-ev
-fig.savefig('../kaic-doc/api/analyse/images/ab_1mb_ev.png')
+fig.savefig('../fanc-doc/api/analyse/images/ab_1mb_ev.png')
 

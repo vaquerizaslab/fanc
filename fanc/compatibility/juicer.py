@@ -47,7 +47,7 @@ def convert_juicer_to_hic(juicer_file, genome_file, resolution, juicer_tools_jar
     if juicer_tools_jar_path is None:
         juicer_tools_jar_path = config.juicer_tools_jar_path
     if juicer_tools_jar_path is None:
-        raise ValueError("Just must provide the juicer tools jar path or set it in kaic.conf!")
+        raise ValueError("Just must provide the juicer tools jar path or set it in fanc.conf!")
 
     hic = Hic(file_name=output_file, mode='w')
 
@@ -119,7 +119,7 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
         if juicer_tools_jar_path is None:
             juicer_tools_jar_path = config.juicer_tools_jar_path
         if juicer_tools_jar_path is None:
-            raise ValueError("Just must provide the juicer tools jar path or set it in kaic.conf!")
+            raise ValueError("Just must provide the juicer tools jar path or set it in fanc.conf!")
 
         if isinstance(pairs, ReadPairs):
             pairs = [pairs]

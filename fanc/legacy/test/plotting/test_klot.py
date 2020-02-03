@@ -1,5 +1,5 @@
 from __future__ import division, print_function
-import kaic
+import fanc
 import pytest
 import subprocess as sp
 import uuid
@@ -20,7 +20,7 @@ def get_filesize(path):
 @pytest.mark.klot
 class TestHicPlot:
     def setup_method(self, method):
-        self.hic_path = kaic.example_data["hic"]
+        self.hic_path = fanc.example_data["hic"]
 
     @pytest.mark.parametrize("crange", [(77390001, 78600000)])
     def test_hicplot(self, crange, tmpdir, output_filename):
@@ -52,9 +52,9 @@ class TestHicPlot:
 @pytest.mark.klot
 class TestScorePlots:
     def setup_method(self, method):
-        self.bigwig_path = self.bigwig_path = kaic.example_data["chip_bigwig"]
-        self.bedgraph_path = kaic.example_data["chip_bedgraph"]
-        self.peak_path = kaic.example_data["chip_peak_bed"]
+        self.bigwig_path = self.bigwig_path = fanc.example_data["chip_bigwig"]
+        self.bedgraph_path = fanc.example_data["chip_bedgraph"]
+        self.peak_path = fanc.example_data["chip_peak_bed"]
 
     @pytest.mark.parametrize("crange", [(77390001, 78600000)])
     def test_region(self, crange, tmpdir, output_filename):

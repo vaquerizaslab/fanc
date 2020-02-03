@@ -1,4 +1,4 @@
-from kaic.architecture.architecture import TableArchitecturalFeature, calculateondemand
+from fanc.architecture.architecture import TableArchitecturalFeature, calculateondemand
 import tables as t
 import types
 

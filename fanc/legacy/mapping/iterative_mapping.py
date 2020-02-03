@@ -12,7 +12,7 @@ import glob
 from queue import Empty
 from future.utils import string_types
 import pysam
-from kaic.tools.files import fastq_reader
+from fanc.tools.files import fastq_reader
 import logging
 logger = logging.getLogger(__name__)
 

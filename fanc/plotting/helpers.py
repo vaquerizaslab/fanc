@@ -3,7 +3,7 @@ import matplotlib as mpl
 import numpy as np
 from math import log10, floor
 import pybedtools as pbt
-import kaic
+import fanc
 from genomic_regions import RegionBased
 
 
@@ -284,14 +284,14 @@ def parse_bedtool_input(x):
 def get_region_based_object(input_object):
     if isinstance(input_object, RegionBased):
         return input_object
-    return kaic.load(input_object)
+    return fanc.load(input_object)
 
 
 def load_score_data(data):
-    # If it's already an instance of kaic data, just return it
+    # If it's already an instance of fanc data, just return it
     if isinstance(data, RegionBased):
         return data
 
-    # If it's anything else let's hope kaic.load can deal with it
-    return kaic.load(data)
+    # If it's anything else let's hope fanc.load can deal with it
+    return fanc.load(data)
 

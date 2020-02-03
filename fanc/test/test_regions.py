@@ -1,6 +1,6 @@
 from __future__ import division
 import numpy as np
-from kaic.regions import Chromosome, Genome, RegionsTable
+from fanc.regions import Chromosome, Genome, RegionsTable
 from genomic_regions import GenomicRegion
 import pytest
 

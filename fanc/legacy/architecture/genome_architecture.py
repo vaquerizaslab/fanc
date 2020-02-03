@@ -1,11 +1,11 @@
 from __future__ import division
-from kaic.config import config
-from kaic.regions import RegionsTable, GenomicRegion
-from kaic.matrix import RegionMatrixTable
-from kaic.legacy.architecture.architecture import ArchitecturalFeature, calculateondemand, \
+from fanc.config import config
+from fanc.regions import RegionsTable, GenomicRegion
+from fanc.matrix import RegionMatrixTable
+from fanc.legacy.architecture.architecture import ArchitecturalFeature, calculateondemand, \
     _get_pytables_data_type
-from kaic.general import MaskFilter
-from kaic.tools.general import RareUpdateProgressBar
+from fanc.general import MaskFilter
+from fanc.tools.general import RareUpdateProgressBar
 import tables as t
 import numpy as np
 from collections import defaultdict
@@ -260,7 +260,7 @@ class VectorArchitecturalRegionFeature(RegionsTable, ArchitecturalFeature):
         :param mode: File mode ('r' = read-only, 'w' = (over)write, 'a' = append)
         :param data_fields: Dictionary of class with PyTables column definitions.
         :param regions: Any iterable with objects accepted by
-                        :func:`~kaic.data.genomic.GenomicRegions.add_region`.
+                        :func:`~fanc.data.genomic.GenomicRegions.add_region`.
         :param data: Dict of iterables with vector data to import
         :param tmpdir: Path to temporary directory.
         """
@@ -560,7 +560,7 @@ class GenomicTrack(BasicRegionTable):
                           The arrays must have as many elements in the first
                           dimension as there are regions.
         :param title: The overall title of the track.
-        :param regions: An iterable of (:class: `~kaic.data.genomic.GenomicRegion`)
+        :param regions: An iterable of (:class: `~fanc.data.genomic.GenomicRegion`)
                         or String elemnts that describe regions.
         """
         matrix_data = {}

@@ -1,58 +1,58 @@
-.. _kaic-modular:
+.. _fanc-modular:
 
 #########################
 Individual pipeline steps
 #########################
 
-.. _kaic-map:
+.. _fanc-map:
 
 =============================
-kaic map: Mapping FASTQ files
+fanc map: Mapping FASTQ files
 =============================
 
-To (iteratively) map FASTQ files directly with Kai-C, use the ``kaic map`` command.
+To (iteratively) map FASTQ files directly with Kai-C, use the ``fanc map`` command.
 
 Here is a minimal example:
 
 .. code:: bash
 
-    kaic map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
+    fanc map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
              SRR4271982_chr18_19_1.sam
 
 This command will map the FASTQ file ``SRR4271982_chr18_19_1.fastq.gzip`` using the BWA
 index specified with ``-i bwa-index/hg19_chr18_19.fa`` and output the mapped reads
 to ``SRR4271982_chr18_19_1.sam``. You can change the suffix of the output file to ``.bam``
-and ``kaic map`` will automatically convert the mapping output to BAM format.
+and ``fanc map`` will automatically convert the mapping output to BAM format.
 
-Importantly, ``kaic map`` will autodetect if you supply a BWA or Bowtie2 index, so
+Importantly, ``fanc map`` will autodetect if you supply a BWA or Bowtie2 index, so
 the following command would use Bowtie2 as a mapper:
 
 .. code:: bash
 
-    kaic map SRR4271982_chr18_19_1.fastq.gzip hg19_chr18_19/hg19_chr18_19 \
+    fanc map SRR4271982_chr18_19_1.fastq.gzip hg19_chr18_19/hg19_chr18_19 \
              SRR4271982_chr18_19_1.sam
 
 You can use additional parameters to control the mapping process:
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
+   :module: fanc.commands.fanc_commands
    :func: map_parser
-   :prog: kaic map
+   :prog: fanc map
    :nodescription:
    :nodefault:
 
 Most importantly, assign more threads to the mapping process using the ``-t`` parameter.
-``kaic auto`` parallelises mapping by spawning multiple mapping processes internally.
+``fanc auto`` parallelises mapping by spawning multiple mapping processes internally.
 This can result in high disk I/O - if you have issues with poor performance,
 try using the ``--mapper-parallel`` option, which will instead use the multithreading
 of your chosen mapping software.
 
 .. code:: bash
 
-    kaic map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
+    fanc map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
              SRR4271982_chr18_19_1.sam -t 16
 
-By default, ``kaic auto`` performs iterative mapping: Reads are initially trimmed to 25bp
+By default, ``fanc auto`` performs iterative mapping: Reads are initially trimmed to 25bp
 (change this with the ``-m`` option) before mapping, and then iteratively expanded by 10bp
 (change the step size with the ``-s`` option) until a unique, high quality mapping location
 can be found. The associated quality cutoff is 3 for BWA and 30 for Bowtie2, but can be
@@ -61,7 +61,7 @@ changed with the ``-q`` parameter.
 .. code:: bash
 
     # expand by 5bp every iteration and be satisfied with lower quality
-    kaic map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
+    fanc map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
              SRR4271982_chr18_19_1.sam -t 16 -s 5 -q 10
 
 The iterative mapping process is slower than simple mapping, but can typically
@@ -72,7 +72,7 @@ parameter.
 .. code:: bash
 
     # do not perform iterative mapping
-    kaic map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
+    fanc map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
              SRR4271982_chr18_19_1.sam -t 16 --no-iterative
 
 BWA will automatically split chimeric reads and return both mapping locations. This is
@@ -88,23 +88,23 @@ the part of the split read.
 .. code:: bash
 
     # Split reads at HindIII ligation junction before mapping
-    kaic map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
+    fanc map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa \
              SRR4271982_chr18_19_1.sam -t 16 -r HindIII
 
 If you are using Bowtie2, you can additionally use the ``--memory-map`` option,
 which will load the entire Bowtie2 index into memory to be shared across all Bowtie2 processes. Use
 this option if your system has a lot of memory available to speed up the mapping. Finally, if you
-are using the ``-tmp`` option, which causes ``kaic auto`` to perform most pipeline steps in a
+are using the ``-tmp`` option, which causes ``fanc auto`` to perform most pipeline steps in a
 temporary directory, you may want to use the ``--split-fastq`` option to split the FASTQ files into
 smaller chunks before mapping, so you can save space on your ``tmp`` partition.
 
-.. _kaic-pairs:
+.. _fanc-pairs:
 
 ===============================================
-kaic pairs: Generating and filtering read Pairs
+fanc pairs: Generating and filtering read Pairs
 ===============================================
 
-The ``kaic pairs`` command handles the creation and modification of Pairs objects, which represent
+The ``fanc pairs`` command handles the creation and modification of Pairs objects, which represent
 the mate pairs in a Hi-C library mapped to restriction fragments. Possible inputs are: two SAM/BAM
 files (paired-end reads, sorted by read name), a
 `HiC-Pro valid pairs file <http://nservant.github.io/HiC-Pro/RESULTS.html#list-of-valid-interaction-products>`_,
@@ -119,7 +119,7 @@ SAM/BAM files:
 
 .. code:: bash
 
-    kaic pairs output/sam/SRR4271982_chr18_19_1_sort.bam \
+    fanc pairs output/sam/SRR4271982_chr18_19_1_sort.bam \
                output/sam/SRR4271982_chr18_19_2_sort.bam \
                output/pairs/SRR4271982_chr18_19.pairs \
                -g hg19_chr18_19_re_fragments.bed
@@ -128,7 +128,7 @@ SAM/BAM files:
 
 .. code:: bash
 
-    kaic pairs 4d_nucleome.pairs output/pairs/4d_nucleome.pairs \
+    fanc pairs 4d_nucleome.pairs output/pairs/4d_nucleome.pairs \
                -g hg19_chr18_19_re_fragments.bed
 
 
@@ -136,14 +136,14 @@ HiC-Pro valid pairs file:
 
 .. code:: bash
 
-    kaic pairs hic_pro.validPairs output/pairs/hic_pro.pairs \
+    fanc pairs hic_pro.validPairs output/pairs/hic_pro.pairs \
                -g hg19_chr18_19_re_fragments.bed
 
 Existing Kai-C Pairs object:
 
 .. code:: bash
 
-    kaic pairs output/pairs/SRR4271982_chr18_19.pairs
+    fanc pairs output/pairs/SRR4271982_chr18_19.pairs
 
 As you can see, the ``-g`` parameter is not necessary when proving an existing Pairs object,
 as this already has all the fragment information stored in the object. Neither do we need an
@@ -153,9 +153,9 @@ the filtering of read pairs according to various criteria.
 Additional parameters primarily control the filtering of read pairs:
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
+   :module: fanc.commands.fanc_commands
    :func: pairs_parser
-   :prog: kaic pairs
+   :prog: fanc pairs
    :nodescription:
    :nodefault:
 
@@ -163,7 +163,7 @@ Additional parameters primarily control the filtering of read pairs:
 Filtering
 *********
 
-``kaic pairs`` provides a lot of parameters for filtering read pairs according to different
+``fanc pairs`` provides a lot of parameters for filtering read pairs according to different
 criteria. By default, if not specified otherwise, no filtering is performed on the read pairs
 (passthrough). Typically, however, you will at least want to filter out unmappable (``-m``)
 and multimapping reads (``-u`` or ``-us``). It is also a good idea to filter by alignment
@@ -179,7 +179,7 @@ from SAM/BAM file, and cannot be added later!
 
 .. code:: bash
 
-    kaic pairs output/sam/SRR4271982_chr18_19_1_sort.bam \
+    fanc pairs output/sam/SRR4271982_chr18_19_1_sort.bam \
                output/sam/SRR4271982_chr18_19_2_sort.bam \
                output/pairs/SRR4271982_chr18_19.pairs \
                -g hg19_chr18_19_re_fragments.bed \
@@ -198,7 +198,7 @@ Example:
 
 .. code:: bash
 
-    kaic pairs output/pairs/SRR4271982_chr18_19.pairs \
+    fanc pairs output/pairs/SRR4271982_chr18_19.pairs \
                -l  # filter self-ligated fragments \
                -p 2  # filter PCR duplicates mapping within 2bp
 
@@ -210,7 +210,7 @@ that this will only plot a sample of 10,000 read pairs for a quick assessment:
 
 .. code::
 
-    kaic pairs --re-dist-plot re-dist.png output/pairs/SRR4271982_chr18_19.pairs
+    fanc pairs --re-dist-plot re-dist.png output/pairs/SRR4271982_chr18_19.pairs
 
 .. image:: images/re-dist.png
 
@@ -223,7 +223,7 @@ cutoff, you may use the ``--ligation-error-plot`` parameter.
 
 .. code::
 
-    kaic pairs --ligation-error-plot ligation-err.png output/pairs/SRR4271982_chr18_19.pairs
+    fanc pairs --ligation-error-plot ligation-err.png output/pairs/SRR4271982_chr18_19.pairs
 
 
 .. image:: images/ligation-err.png
@@ -237,26 +237,26 @@ Finally, you can output the filtering statistics to a file or plot using the ``-
 
 .. code:: bash
 
-    kaic pairs output/pairs/SRR4271982_chr18_19.pairs \
+    fanc pairs output/pairs/SRR4271982_chr18_19.pairs \
                --statistics-plot pairs.stats.png
 
 
 .. image:: images/pairs.stats.png
 
 
-.. _kaic-hic:
+.. _fanc-hic:
 
 ========================================================
-kaic hic: Generating, binning, and filtering Hic objects
+fanc hic: Generating, binning, and filtering Hic objects
 ========================================================
 
-The ``kaic hic`` command is used to generate fragment-level and binned Hi-C matrices.
+The ``fanc hic`` command is used to generate fragment-level and binned Hi-C matrices.
 
-You can use Kai-C Pairs files as input for ``kaic hic``:
+You can use Kai-C Pairs files as input for ``fanc hic``:
 
 .. code:: bash
 
-    kaic hic output/pairs/SRR4271982_chr18_19.pairs output/hic/fragment_level.hic
+    fanc hic output/pairs/SRR4271982_chr18_19.pairs output/hic/fragment_level.hic
 
 Without additional parameters, this will generate a fragment-level Hic object and exit.
 Multiple Pairs files will be converted into fragment-level Hic objects which are then merged
@@ -267,16 +267,16 @@ or matrix balancing, you can also use this as input:
 
 .. code:: bash
 
-    kaic hic output/hic/fragment_level.hic output/hic/binned/example_1mb.hic -b 1mb
+    fanc hic output/hic/fragment_level.hic output/hic/binned/example_1mb.hic -b 1mb
 
 You have to explicitly provide the binning, filtering and correcting parameters, otherwise
 the command will exit after it has obtained a single fragment-level Hic object. Here is an
 overview of all parameters:
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
+   :module: fanc.commands.fanc_commands
    :func: hic_parser
-   :prog: kaic hic
+   :prog: fanc hic
    :nodescription:
    :nodefault:
 
@@ -293,7 +293,7 @@ apply to binned Hic matrices.
 Filtering and balancing
 ***********************
 
-``kaic hic`` provides a few filtering options. Most likely you want to apply a coverage filter
+``fanc hic`` provides a few filtering options. Most likely you want to apply a coverage filter
 using ``-l`` to specify a coverage threshold in absolute number of pairs per bin, or ``-r`` to
 apply a coverage threshold based on a fraction of the median number of pairs pair bin. ``-a`` is
 simply a preset for ``-r 0.1``.

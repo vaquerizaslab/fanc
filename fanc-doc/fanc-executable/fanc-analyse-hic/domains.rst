@@ -1,4 +1,4 @@
-.. _kaic-domains:
+.. _fanc-domains:
 
 
 ####################
@@ -14,7 +14,7 @@ genome organisation.
     :start-after: start snippet domains basic
     :end-before: end snippet domains basic
 
-.. image:: images/kaic_example_100kb_tads.png
+.. image:: images/fanc_example_100kb_tads.png
 
 
 Kai-C provides multiple "scores" that are designed to find the boundaries between domains.
@@ -27,17 +27,17 @@ Insulation Score
 The insulation score (`Crane et al. 2015 <http://www.nature.com/doifinder/10.1038/nature14450>`_)
 adds up contacts in a sliding window align the Hi-C matrix diagonal.
 
-.. image:: images/kaic_example_100kb_tads_insulation_score_example.png
+.. image:: images/fanc_example_100kb_tads_insulation_score_example.png
 
 Regions with low score are "insulating", i.e. regions between domains. Regions with high scores
 are most likely found inside domains.
 
-Use ``kaic insulation`` to calculate the insulation score from the command line:
+Use ``fanc insulation`` to calculate the insulation score from the command line:
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
+   :module: fanc.commands.fanc_commands
    :func: insulation_parser
-   :prog: kaic insulation
+   :prog: fanc insulation
    :nodescription:
    :nodefault:
 
@@ -45,7 +45,7 @@ Use ``kaic insulation`` to calculate the insulation score from the command line:
 Example
 =======
 
-``kaic insulation`` is typically used to calculate insulation scores with multiple window
+``fanc insulation`` is typically used to calculate insulation scores with multiple window
 sizes at the same time, as a single window size might be prone to local matrix differences:
 
 .. literalinclude:: code/domains_example_code
@@ -62,7 +62,7 @@ We can easily plot all insulation scores at the same time using ``klot``:
     :start-after: start snippet domains scores
     :end-before: end snippet domains scores
 
-.. image:: images/kaic_example_50kb_tads_insulation.png
+.. image:: images/fanc_example_50kb_tads_insulation.png
 
 
 ==============
@@ -90,13 +90,13 @@ This produces the output files:
 
 .. code::
 
-    architecture/domains/kaic_example_100kb.insulation_1.5mb.bed
-    architecture/domains/kaic_example_100kb.insulation_1mb.bed
-    architecture/domains/kaic_example_100kb.insulation_2.5mb.bed
-    architecture/domains/kaic_example_100kb.insulation_2mb.bed
-    architecture/domains/kaic_example_100kb.insulation_3.5mb.bed
-    architecture/domains/kaic_example_100kb.insulation_3mb.bed
-    architecture/domains/kaic_example_100kb.insulation_4mb.bed
+    architecture/domains/fanc_example_100kb.insulation_1.5mb.bed
+    architecture/domains/fanc_example_100kb.insulation_1mb.bed
+    architecture/domains/fanc_example_100kb.insulation_2.5mb.bed
+    architecture/domains/fanc_example_100kb.insulation_2mb.bed
+    architecture/domains/fanc_example_100kb.insulation_3.5mb.bed
+    architecture/domains/fanc_example_100kb.insulation_3mb.bed
+    architecture/domains/fanc_example_100kb.insulation_4mb.bed
 
 Of course, you can also simply convert existing insulation scores to another format
 without having to recalculate everything. Simply run:
@@ -109,7 +109,7 @@ without having to recalculate everything. Simply run:
 and the insulation scores for all window sizes in the object will be converted to BED
 files using the input file name as prefix. If you only want to convert specific window
 sizes, use the ``-w`` parameter. To find out which window sizes are available in a
-previously calculated scores object, simply run ``kaic insulation`` without any
+previously calculated scores object, simply run ``fanc insulation`` without any
 parameters:
 
 .. literalinclude:: code/domains_example_code
@@ -133,20 +133,20 @@ You can plot scores from one or more window sizes using the ``line`` plot in ``k
     :end-before: end snippet domains line
 
 
-.. image:: images/kaic_example_50kb_tads_insulation_1mb.png
+.. image:: images/fanc_example_50kb_tads_insulation_1mb.png
 
 
 =============
 Normalisation
 =============
 
-By default, ``kaic insulation`` will normalise the insulation scores to the chromosomal
+By default, ``fanc insulation`` will normalise the insulation scores to the chromosomal
 average and the log-transform them. You can get raw, untransformed scores using ``-N`` and
 ``--L``, respectively. If you want to normalise the scores, but to a smaller region on the
 chromosome (to take into account local variability in insulation), you can choose the
 normalisation window size with ``--normalisation-window``. The window is specified in bins.
 
-Normally, ``kaic insulation`` will use the arythmetic mean of the chromosomal scores to
+Normally, ``fanc insulation`` will use the arythmetic mean of the chromosomal scores to
 normalise. This has the effect that scores upon log2-transformation are not perfectly
 centred around 0. To remedy this, you can use the geometric mean instead, with the ``-g``
 option.
@@ -166,7 +166,7 @@ Impute missing values
 
 In the above examples, you will notice the region on the left that is unmappable in the Hi-C
 matrix. In the insulation score calculation, if the insulation window is covered by more than
-50% of unmappable regions, the score will be NaN. ``kaic insulation`` offers the option to
+50% of unmappable regions, the score will be NaN. ``fanc insulation`` offers the option to
 impute the unmappable values from the expected values of the chromosome using ``--impute``.
 
 .. literalinclude:: code/domains_example_code
@@ -184,7 +184,7 @@ this capability with caution!
     :start-after: start snippet domains plotimpute
     :end-before: end snippet domains plotimpute
 
-.. image:: images/kaic_example_50kb_tads_insulation_imputed.png
+.. image:: images/fanc_example_50kb_tads_insulation_imputed.png
 
 
 **************************************
@@ -192,17 +192,17 @@ Insulating boundaries (TAD boundaries)
 **************************************
 
 Regions in the genome where the insulation score reaches a local minimum represent the region
-between two self-interacting domains, or TADs. You can use ``kaic boundaries`` to identify these
+between two self-interacting domains, or TADs. You can use ``fanc boundaries`` to identify these
 regions:
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
+   :module: fanc.commands.fanc_commands
    :func: boundaries_parser
-   :prog: kaic boundaries
+   :prog: fanc boundaries
    :nodescription:
    :nodefault:
 
-When we run ``kaic boundaries`` on the above example using 1mb and 2mb as the window sizes:
+When we run ``fanc boundaries`` on the above example using 1mb and 2mb as the window sizes:
 
 .. literalinclude:: code/domains_example_code
     :language: bash
@@ -214,8 +214,8 @@ the minimum compared to the two neighboring maxima):
 
 .. code::
 
-    kaic_example_100kb.insulation_boundaries_1mb.bed
-    kaic_example_100kb.insulation_boundaries_2mb.bed
+    fanc_example_100kb.insulation_boundaries_1mb.bed
+    fanc_example_100kb.insulation_boundaries_2mb.bed
 
 Let's plot the boundaries from the 1mb scores:
 
@@ -224,9 +224,9 @@ Let's plot the boundaries from the 1mb scores:
     :start-after: start snippet domains plotboundaries
     :end-before: end snippet domains plotboundaries
 
-.. image:: images/kaic_example_50kb_tads_insulation_1mb_boundaries.png
+.. image:: images/fanc_example_50kb_tads_insulation_1mb_boundaries.png
 
-As you can see, lower minima get higher scores. By default, ``kaic boundaries`` outputs all
+As you can see, lower minima get higher scores. By default, ``fanc boundaries`` outputs all
 minima, but you may set a threshold using ``--min-score <s>`` to report only boundaries with
 scores greater than *s*.
 
@@ -235,7 +235,7 @@ scores greater than *s*.
     :start-after: start snippet domains minscore
     :end-before: end snippet domains minscore
 
-By default, ``kaic boundaries`` will return minima as matrix bins. However, since the boundary
+By default, ``fanc boundaries`` will return minima as matrix bins. However, since the boundary
 calls rely on a smoothed insulation score track, it can attempt to identify the boundary location
 with sub-bin resolution. Use ``-x`` to try this, but be aware that this is not precise.
 
@@ -252,12 +252,12 @@ when approaching a TAD boundary this measure changes drastically, as one directi
 inside the TAD, where there is a high contact intensity, whereas the other direction will lie in
 a low intensity region outside the TAD.
 
-Use ``kaic directionality`` to calculate the directionality index from the command line:
+Use ``fanc directionality`` to calculate the directionality index from the command line:
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
+   :module: fanc.commands.fanc_commands
    :func: directionality_parser
-   :prog: kaic directionality
+   :prog: fanc directionality
    :nodescription:
    :nodefault:
 
@@ -265,7 +265,7 @@ Use ``kaic directionality`` to calculate the directionality index from the comma
 Example
 =======
 
-``kaic directionality`` is very similar in syntax to ``kaic insulation``.
+``fanc directionality`` is very similar in syntax to ``fanc insulation``.
 It is typically used to calculate directionality indexes with multiple window
 sizes at the same time, as a single window size might be prone to local matrix differences:
 
@@ -284,10 +284,10 @@ We can easily plot all directionality indexes at the same time using ``klot``:
     :end-before: end snippet domains plotdirectionality
 
 
-.. image:: images/kaic_example_50kb_tads_directionality.png
+.. image:: images/fanc_example_50kb_tads_directionality.png
 
-To export the directionality index to other genomic formats using ``kaic directionality``
-follow the instructions as for ``kaic insulation``.
+To export the directionality index to other genomic formats using ``fanc directionality``
+follow the instructions as for ``fanc insulation``.
 
 
 *********************

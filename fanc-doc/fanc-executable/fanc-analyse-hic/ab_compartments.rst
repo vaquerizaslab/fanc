@@ -1,4 +1,4 @@
-.. _kaic-ab-compartments:
+.. _fanc-ab-compartments:
 
 #######################
 AB compartment analysis
@@ -9,9 +9,9 @@ Regions in a Hi-C matrix can generally be assigned to either the active or the i
 compartment, also called 'A' and 'B' compartments, respectively.
 
 .. argparse::
-   :module: kaic.commands.kaic_commands
+   :module: fanc.commands.fanc_commands
    :func: compartments_parser
-   :prog: kaic compartments
+   :prog: fanc compartments
    :nodescription:
    :nodefault:
 
@@ -23,7 +23,7 @@ Correlation matrix
 Compartments are derived from a correlation matrix, in which each entry i, j corresponds
 to the Pearson correlation between row i and column j of the (Hi-C) matrix.
 
-The ``kaic compartments`` command can produce a correlation matrix (AB compartment) object
+The ``fanc compartments`` command can produce a correlation matrix (AB compartment) object
 from a Kai-C matrix file. Example:
 
 .. literalinclude:: code/ab_compartments_example_code
@@ -42,7 +42,7 @@ We can quickly plot the correlation matrix using the ``klot`` command:
     :start-after: start snippet compartments plot
     :end-before: end snippet compartments plot
 
-.. image:: images/kaic_example_1mb.ab.png
+.. image:: images/fanc_example_1mb.ab.png
 
 
 **************
@@ -59,7 +59,7 @@ to the correlation matrix, simply add the ``-v <file_name>`` option to the previ
     :start-after: start snippet compartments ev
     :end-before: end snippet compartments ev
 
-If ``architecture/compartments/kaic_example_1mb.ab`` already exists, it will not be recalculated
+If ``architecture/compartments/fanc_example_1mb.ab`` already exists, it will not be recalculated
 but the matrix is loaded from file. You can use the ``-f`` option to overwrite the existing file
 in any case.
 
@@ -79,9 +79,9 @@ We can plot the eigenvector using ``klot``:
     :start-after: start snippet compartments evplot
     :end-before: end snippet compartments evplot
 
-.. image:: images/kaic_example_1mb.ab_and_ev.png
+.. image:: images/fanc_example_1mb.ab_and_ev.png
 
-``kaic compartments`` outputs the first eigenvector by default. In some cases it might be
+``fanc compartments`` outputs the first eigenvector by default. In some cases it might be
 useful to choose a different eigenvector (sometimes the first eigenvector identifies
 chromosomal arms rather than compartments). To change the eiegnvector use the `--i`` option,
 e.g. ``-i 2`` for the second instead of the first correlation matrix eigenvector.
@@ -90,8 +90,8 @@ The sign of the eigenvector does not necessarily correspond well to the A or B c
 Often, the eigenvector is "flipped" (inverted signs on its entries). Mathematically, if x
 is an eigenvector, so is -x. You can use external information to "orient" the eigenvector,
 so that it most likely corresponds to the active and inactive compartments. Specifically,
-you can supply a FASTA file with the genomic sequence to ``kaic compartments`` using the
-``-g <fasta_file>`` argument., This is typically a good idea: ``kaic compartments`` then
+you can supply a FASTA file with the genomic sequence to ``fanc compartments`` using the
+``-g <fasta_file>`` argument., This is typically a good idea: ``fanc compartments`` then
 calculates the average GC content of regions with positive and those with negative eigenvector
 entries. As GC content has previously been shown to correlate well with compartmentalisation,
 the eigenvector is oriented in such a way that negative entries correspond to 'B' (low GC
@@ -173,7 +173,7 @@ orient the eigenvector:
 
 This is what the plot looks like for the example:
 
-.. image:: images/kaic_example_1mb.ab_profile.png
+.. image:: images/fanc_example_1mb.ab_profile.png
 
 You can customise the enrichment analysis using additional parameters. By default, the
 percentiles for eigenvector binning are chosen at 20, 40, 60, 80, and 100. To choose a
@@ -184,7 +184,7 @@ enrichment matrix bin to 0, and perform separate percentile calculations for val
 >= 0, use the ``-s 0`` option. Note, however, that this will lead to differences in the
 number of bins plotted on the left and right side of the matrix.
 
-.. image:: images/kaic_example_1mb.ab_profile_sym.png
+.. image:: images/fanc_example_1mb.ab_profile_sym.png
 
 To format the plot, you can choose a different colormap with ``-c <cmap>``. See
 `here <https://matplotlib.org/examples/color/colormaps_reference.html>`_ for colormap

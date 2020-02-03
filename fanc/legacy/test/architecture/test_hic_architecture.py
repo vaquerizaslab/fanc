@@ -1,10 +1,10 @@
 from __future__ import division
-from kaic.data.genomic import Hic, Node, Edge
-from kaic.architecture.hic_architecture import PossibleContacts, ExpectedContacts, DirectionalityIndex, \
+from fanc.data.genomic import Hic, Node, Edge
+from fanc.architecture.hic_architecture import PossibleContacts, ExpectedContacts, DirectionalityIndex, \
     InsulationIndex, ObservedExpectedRatio
 import pytest
 import numpy as np
-from kaic.tools import dummy
+from fanc.tools import dummy
 import os.path
 
 

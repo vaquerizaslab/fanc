@@ -2,8 +2,8 @@ from __future__ import division
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-import kaic
-import kaic.plotting as kplot
+import fanc
+import fanc.plotting as kplot
 import os.path
 import pytest
 import numpy as np
@@ -18,7 +18,7 @@ def abs_ax_aspect(ax):
 @pytest.mark.plotting
 class TestHicPlot:
     def setup_method(self, method):
-        self.hic = kaic.load(kaic.example_data["hic"], mode="r")
+        self.hic = fanc.load(fanc.example_data["hic"], mode="r")
         self.hic_matrix = self.hic[:]
         self.hic_matrix[10, :] = 0
         self.hic_matrix[:, 10] = 0
@@ -198,12 +198,12 @@ class TestHicPlot:
 @pytest.mark.plotting
 class TestPlots:
     def setup_method(self, method):
-        self.bigwig_path = kaic.example_data["chip_bigwig"]
+        self.bigwig_path = fanc.example_data["chip_bigwig"]
         self.pyBigWig = pytest.importorskip("pyBigWig")
-        self.bigwig = self.pyBigWig.open(kaic.example_data["chip_bigwig"])
-        self.bedgraph_path = kaic.example_data["chip_bedgraph"]
-        self.gtf_path = kaic.example_data["gene_gtf"]
-        self.peak_path = kaic.example_data["chip_peak_bed"]
+        self.bigwig = self.pyBigWig.open(fanc.example_data["chip_bigwig"])
+        self.bedgraph_path = fanc.example_data["chip_bedgraph"]
+        self.gtf_path = fanc.example_data["gene_gtf"]
+        self.peak_path = fanc.example_data["chip_peak_bed"]
         self.bedgraph_list = [(x.chrom, x.start, x.end, x.score) for x in pbt.BedTool(self.bedgraph_path)]
 
     def teardown_method(self, method):

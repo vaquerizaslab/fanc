@@ -1,7 +1,7 @@
 Comparisons module
 ==================
 
-.. automodule:: kaic.architecture.comparisons
+.. automodule:: fanc.architecture.comparisons
    :members:
    :inherited-members:
    :show-inheritance:

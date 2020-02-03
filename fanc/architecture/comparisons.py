@@ -466,7 +466,7 @@ class SplitMatrix(object):
                                will be computed using
                                :func:`~Hic.scaling_factor`.
         :param kwargs: Keyword arguments passed to both matrices
-                       :func:`~kaic.matrix.RegionMatrixContainer.matrix`
+                       :func:`~fanc.matrix.RegionMatrixContainer.matrix`
                        functions.
         :return: :class:`~RegionMatrix`
         """

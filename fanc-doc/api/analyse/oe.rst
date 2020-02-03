@@ -4,7 +4,7 @@
 Expected and O/E calculations
 #############################
 
-The following steps assume that you ran the ``kaic auto`` command in :ref:`example-kaic-auto`.
+The following steps assume that you ran the ``fanc auto`` command in :ref:`example-fanc-auto`.
 Additionally, we set up the Python session like this:
 
 .. literalinclude:: code/oe_example_code.py
@@ -12,9 +12,9 @@ Additionally, we set up the Python session like this:
     :start-after: start snippet oe setup
     :end-before: end snippet oe setup
 
-:class:`~kaic.matrix.RegionMatrixContainer` objects (see :ref:`here <matrix_interface>`) have a builtin
+:class:`~fanc.matrix.RegionMatrixContainer` objects (see :ref:`here <matrix_interface>`) have a builtin
 function to calculate expected values from existing matrix data called
-:func:`~kaic.matrix.RegionMatrixContainer.expected_values`. This function calculates and returns
+:func:`~fanc.matrix.RegionMatrixContainer.expected_values`. This function calculates and returns
 intra-chromosomal, intra-chromosomal per chromosome, and inter-chromosomal expected values.
 
 .. literalinclude:: code/oe_example_code.py
@@ -28,7 +28,7 @@ the value in the list corresponds to the separation between genomic regions in b
 value list as value calculated on a per-chromosome basis. ``inter_expected`` is a single, average
 inter-chromosomal contact value.
 
-When running the :func:`~kaic.matrix.RegionMatrixContainer.expected_values` function on a matrix
+When running the :func:`~fanc.matrix.RegionMatrixContainer.expected_values` function on a matrix
 opened in read-only mode, you will receive a warning that the values cannot be save to the object.
 This means, the expected values will be recalculated every time they are needed in downstream
 analyses. You can ensure the values are saved to the object by opening the matrix in "append" mode:

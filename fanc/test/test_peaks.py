@@ -1,10 +1,10 @@
 from __future__ import division
-import kaic
-from kaic.peaks import RaoPeakCaller, RaoPeakInfo
-from kaic.hic import Hic
-from kaic.matrix import RegionMatrix
+import fanc
+from fanc.peaks import RaoPeakCaller, RaoPeakInfo
+from fanc.hic import Hic
+from fanc.matrix import RegionMatrix
 from genomic_regions import GenomicRegion
-from kaic.tools.general import pairwise
+from fanc.tools.general import pairwise
 import numpy as np
 import math
 import pickle
@@ -113,7 +113,7 @@ class TestRaoPeakCaller:
 
     def test_call_peaks(self):
         dir = os.path.dirname(os.path.realpath(__file__))
-        hic_10kb = kaic.load(dir + "/test_peaks/rao2014.chr11_77400000_78600000.hic", mode='r')
+        hic_10kb = fanc.load(dir + "/test_peaks/rao2014.chr11_77400000_78600000.hic", mode='r')
 
         peak_caller = RaoPeakCaller()
         peaks = peak_caller.call_peaks(hic_10kb)
@@ -157,9 +157,9 @@ class TestOverlapPeaks:
 
         self.peaks = {}
         for i in range(3):
-            p = kaic.peaks.PeakInfo()
+            p = fanc.peaks.PeakInfo()
             p.add_regions(regions)
-            edges = [kaic.peaks.Peak(x=x, y=y, source=math.floor(x), sink=math.floor(y), weight=1)
+            edges = [fanc.peaks.Peak(x=x, y=y, source=math.floor(x), sink=math.floor(y), weight=1)
                      for x, y in (tuple(sorted(xy)) for xy in peaks[i])]
             p.add_edges(edges)
             p.flush()
@@ -170,7 +170,7 @@ class TestOverlapPeaks:
             p.close()
 
     def test_overlap(self):
-        stats, merged = kaic.peaks.overlap_peaks(self.peaks, max_distance=100)
+        stats, merged = fanc.peaks.overlap_peaks(self.peaks, max_distance=100)
 
         expected = {
             (0, 1, 2): 1,

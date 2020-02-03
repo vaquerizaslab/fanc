@@ -1,8 +1,8 @@
 import os
-import kaic
-from kaic.config import config
-import kaic.plotting as kplt
-import kaic.commands.klot_command_parsers as parsers
+import fanc
+from fanc.config import config
+import fanc.plotting as kplt
+import fanc.commands.klot_command_parsers as parsers
 
 
 def triangular(parameters):
@@ -14,8 +14,8 @@ def triangular(parameters):
     else:
         colormap = args.colormap
 
-    matrix = kaic.load(os.path.expanduser(args.hic), mode='r')
-    from kaic.tools.general import str_to_int
+    matrix = fanc.load(os.path.expanduser(args.hic), mode='r')
+    from fanc.tools.general import str_to_int
 
     norm = "lin" if not args.log else "log"
     return kplt.HicPlot(matrix, colormap=colormap,
@@ -40,7 +40,7 @@ def square(parameters):
     else:
         colormap = args.colormap
 
-    matrix = kaic.load(os.path.expanduser(args.hic), mode='r')
+    matrix = fanc.load(os.path.expanduser(args.hic), mode='r')
     return kplt.HicPlot2D(matrix, colormap=colormap, norm=norm, vmin=args.vmin, vmax=args.vmax,
                           show_colorbar=args.show_colorbar, adjust_range=args.adjust_range,
                           oe=args.oe, log=args.oe,
@@ -60,8 +60,8 @@ def split(parameters):
     else:
         colormap = args.colormap
 
-    matrix_bottom = kaic.load(os.path.expanduser(args.hic_bottom), mode='r')
-    matrix_top = kaic.load(os.path.expanduser(args.hic_top), mode='r')
+    matrix_bottom = fanc.load(os.path.expanduser(args.hic_bottom), mode='r')
+    matrix_top = fanc.load(os.path.expanduser(args.hic_top), mode='r')
 
     norm = "lin" if not args.log else "log"
     sp = kplt.HicComparisonPlot2D(matrix_top, matrix_bottom, colormap=colormap,
@@ -90,10 +90,10 @@ def mirror(parameters):
     else:
         colormap_upper = args.colormap_upper
 
-    matrix_upper = kaic.load(os.path.expanduser(args.hic_upper), mode='r')
-    matrix_lower = kaic.load(os.path.expanduser(args.hic_lower), mode='r')
+    matrix_upper = fanc.load(os.path.expanduser(args.hic_upper), mode='r')
+    matrix_lower = fanc.load(os.path.expanduser(args.hic_lower), mode='r')
 
-    from kaic.tools.general import str_to_int
+    from fanc.tools.general import str_to_int
 
     norm_upper = "lin" if not args.log_upper else "log"
     upper_plot = kplt.HicPlot(matrix_upper, colormap=colormap_upper, max_dist=str_to_int(args.max_dist),
@@ -118,7 +118,7 @@ def scores(parameters):
 
     args = parser.parse_args(parameters)
 
-    array = kaic.load(os.path.expanduser(args.scores), mode='r')
+    array = fanc.load(os.path.expanduser(args.scores), mode='r')
     norm = "linear" if not args.log else "log"
 
     if args.range is not None:
@@ -143,7 +143,7 @@ def line(parameters):
     parser = parsers.line_parser()
     args = parser.parse_args(parameters)
 
-    regions = [kaic.load(file_name) for file_name in args.regions]
+    regions = [fanc.load(file_name) for file_name in args.regions]
     attribute = args.attribute
     bin_size = args.bin_size
     labels = args.labels
@@ -168,7 +168,7 @@ def bar(parameters):
     parser = parsers.bar_parser()
     args = parser.parse_args(parameters)
 
-    regions = [kaic.load(file_name) for file_name in args.regions]
+    regions = [fanc.load(file_name) for file_name in args.regions]
     attribute = args.attribute
     labels = args.labels
     ylim = args.ylim

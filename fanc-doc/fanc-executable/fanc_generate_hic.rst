@@ -7,7 +7,7 @@ Generate Hi-C matrices
 .. toctree::
    :maxdepth: 2
 
-    kaic auto: Automated generation of Hi-C matrices <kaic-generate-hic/kaic_auto>
-    Individual pipeline steps <kaic-generate-hic/kaic_modular_steps>
-    Helper tools <kaic-generate-hic/kaic_helpers>
-    Configuration options <kaic-generate-hic/kaic_config>
+    fanc auto: Automated generation of Hi-C matrices <fanc-generate-hic/fanc_auto>
+    Individual pipeline steps <fanc-generate-hic/fanc_modular_steps>
+    Helper tools <fanc-generate-hic/fanc_helpers>
+    Configuration options <fanc-generate-hic/fanc_config>

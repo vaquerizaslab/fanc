@@ -18,7 +18,7 @@ import msgpack
 import copy
 
 logger = logging.getLogger(__name__)
-kaic_access_lock = threading.Lock()
+fanc_access_lock = threading.Lock()
 
 
 def _edge_overlap_split_rao(original_edge, overlap_map):

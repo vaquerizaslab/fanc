@@ -1,4 +1,4 @@
-.. _kaic-compatibility:
+.. _fanc-compatibility:
 
 ===========================
 Kai-C compatibility modules

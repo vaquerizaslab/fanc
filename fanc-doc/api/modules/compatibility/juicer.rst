@@ -1,7 +1,7 @@
 Juicer module
 =============
 
-.. automodule:: kaic.compatibility.juicer
+.. automodule:: fanc.compatibility.juicer
    :members:
    :inherited-members:
    :show-inheritance:

@@ -1,12 +1,12 @@
 import os.path
 import pytest
-from kaic.pairs import SamBamReadPairGenerator, ReadPairs, UnmappedFilter, FragmentReadPair, \
+from fanc.pairs import SamBamReadPairGenerator, ReadPairs, UnmappedFilter, FragmentReadPair, \
     FragmentRead, InwardPairsFilter, OutwardPairsFilter, ContaminantFilter, QualityFilter, \
     BwaMemQualityFilter, ReDistanceFilter, SelfLigationFilter, LazyFragment, LazyFragmentRead, \
     PCRDuplicateFilter
 from genomic_regions import GenomicRegion
-from kaic.regions import Genome, Chromosome
-from kaic.general import Mask
+from fanc.regions import Genome, Chromosome
+from fanc.general import Mask
 import numpy as np
 
 

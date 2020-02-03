@@ -1,7 +1,7 @@
 import warnings
 import numpy as np
-from kaic.tools.matrix import remove_sparse_rows, restore_sparse_rows
-from kaic.legacy.data.genomic import Hic, AccessOptimisedHic, Edge
+from fanc.tools.matrix import remove_sparse_rows, restore_sparse_rows
+from fanc.legacy.data.genomic import Hic, AccessOptimisedHic, Edge
 import logging
 logger = logging.getLogger(__name__)
 

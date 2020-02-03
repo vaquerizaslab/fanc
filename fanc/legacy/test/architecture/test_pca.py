@@ -1,6 +1,6 @@
 from __future__ import division
-from kaic.architecture.pca import do_pca
-from kaic.data.genomic import Hic, Node, Edge
+from fanc.architecture.pca import do_pca
+from fanc.data.genomic import Hic, Node, Edge
 import math
 import random
 random.seed(1)

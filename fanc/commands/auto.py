@@ -8,7 +8,7 @@ import threading
 import multiprocessing as mp
 import tempfile
 from future.utils import string_types
-from kaic.config import config
+from fanc.config import config
 import re
 
 
@@ -148,8 +148,8 @@ class SgeTaskRunner(TaskRunner):
                  log_dir=None, trap_sigusr=True):
         TaskRunner.__init__(self)
         if task_prefix is None:
-            from kaic.tools.files import random_name
-            self._task_prefix = 'kaic_' + random_name(6) + '_'
+            from fanc.tools.files import random_name
+            self._task_prefix = 'fanc_' + random_name(6) + '_'
         else:
             self._task_prefix = task_prefix
 
@@ -163,7 +163,7 @@ class SgeTaskRunner(TaskRunner):
     def _submit_task(self, task, kill=True):
         task_ix = self._task_ixs[task.id]
         job_id = self._task_prefix + '{}'.format(task_ix)
-        with tempfile.NamedTemporaryFile('w', prefix='kaic_auto_', suffix='.sh') as tmp_file:
+        with tempfile.NamedTemporaryFile('w', prefix='fanc_auto_', suffix='.sh') as tmp_file:
             if self._trap_sigusr:
                 tmp_file.write('function notify_handler() {\n  '
                                '(>&2 echo "Received termination notice")\n}\n')
@@ -228,8 +228,8 @@ class SlurmTaskRunner(TaskRunner):
                  log_dir=None, trap_sigusr=True):
         TaskRunner.__init__(self)
         if task_prefix is None:
-            from kaic.tools.files import random_name
-            self._task_prefix = 'kaic_' + random_name(6) + '_'
+            from fanc.tools.files import random_name
+            self._task_prefix = 'fanc_' + random_name(6) + '_'
         else:
             self._task_prefix = task_prefix
 
@@ -244,7 +244,7 @@ class SlurmTaskRunner(TaskRunner):
 
     def _submit_batch_command(self, task, kill=True):
         job_name = self._task_prefix
-        with tempfile.NamedTemporaryFile('w', prefix='kaic_auto_', suffix='.sh') as tmp_file:
+        with tempfile.NamedTemporaryFile('w', prefix='fanc_auto_', suffix='.sh') as tmp_file:
             tmp_file.write("#!{}\n".format(config.slurm_shell if config.slurm_shell is not None else "/bin/bash"))
             tmp_file.write("#SBATCH --nodes=1\n")
             tmp_file.write("#SBATCH --ntasks=1\n")
@@ -345,7 +345,7 @@ class SlurmTaskRunner(TaskRunner):
 
 def auto_parser():
     parser = argparse.ArgumentParser(
-        prog="kaic auto",
+        prog="fanc auto",
         description='Automatically process an entire Hi-C data set.'
     )
 
@@ -353,7 +353,7 @@ def auto_parser():
         'input',
         nargs='+',
         help="Input files. "
-             "kaic will try to guess the file "
+             "fanc will try to guess the file "
              "type by its extension."
     )
 
@@ -427,7 +427,7 @@ def auto_parser():
     )
 
     parser.add_argument(
-        '--kaic-parallel', dest='mapper_parallel',
+        '--fanc-parallel', dest='mapper_parallel',
         action='store_false',
         default=True,
         help='Use Kai-C parallelisation, which launches multiple mapper jobs. '
@@ -578,12 +578,12 @@ def auto_parser():
     parser.add_argument(
         '--run-with', dest='run_with',
         default='parallel',
-        help="Choose how to run the commands in kaic auto. Options: "
-             "'parallel' (default): Run kaic commands on local machine, "
+        help="Choose how to run the commands in fanc auto. Options: "
+             "'parallel' (default): Run fanc commands on local machine, "
              "use multiprocessing parallelisation. "
-             "'sge': Submit kaic commands to a Sun/Oracle Grid Engine cluster. "
-             "'slurm': Submit kaic commands to a Slurm cluster. "
-             "'test': Do not run kaic commands but print all commands " 
+             "'sge': Submit fanc commands to a Sun/Oracle Grid Engine cluster. "
+             "'slurm': Submit fanc commands to a Slurm cluster. "
+             "'test': Do not run fanc commands but print all commands " 
              "and their dependencies to stdout for review."
     )
 
@@ -591,7 +591,7 @@ def auto_parser():
         '--job-prefix', dest='job_prefix',
         help="Job Prefix for SGE and Slurm. "
              "Works with '--run-with sge' and --run-with slurm. "
-             "Default: 'kaic_<6 random letters>_'"
+             "Default: 'fanc_<6 random letters>_'"
     )
 
     parser.add_argument(
@@ -607,7 +607,7 @@ def auto_parser():
 
 def file_type(file_name):
     # try to see if this is a valid pairs file
-    from kaic.pairs import HicProPairGenerator, FourDNucleomePairGenerator
+    from fanc.pairs import HicProPairGenerator, FourDNucleomePairGenerator
     try:
         _ = FourDNucleomePairGenerator(file_name)
         return 'pairs_txt'
@@ -642,7 +642,7 @@ def file_basename(file_name):
 
 
 def auto(argv, **kwargs):
-    from kaic.tools.general import which
+    from fanc.tools.general import which
 
     parser = auto_parser()
     args = parser.parse_args(argv[2:])
@@ -650,13 +650,13 @@ def auto(argv, **kwargs):
     verbosity = kwargs.get("verbosity", 2)
     if verbosity > 0:
         verbosity_flag = '-' + 'v' * verbosity
-        kaic_base_command = ['kaic', verbosity_flag]
+        fanc_base_command = ['fanc', verbosity_flag]
     else:
-        kaic_base_command = ['kaic']
+        fanc_base_command = ['fanc']
 
     log_file = kwargs.get("log_file", None)
     if log_file is not None:
-        kaic_base_command += ['-l', log_file]
+        fanc_base_command += ['-l', log_file]
 
     bin_sizes = args.bin_sizes
     split_ligation_junction = args.split_ligation_junction
@@ -698,23 +698,23 @@ def auto(argv, **kwargs):
     if run_with == 'parallel':
         runner = ParallelTaskRunner(threads)
     elif run_with == 'sge':
-        from kaic.config import config
+        from fanc.config import config
         if which(config.sge_qsub_path) is None:
             parser.error("Using SGE not possible: "
                          "Cannot find 'qsub' at path '{}'. You can change "
-                         "this path using kaic config files and the "
+                         "this path using fanc config files and the "
                          "'sge_qsub_path' parameter".format(config.sge_qsub_path))
-        from kaic.tools.files import mkdir
+        from fanc.tools.files import mkdir
         sge_log_dir = mkdir(output_folder, 'sge_logs')
         runner = SgeTaskRunner(log_dir=sge_log_dir, task_prefix=job_prefix)
     elif run_with == 'slurm':
-        from kaic.config import config
+        from fanc.config import config
         if which(config.slurm_sbatch_path) is None:
             parser.error("Using Slurm not possible: "
                          "Cannot find 'sbatch' at path '{}'. You can change "
-                         "this path using kaic config files and the "
+                         "this path using fanc config files and the "
                          "'slurm_sbatch_path' parameter".format(config.slurm_sbatch_path))
-        from kaic.tools.files import mkdir
+        from fanc.tools.files import mkdir
         slurm_log_dir = mkdir(output_folder, 'slurm_logs')
         runner = SlurmTaskRunner(log_dir=slurm_log_dir, task_prefix=job_prefix)
     elif run_with == 'test':
@@ -725,15 +725,15 @@ def auto(argv, **kwargs):
 
     for i in range(len(file_types)):
         if file_types[i] not in ('fastq', 'sam', 'pairs_txt', 'pairs', 'hic'):
-            import kaic
+            import fanc
             try:
-                ds = kaic.load(file_names[i], mode='r')
-                if isinstance(ds, kaic.Hic):
+                ds = fanc.load(file_names[i], mode='r')
+                if isinstance(ds, fanc.Hic):
                     file_types[i] = 'hic'
-                elif isinstance(ds, kaic.ReadPairs):
+                elif isinstance(ds, fanc.ReadPairs):
                     file_types[i] = 'pairs'
                 else:
-                    raise ValueError("Could not detect file type using kaic load.")
+                    raise ValueError("Could not detect file type using fanc load.")
             except ValueError:
                 parser.error("Not a valid input file type: {}".format(file_types[i]))
 
@@ -796,7 +796,7 @@ def auto(argv, **kwargs):
             parser.error("Must provide genome (-g) to process read pair files!")
 
         if restriction_enzyme is None:
-            from kaic.regions import genome_regions
+            from fanc.regions import genome_regions
             try:
                 genome_regions(genome)
             except ValueError:
@@ -842,7 +842,7 @@ def auto(argv, **kwargs):
             if not force_overwrite and os.path.exists(bam_file):
                 parser.error("File exists ({}), use -f to force overwriting it.".format(bam_file))
             bam_files.append(bam_file)
-            mapping_command = kaic_base_command + ['map', '-m', '25',
+            mapping_command = fanc_base_command + ['map', '-m', '25',
                                                    '-s', str(step_size),
                                                    '-t', str(threads)]
 
@@ -851,7 +851,7 @@ def auto(argv, **kwargs):
             if tmp:
                 mapping_command.append('-tmp')
             if not mapper_parallel:
-                mapping_command.append('--kaic-parallel')
+                mapping_command.append('--fanc-parallel')
             if split_fastq:
                 mapping_command.append('--split-fastq')
             if memory_map:
@@ -892,7 +892,7 @@ def auto(argv, **kwargs):
 
                 sorted_sam_files.append(sorted_sam_file)
 
-                sort_command = kaic_base_command + ['sort_sam', file_names[ix], sorted_sam_file]
+                sort_command = fanc_base_command + ['sort_sam', file_names[ix], sorted_sam_file]
                 if tmp:
                     sort_command.append('-tmp')
 
@@ -927,7 +927,7 @@ def auto(argv, **kwargs):
 
             pairs_files.append(pairs_file)
 
-            pairs_command = kaic_base_command + ['pairs', '-f',
+            pairs_command = fanc_base_command + ['pairs', '-f',
                                                  # loading
                                                  '-g', genome,
                                                  '-t', str(load_threads)]
@@ -980,7 +980,7 @@ def auto(argv, **kwargs):
             if not force_overwrite and os.path.exists(pairs_file):
                 parser.error("File exists ({}), use -f to force overwriting it.".format(pairs_file))
 
-            pairs_command = kaic_base_command + ['pairs', '-f',
+            pairs_command = fanc_base_command + ['pairs', '-f',
                                                  # loading
                                                  '-g', genome,
                                                  '-t', str(load_threads),
@@ -1029,7 +1029,7 @@ def auto(argv, **kwargs):
             ligation_error_file = output_folder + 'plots/stats/' + pair_basename + '.pairs.ligation_error.pdf'
             re_dist_file = output_folder + 'plots/stats/' + pair_basename + '.pairs.re_dist.pdf'
 
-            pairs_command = kaic_base_command + ['pairs',
+            pairs_command = fanc_base_command + ['pairs',
                                                  # filtering
                                                  '-d', '10000',
                                                  '-l', '-p', '2']
@@ -1053,12 +1053,12 @@ def auto(argv, **kwargs):
             runner.add_task(pairs_task, wait_for=sam_to_pairs_tasks, threads=1)
             pairs_tasks.append(pairs_task)
 
-            ligation_error_command = kaic_base_command + ['pairs', '--ligation-error-plot',
+            ligation_error_command = fanc_base_command + ['pairs', '--ligation-error-plot',
                                                           ligation_error_file, file_names[ix]]
             ligation_error_task = CommandTask(ligation_error_command)
             runner.add_task(ligation_error_task, wait_for=pairs_task, threads=1)
 
-            re_dist_command = kaic_base_command + ['pairs', '--re-dist-plot',
+            re_dist_command = fanc_base_command + ['pairs', '--re-dist-plot',
                                                    re_dist_file, file_names[ix]]
             re_dist_task = CommandTask(re_dist_command)
             runner.add_task(re_dist_task, wait_for=pairs_task, threads=1)
@@ -1084,7 +1084,7 @@ def auto(argv, **kwargs):
             if not force_overwrite and os.path.exists(hic_file):
                 parser.error("File exists ({}), use -f to force overwriting it.".format(hic_file))
 
-            hic_command = kaic_base_command + ['hic', '-f']
+            hic_command = fanc_base_command + ['hic', '-f']
             if tmp:
                 hic_command.append('-tmp')
             hic_command += [file_names[ix], hic_file]
@@ -1113,7 +1113,7 @@ def auto(argv, **kwargs):
         if not force_overwrite and os.path.exists(output_hic):
             parser.error("File exists ({}), use -f to force overwriting it.".format(output_hic))
 
-        merge_hic_command = kaic_base_command + ['hic', '-f']
+        merge_hic_command = fanc_base_command + ['hic', '-f']
         if tmp:
             merge_hic_command.append('-tmp')
 
@@ -1131,7 +1131,7 @@ def auto(argv, **kwargs):
     else:
         merge_hic_tasks = hic_tasks
 
-    from kaic.tools.general import human_format, str_to_int
+    from fanc.tools.general import human_format, str_to_int
 
     hic_files = []
     for i in range(len(file_names)):
@@ -1158,7 +1158,7 @@ def auto(argv, **kwargs):
                 hic_stats_file = output_folder + 'plots/stats/' + \
                                  hic_basename + '.stats.pdf'
 
-                hic_command = kaic_base_command + ['hic', '-f', '-b', str(bin_size),
+                hic_command = fanc_base_command + ['hic', '-f', '-b', str(bin_size),
                                                    '-r', '0.1', '-t', str(bin_threads),
                                                    '--statistics-plot', hic_stats_file]
                 if tmp:

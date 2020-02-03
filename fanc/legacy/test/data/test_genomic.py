@@ -1,18 +1,18 @@
 from __future__ import division
 import numpy as np
-from kaic.data.genomic import Chromosome, Genome, Hic, Node, Edge, \
+from fanc.data.genomic import Chromosome, Genome, Hic, Node, Edge, \
     GenomicRegion, _get_overlap_map, _edge_overlap_split_rao, \
     RegionMatrix, RegionsTable, RegionMatrixTable, RegionPairs, AccessOptimisedRegionPairs, \
     AccessOptimisedRegionMatrixTable, AccessOptimisedHic
-from kaic.tools.files import write_bed, write_gff, write_bigwig
-from kaic.tools.general import which
-from kaic.architecture.hic_architecture import BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
+from fanc.tools.files import write_bed, write_gff, write_bigwig
+from fanc.tools.general import which
+from fanc.architecture.hic_architecture import BackgroundLigationFilter, ExpectedObservedEnrichmentFilter
 import os.path
 import pytest
-from kaic.construct.seq import Reads, FragmentMappedReadPairs, AccessOptimisedReadPairs
-from kaic.tools.matrix import is_symmetric
-import kaic.correcting.knight_matrix_balancing as knight
-import kaic.correcting.ice_matrix_balancing as ice
+from fanc.construct.seq import Reads, FragmentMappedReadPairs, AccessOptimisedReadPairs
+from fanc.tools.matrix import is_symmetric
+import fanc.correcting.knight_matrix_balancing as knight
+import fanc.correcting.ice_matrix_balancing as ice
 import tables as t
 
 

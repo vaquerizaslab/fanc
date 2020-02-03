@@ -38,7 +38,7 @@ def klot_parser():
         usage += "{}{}{}\n".format(name, padding, command_descriptions.get(name))
 
     parser = argparse.ArgumentParser(
-        description="klot plotting tool for kaic",
+        description="klot plotting tool for fanc",
         usage=textwrap.dedent(usage)
     )
 

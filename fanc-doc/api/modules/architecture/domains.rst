@@ -1,7 +1,7 @@
 Domains module
 ==============
 
-.. automodule:: kaic.architecture.domains
+.. automodule:: fanc.architecture.domains
    :members:
    :inherited-members:
    :show-inheritance:
