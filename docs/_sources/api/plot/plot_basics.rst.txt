@@ -59,6 +59,8 @@ by setting ``invert_x`` to ``True``, or remove the X axis entirely by setting ``
 to ``False``.
 
 
+.. _api_plot_matplotlib:
+
 ===============================
 Using dedicated Matplotlib Axes
 ===============================
