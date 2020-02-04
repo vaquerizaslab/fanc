@@ -3395,7 +3395,7 @@ def _domain_scores(parser, input_file, output_file, output_format, default_outpu
         matrix = fanc.load(input_file, mode='r')
 
         if not isinstance(matrix, score_class):
-            if output_file is None:
+            if output_file is None and output_format == default_output_format:
                 parser.error("Output file cannot be empty when "
                              "choosing default output format!")
 
