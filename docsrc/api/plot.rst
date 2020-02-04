@@ -15,7 +15,7 @@ and therefore highly customisable.
     been generated in the output folder.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    Plotting basics <plot/plot_basics>
    Matrix plots <plot/matrix>
