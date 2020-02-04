@@ -72,8 +72,12 @@ that downsamples Hic objects to a specific number of valid pairs.
 
 By default, the sampling is done without replacement. This requires a fairly large amount
 of system memory. If you are having trouble with memory usage, use sampling with
-replacement (``--with-replacement``). Note that the samplig is done on uncorrected matrix
-values, so you may want to apply matrix balancing using ``fanc hic -k`` afterwards.
+replacement (``--with-replacement``).
+
+.. note::
+
+    Sampling is done on uncorrected matrix values, so you may want to apply matrix
+    balancing using ``fanc hic -k`` afterwards.
 
 
 ==========================================

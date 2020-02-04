@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Helper tools in fanc &mdash; FAN-C 0.8.15-beta documentation</title>
+  <title>Helper tools in fanc &mdash; FAN-C 0.8.16-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.15
+                0.8.16
               </div>
             
           
@@ -205,23 +205,13 @@ but can often speed your analysis up or simply make it a little more convenient.
 <h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
 <dl class="option-list">
 <dt><kbd>-s, --subset</kbd></dt>
-<dd><dl class="simple">
-<dt>Only output this matrix subset. Format:</dt><dd><p>&lt;chr&gt;[:&lt;start&gt;-&lt;end&gt;][–&lt;chr&gt;[:&lt;start&gt;&lt;end&gt;]],
-e.g.:
-“chr1–chr1” to extract only the chromosome 1 submatrix;
-“chr2:3400000-4200000” to extract contacts of this region
-on chromosome 2 to all other regions in the genome;</p>
-</dd>
-</dl>
+<dd><p>Only output this matrix subset. Format: &lt;chr&gt;[:&lt;start&gt;-&lt;end&gt;][–&lt;chr&gt;[:&lt;start&gt;&lt;end&gt;]], e.g.: “chr1–chr1” to extract only the chromosome 1 submatrix; “chr2:3400000-4200000” to extract contacts of this region on chromosome 2 to all other regions in the genome;</p>
 </dd>
 <dt><kbd>-S, --no-sparse</kbd></dt>
 <dd><p>Store full, square matrix instead of sparse format.</p>
 </dd>
 <dt><kbd>--only-intra</kbd></dt>
-<dd><dl class="simple">
-<dt>Only dump intra-chromosomal data.</dt><dd><p>Dumps everything by default.</p>
-</dd>
-</dl>
+<dd><p>Only dump intra-chromosomal data. Dumps everything by default.</p>
 </dd>
 <dt><kbd>-e, --observed-expected</kbd></dt>
 <dd><p>O/E transform matrix values.</p>
@@ -307,8 +297,12 @@ that downsamples Hic objects to a specific number of valid pairs.</p>
 </div>
 <p>By default, the sampling is done without replacement. This requires a fairly large amount
 of system memory. If you are having trouble with memory usage, use sampling with
-replacement (<code class="docutils literal notranslate"><span class="pre">--with-replacement</span></code>). Note that the samplig is done on uncorrected matrix
-values, so you may want to apply matrix balancing using <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span> <span class="pre">-k</span></code> afterwards.</p>
+replacement (<code class="docutils literal notranslate"><span class="pre">--with-replacement</span></code>).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Sampling is done on uncorrected matrix values, so you may want to apply matrix
+balancing using <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span> <span class="pre">-k</span></code> afterwards.</p>
+</div>
 </div>
 <div class="section" id="fanc-fragments-in-silico-genome-digestion">
 <h2>fanc fragments: in silico genome digestion<a class="headerlink" href="#fanc-fragments-in-silico-genome-digestion" title="Permalink to this headline">¶</a></h2>

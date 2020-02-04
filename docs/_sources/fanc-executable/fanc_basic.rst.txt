@@ -23,12 +23,12 @@ Logging
 *******
 
 You can set the verbosity level of any ``fanc`` subcommand with the ``-v`` option. Use
-more or less ``v``s for more or less logging output. The default is ``-vv``, which
+more or less v's for more or less logging output. The default is ``-vv``, which
 corresponds to error, warning, and info messages. ``-vvv`` also displays debug messages,
 which might be helpful to identify issues with an analysis. ``-v`` only displays error
 and warning messages. To disable logging completely, use the ``-s`` option.
 
-By default, logging outout is sent to ``stderr``. You can redirect log messages to a file
+By default, logging output is sent to ``stderr``. You can redirect log messages to a file
 using ``-l <file name>``.
 
 
@@ -73,7 +73,7 @@ FAN-C config files
 FAN-C supports configuration files, which can be located (in descending order of priority)
 
 - in the current directory, named ``fanc.conf``
-- in a path specified by the Unix environment variable ``fanc_CONF``
+- in a path specified by the Unix environment variable ``FANC_CONF``
 - in the user's home folder (named ``fanc.conf`` or ``.fanc.conf``)
 - in the ``.config`` folder in a user's home directory, called ``fanc.conf``
 - in ``/etc/fanc/fanc.conf``

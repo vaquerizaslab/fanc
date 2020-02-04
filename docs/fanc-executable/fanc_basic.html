@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Basic usage &mdash; FAN-C 0.8.15-beta documentation</title>
+  <title>Basic usage &mdash; FAN-C 0.8.16-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.15
+                0.8.16
               </div>
             
           
@@ -261,11 +261,11 @@ or to set logging and notification parameters that affect all subcommands.</p>
 <div class="section" id="logging">
 <h2>Logging<a class="headerlink" href="#logging" title="Permalink to this headline">¶</a></h2>
 <p>You can set the verbosity level of any <code class="docutils literal notranslate"><span class="pre">fanc</span></code> subcommand with the <code class="docutils literal notranslate"><span class="pre">-v</span></code> option. Use
-more or less <code class="docutils literal notranslate"><span class="pre">v``s</span> <span class="pre">for</span> <span class="pre">more</span> <span class="pre">or</span> <span class="pre">less</span> <span class="pre">logging</span> <span class="pre">output.</span> <span class="pre">The</span> <span class="pre">default</span> <span class="pre">is</span> <span class="pre">``-vv</span></code>, which
+more or less v’s for more or less logging output. The default is <code class="docutils literal notranslate"><span class="pre">-vv</span></code>, which
 corresponds to error, warning, and info messages. <code class="docutils literal notranslate"><span class="pre">-vvv</span></code> also displays debug messages,
 which might be helpful to identify issues with an analysis. <code class="docutils literal notranslate"><span class="pre">-v</span></code> only displays error
 and warning messages. To disable logging completely, use the <code class="docutils literal notranslate"><span class="pre">-s</span></code> option.</p>
-<p>By default, logging outout is sent to <code class="docutils literal notranslate"><span class="pre">stderr</span></code>. You can redirect log messages to a file
+<p>By default, logging output is sent to <code class="docutils literal notranslate"><span class="pre">stderr</span></code>. You can redirect log messages to a file
 using <code class="docutils literal notranslate"><span class="pre">-l</span> <span class="pre">&lt;file</span> <span class="pre">name&gt;</span></code>.</p>
 </div>
 <div class="section" id="email-notifications">
@@ -297,7 +297,7 @@ variable on your local system to a folder of your choice.</p>
 <p>FAN-C supports configuration files, which can be located (in descending order of priority)</p>
 <ul class="simple">
 <li><p>in the current directory, named <code class="docutils literal notranslate"><span class="pre">fanc.conf</span></code></p></li>
-<li><p>in a path specified by the Unix environment variable <code class="docutils literal notranslate"><span class="pre">fanc_CONF</span></code></p></li>
+<li><p>in a path specified by the Unix environment variable <code class="docutils literal notranslate"><span class="pre">FANC_CONF</span></code></p></li>
 <li><p>in the user’s home folder (named <code class="docutils literal notranslate"><span class="pre">fanc.conf</span></code> or <code class="docutils literal notranslate"><span class="pre">.fanc.conf</span></code>)</p></li>
 <li><p>in the <code class="docutils literal notranslate"><span class="pre">.config</span></code> folder in a user’s home directory, called <code class="docutils literal notranslate"><span class="pre">fanc.conf</span></code></p></li>
 <li><p>in <code class="docutils literal notranslate"><span class="pre">/etc/fanc/fanc.conf</span></code></p></li>

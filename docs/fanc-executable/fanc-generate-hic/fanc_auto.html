@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.8.15-beta documentation</title>
+  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.8.16-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.15
+                0.8.16
               </div>
             
           
@@ -92,7 +92,7 @@
 <li class="toctree-l3 current"><a class="current reference internal" href="#"> fanc auto: Automated generation of Hi-C matrices</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#parameters">Parameters</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#input-types">Input types</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#test-runs-and-sun-oracle-grid-engine-support">Test runs and Sun/Oracle Grid engine support</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#test-runs-and-sun-oracle-slurm-grid-engine-support">Test runs and Sun/Oracle/Slurm Grid engine support</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#next-steps">Next steps</a></li>
 </ul>
 </li>
@@ -308,7 +308,7 @@ the processing and filtering of objects in the pipeline.</p>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> accepts any number of input files, which will be discussed below.
-The last positional argument (without ‘-‘) must always be the output folder for
+The last positional argument (without ‘-‘) <strong>must always be the output folder</strong> for
 all intermediate and final FAN-C files. <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> will generate the following
 folder structure in the output folder:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>output_folder
@@ -366,7 +366,7 @@ of input files!). Following the FASTQ files as the last positional argument is t
 (<code class="docutils literal notranslate"><span class="pre">example_output</span></code>). <code class="docutils literal notranslate"><span class="pre">-i</span></code> or <code class="docutils literal notranslate"><span class="pre">--genome-index</span></code> instructs <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> to use the specified index
 for mapping the FASTQ files to a reference genome. It will automatically determine whether a
 BWA mem or Bowtie2 index is provided and choose the mapping software accordingly. Other mappers are
-currently not supported (raise an <a class="reference external" href="http://www.github.com/vaquerizaslab/fanc">issue on GitHub</a>
+currently not supported (raise an <a class="reference external" href="https://www.github.com/vaquerizaslab/fanc/issues">issue on GitHub</a>
 if you are interested in support for your favourite mapper).</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -407,8 +407,8 @@ additional options for controlling the mapping process, and which is described i
 the installation of <a class="reference external" href="http://lomereiter.github.io/sambamba/">Sambamba</a>, which can greatly speed
 up the SAM sorting step required for merging mate pairs into the Pairs object.</p>
 <p>A minimal <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> command using SAM/BAM files could look like this:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto sam/SRR4271982_chr18_19_1.bam sam/SRR4271982_chr18_19_2.bam ./example_output/ <span class="se">\</span>
-          -g hg19_chr18_19_re_fragments.bed
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto output/sam/SRR4271982_chr18_19_1.bam output/sam/SRR4271982_chr18_19_2.bam <span class="se">\</span>
+          ./example_output/ -g hg19_chr18_19_re_fragments.bed
 </pre></div>
 </div>
 <p>Similarly to FASTQ input, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> assumes that two consecutive SAM/BAM files represent
@@ -454,7 +454,7 @@ and the <a class="reference external" href="https://github.com/4dn-dcic/pairix/b
 <span id="fanc-auto-pairs"></span><h3>Pairs input<a class="headerlink" href="#pairs-input" title="Permalink to this headline">¶</a></h3>
 <p>If you already have a FAN-C Pairs object, for example from a previous <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> run or
 from the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pairs</span></code> command, you can feed them to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> directly:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto pairs/test.pairs ./example_output/
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto output/pairs/fanc_example.pairs ./example_output/
 </pre></div>
 </div>
 <p>The Pairs objects already contain restriction fragment information, hence the <code class="docutils literal notranslate"><span class="pre">-g</span></code> parameter
@@ -471,7 +471,7 @@ applying to their processing are described in the next section.</p>
 <h3>Hic input<a class="headerlink" href="#hic-input" title="Permalink to this headline">¶</a></h3>
 <p>If you already have a FAN-C Hic object, for example from a previous <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> run or
 from the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span></code> command, you can feed them to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> directly:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto hic/test.hic ./example_output/
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto output/hic/fanc_example.hic ./example_output/
 </pre></div>
 </div>
 <p>If you are running this command with multiple input files, these will be merged into a single
@@ -494,7 +494,8 @@ stressing that you can combined different types of input in the same command. <c
 will attempt to automatically determine the commands necessary for each input to run
 through the entire pipeline, and will merge inputs into a single fragment-level Hic object
 before binning.</p>
-<p>That means something like this is possible:</p>
+<p>That means something like this is possible (although it does not make sense in this particular
+case):</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto hic/test.hic pairs/test.pairs test.validPairs <span class="se">\</span>
           sam/SRR4271982_chr18_19_1.bam sam/SRR4271982_chr18_19_2.bam <span class="se">\</span>
           SRR4271982_chr18_19_1.fastq.gzip SRR4271982_chr18_19_2.fastq.gzip <span class="se">\</span>
@@ -504,24 +505,27 @@ before binning.</p>
 </div>
 </div>
 </div>
-<div class="section" id="test-runs-and-sun-oracle-grid-engine-support">
-<h2>Test runs and Sun/Oracle Grid engine support<a class="headerlink" href="#test-runs-and-sun-oracle-grid-engine-support" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="test-runs-and-sun-oracle-slurm-grid-engine-support">
+<h2>Test runs and Sun/Oracle/Slurm Grid engine support<a class="headerlink" href="#test-runs-and-sun-oracle-slurm-grid-engine-support" title="Permalink to this headline">¶</a></h2>
 <p>By default, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> runs tasks in parallel locally on the machine it was started on.
 If you want to perform a test run, without actually executing any commands, you can use
 the <code class="docutils literal notranslate"><span class="pre">--run-with</span> <span class="pre">test</span></code> option. This will not run any of the <code class="docutils literal notranslate"><span class="pre">fanc</span></code> pipeline steps, but
 will print each command it would run, including the dependencies between commands, to the
-command line.
-If you have access to a computational cluster running Sun/Oracle Grid Engine (SGE/OGE), you
+command line.</p>
+<p>If you have access to a computational cluster running Sun/Oracle Grid Engine (SGE/OGE), you
 can instruct <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> to submit all commands to the cluster using <code class="docutils literal notranslate"><span class="pre">--run-with</span> <span class="pre">sge</span></code>.
 Internally, this calls <code class="docutils literal notranslate"><span class="pre">qsub</span></code> on each command and uses the <code class="docutils literal notranslate"><span class="pre">--hold_jid</span></code> parameter to
 ensure each command waits for the output of its dependencies. You can configure the SGE
 setup using <a class="reference internal" href="fanc_config.html#fanc-config"><span class="std std-ref">FAN-C config files</span></a></p>
+<p>There is also experimental support for <a class="reference external" href="https://slurm.schedmd.com/">Slurm</a>, which you can
+enable using <code class="docutils literal notranslate"><span class="pre">--run-with</span> <span class="pre">slurm</span></code>.</p>
 </div>
 <div class="section" id="next-steps">
 <h2>Next steps<a class="headerlink" href="#next-steps" title="Permalink to this headline">¶</a></h2>
 <p>Once you have generated your binned, filtered, and corrected Hic objects with <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code>,
 you may want to explore the data in those matrices. FAN-C provides a number of commands for
-data analsyis and exploration. Continue with :ref:`` for further details.</p>
+data analysis and exploration. Continue with <a class="reference internal" href="../fanc_analyse_hic.html#analyse-hic"><span class="std std-ref">Analyse Hi-C matrices (API)</span></a> for further details.</p>
+<p>If you want to explore individual matrix generation pipeline steps, continue to <a class="reference internal" href="fanc_modular_steps.html#fanc-modular"><span class="std std-ref">Individual pipeline steps</span></a>.</p>
 </div>
 </div>
 

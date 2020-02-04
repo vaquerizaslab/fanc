@@ -51,7 +51,7 @@ Mandatory arguments
 
 
 ``fanc auto`` accepts any number of input files, which will be discussed below.
-The last positional argument (without '-') must always be the output folder for
+The last positional argument (without '-') **must always be the output folder** for
 all intermediate and final FAN-C files. ``fanc auto`` will generate the following
 folder structure in the output folder:
 
@@ -124,7 +124,7 @@ of input files!). Following the FASTQ files as the last positional argument is t
 (``example_output``). ``-i`` or ``--genome-index`` instructs ``fanc auto`` to use the specified index
 for mapping the FASTQ files to a reference genome. It will automatically determine whether a
 BWA mem or Bowtie2 index is provided and choose the mapping software accordingly. Other mappers are
-currently not supported (raise an `issue on GitHub <http://www.github.com/vaquerizaslab/fanc>`_
+currently not supported (raise an `issue on GitHub <https://www.github.com/vaquerizaslab/fanc/issues>`_
 if you are interested in support for your favourite mapper).
 
 .. warning::
@@ -176,8 +176,8 @@ A minimal ``fanc auto`` command using SAM/BAM files could look like this:
 
 .. code:: bash
 
-    fanc auto sam/SRR4271982_chr18_19_1.bam sam/SRR4271982_chr18_19_2.bam ./example_output/ \
-              -g hg19_chr18_19_re_fragments.bed
+    fanc auto output/sam/SRR4271982_chr18_19_1.bam output/sam/SRR4271982_chr18_19_2.bam \
+              ./example_output/ -g hg19_chr18_19_re_fragments.bed
 
 Similarly to FASTQ input, ``fanc auto`` assumes that two consecutive SAM/BAM files represent
 mate pairs, and will match the read names in the pairing step. The ``-g`` or ``--genome``
@@ -237,7 +237,7 @@ from the ``fanc pairs`` command, you can feed them to ``fanc auto`` directly:
 
 .. code:: bash
 
-    fanc auto pairs/test.pairs ./example_output/
+    fanc auto output/pairs/fanc_example.pairs ./example_output/
 
 The Pairs objects already contain restriction fragment information, hence the ``-g`` parameter
 is no longer necessary. Unless using the ``--no-filter-pairs`` option, ``fanc auto`` will first
@@ -260,7 +260,7 @@ from the ``fanc hic`` command, you can feed them to ``fanc auto`` directly:
 
 .. code:: bash
 
-    fanc auto hic/test.hic ./example_output/
+    fanc auto output/hic/fanc_example.hic ./example_output/
 
 If you are running this command with multiple input files, these will be merged into a single
 fragment-level Hic object. This merged Hic object will then be binned at the resolutions
@@ -288,7 +288,8 @@ will attempt to automatically determine the commands necessary for each input to
 through the entire pipeline, and will merge inputs into a single fragment-level Hic object
 before binning.
 
-That means something like this is possible:
+That means something like this is possible (although it does not make sense in this particular
+case):
 
 .. code:: bash
 
@@ -299,20 +300,24 @@ That means something like this is possible:
               -i bwa-index/hg19_chr18_19.fa -n test -s 20 -t 16 -q 3
 
 
-********************************************
-Test runs and Sun/Oracle Grid engine support
-********************************************
+**************************************************
+Test runs and Sun/Oracle/Slurm Grid engine support
+**************************************************
 
 By default, ``fanc auto`` runs tasks in parallel locally on the machine it was started on.
 If you want to perform a test run, without actually executing any commands, you can use
 the ``--run-with test`` option. This will not run any of the ``fanc`` pipeline steps, but
 will print each command it would run, including the dependencies between commands, to the
 command line.
+
 If you have access to a computational cluster running Sun/Oracle Grid Engine (SGE/OGE), you
 can instruct ``fanc auto`` to submit all commands to the cluster using ``--run-with sge``.
 Internally, this calls ``qsub`` on each command and uses the ``--hold_jid`` parameter to
 ensure each command waits for the output of its dependencies. You can configure the SGE
 setup using :ref:`fanc-config`
+
+There is also experimental support for `Slurm <https://slurm.schedmd.com/>`_, which you can
+enable using ``--run-with slurm``.
 
 **********
 Next steps
@@ -320,4 +325,6 @@ Next steps
 
 Once you have generated your binned, filtered, and corrected Hic objects with ``fanc auto``,
 you may want to explore the data in those matrices. FAN-C provides a number of commands for
-data analsyis and exploration. Continue with :ref:`` for further details.
+data analysis and exploration. Continue with :ref:`analyse_hic` for further details.
+
+If you want to explore individual matrix generation pipeline steps, continue to :ref:`fanc-modular`.

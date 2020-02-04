@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Individual pipeline steps &mdash; FAN-C 0.8.15-beta documentation</title>
+  <title>Individual pipeline steps &mdash; FAN-C 0.8.16-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.15
+                0.8.16
               </div>
             
           
@@ -362,7 +362,7 @@ the filtering of read pairs according to various criteria.</p>
 <h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
 <dl class="option-list">
 <dt><kbd>input</kbd></dt>
-<dd><p>IMPORTANT: The last positional argument will be the output file, unless only a single Pairs object is provided. In that case, filtering and correcting will be done in place. Possible inputs are: two SAM/BAM files (paired-end reads, sorted by read name) and an output file; a HiC-Pro pairs file (format: nametchr1tpos1tstrand1tchr2tpos2tstrand2) and an output file; a pairs file in 4D Nucleome format (<a class="reference external" href="https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md">https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md</a>) and an output file, or an existing fanc Pairs object. In case of SAM/BAM, HiC-Pro, or 4D Nucleome you must also provide the –genome argument, and if –genome is not a file with restriction fragments (or Hi-C bins), you must also provide the –restriction-enzyme argument.</p>
+<dd><p>IMPORTANT: The last positional argument will be the output file, unless only a single Pairs object is provided. In that case, filtering and correcting will be done in place. Possible inputs are: two SAM/BAM files (paired-end reads, sorted by read name) and an output file; a HiC-Pro pairs file (format: name&lt;tab&gt;chr1&lt;tab&gt;pos1&lt;tab&gt;strand1&lt;tab&gt;chr2&lt;tab&gt;pos2&lt;tab&gt;strand2) and an output file; a pairs file in 4D Nucleome format (<a class="reference external" href="https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md">https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md</a>) and an output file, or an existing fanc Pairs object. In case of SAM/BAM, HiC-Pro, or 4D Nucleome you must also provide the –genome argument, and if –genome is not a file with restriction fragments (or Hi-C bins), you must also provide the –restriction-enzyme argument.</p>
 </dd>
 </dl>
 </div>
@@ -455,9 +455,12 @@ original reads to a different genome and pass the resulting SAM/BAM file to the 
 parameter (ensure no unmappable reads are in the file!).
 This will filter out all reads that have a valid alignment in the putative
 contaminants genome (by qname). All of the above filters operate on single reads, but will
-filter out the pair if either of the reads is found to be invalid due to a filtering criterion.
-IMPORTANT: the <code class="docutils literal notranslate"><span class="pre">-u</span></code>, <code class="docutils literal notranslate"><span class="pre">-us</span></code>, <code class="docutils literal notranslate"><span class="pre">-q</span></code>, and <code class="docutils literal notranslate"><span class="pre">-c</span></code> filter MUST be applied when loading read pairs
+filter out the pair if either of the reads is found to be invalid due to a filtering criterion.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">-u</span></code>, <code class="docutils literal notranslate"><span class="pre">-us</span></code>, <code class="docutils literal notranslate"><span class="pre">-q</span></code>, and <code class="docutils literal notranslate"><span class="pre">-c</span></code> filter MUST be applied when loading read pairs
 from SAM/BAM file, and cannot be added later!</p>
+</div>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc pairs output/sam/SRR4271982_chr18_19_1_sort.bam <span class="se">\</span>
            output/sam/SRR4271982_chr18_19_2_sort.bam <span class="se">\</span>
            output/pairs/SRR4271982_chr18_19.pairs <span class="se">\</span>
@@ -541,18 +544,7 @@ overview of all parameters:</p>
 <h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
 <dl class="option-list">
 <dt><kbd>input</kbd></dt>
-<dd><dl class="simple">
-<dt>IMPORTANT: The last positional argument will be</dt><dd><p>the output file, unless only a single Hic object
-is provided. In that case, binning, filtering and
-correcting will be done in place.
-Input files. If these are FAN-C Pairs objects
-(see “fanc pairs”), they will be turned into
-Hic objects. Hic objects (also the ones converted
-from Pairs) will first be merged and the merged
-object will be binned, filtered and corrected as
-specified in the remaining parameters.</p>
-</dd>
-</dl>
+<dd><p>IMPORTANT: The last positional argument will be the output file, unless only a single Hic object is provided. In that case, binning, filtering and correcting will be done in place. Input files. If these are FAN-C Pairs objects (see “fanc pairs”), they will be turned into Hic objects. Hic objects (also the ones converted from Pairs) will first be merged and the merged object will be binned, filtered and corrected as specified in the remaining parameters.</p>
 </dd>
 </dl>
 </div>
@@ -560,35 +552,19 @@ specified in the remaining parameters.</p>
 <h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
 <dl class="option-list">
 <dt><kbd>-b, --bin-size</kbd></dt>
-<dd><dl class="simple">
-<dt>Bin size in base pairs. You can use human-readable formats,</dt><dd><p>such as 10k, or 1mb. If omitted, the command will
-end after the merging step.</p>
-</dd>
-</dl>
+<dd><p>Bin size in base pairs. You can use human-readable formats,such as 10k, or 1mb. If omitted, the command will end after the merging step.</p>
 </dd>
 <dt><kbd>-l, --filter-low-coverage</kbd></dt>
-<dd><dl class="simple">
-<dt>Filter bins with low coverage (lower than</dt><dd><p>specified absolute number of contacts)</p>
-</dd>
-</dl>
+<dd><p>Filter bins with low coverage (lower than specified absolute number of contacts)</p>
 </dd>
 <dt><kbd>-r, --filter-low-coverage-relative</kbd></dt>
-<dd><dl class="simple">
-<dt>Filter bins using a relative low coverage threshold</dt><dd><p>(lower than the specified fraction of the median contact count)</p>
-</dd>
-</dl>
+<dd><p>Filter bins using a relative low coverage threshold (lower than the specified fraction of the median contact count)</p>
 </dd>
 <dt><kbd>-a, --low-coverage-auto</kbd></dt>
-<dd><dl class="simple">
-<dt>Filter bins with “low coverage” (under</dt><dd><p>10% of median coverage for all non-zero bins)</p>
-</dd>
-</dl>
+<dd><p>Filter bins with “low coverage” (under 10% of median coverage for all non-zero bins)</p>
 </dd>
 <dt><kbd>-d, --diagonal</kbd></dt>
-<dd><dl class="simple">
-<dt>Filter bins along the diagonal up to this specified distance.</dt><dd><p>Use 0 for only filtering the diagonal.</p>
-</dd>
-</dl>
+<dd><p>Filter bins along the diagonal up to this specified distance. Use 0 for only filtering the diagonal.</p>
 </dd>
 <dt><kbd>--marginals-plot</kbd></dt>
 <dd><p>Plot Hi-C marginals to determine low coverage thresholds.</p>
@@ -600,7 +576,7 @@ end after the merging step.</p>
 <dd><p>Downsample a binned Hi-C object before filtering and correcting. Sample size or reference Hi-C object. If sample size is &lt; 1,will be interpreted as a fraction of valid pairs.</p>
 </dd>
 <dt><kbd>-i, --ice-correct</kbd></dt>
-<dd><p>Use ICE iterative correction instead of Knight matrix balancing</p>
+<dd><p>Use ICE iterative correction on the binned Hic matrix</p>
 </dd>
 <dt><kbd>-k, --kr-correct</kbd></dt>
 <dd><p>Use Knight-Ruiz matrix balancing to correct the binned Hic matrix</p>
@@ -609,11 +585,7 @@ end after the merging step.</p>
 <dd><p>Correct the whole matrix at once, rather than individual chromosomes.</p>
 </dd>
 <dt><kbd>-c, --restore-coverage</kbd></dt>
-<dd><dl class="simple">
-<dt>Restore coverage to the original total number of reads.</dt><dd><p>Otherwise matrix entries will be contact probabilities.
-Only available for KR matrix balancing.</p>
-</dd>
-</dl>
+<dd><p>Restore coverage to the original total number of reads. Otherwise matrix entries will be contact probabilities. Only available for KR matrix balancing.</p>
 </dd>
 <dt><kbd>--only-inter</kbd></dt>
 <dd><p>Calculate bias vector only on inter-chromosomal contacts. Ignores all intra-chromosomal contacts. Always uses whole-matrix balancing, i.e. implicitly sets -w</p>
@@ -628,10 +600,7 @@ Only available for KR matrix balancing.</p>
 <dd><p>Limit output Hic object to these chromosomes. Only available in conjunction with “-b” option.</p>
 </dd>
 <dt><kbd>-f, --force-overwrite</kbd></dt>
-<dd><dl class="simple">
-<dt>If the specified output file exists, it will be</dt><dd><p>overwritten without warning.</p>
-</dd>
-</dl>
+<dd><p>If the specified output file exists, it will be overwritten without warning.</p>
 </dd>
 <dt><kbd>-t, --threads</kbd></dt>
 <dd><p>Number of threads (currently used for binning only)</p>

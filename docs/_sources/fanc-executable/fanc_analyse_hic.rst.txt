@@ -8,6 +8,12 @@ The ``fanc`` tool should be accessible from the command line after you installed
 (see :ref:`fanc_installation`).
 It provides convenient commands for the generation, modification, and analysis of Hi-C data.
 
+.. note::
+
+    The following tutorials assume you have downloaded all the example data files from
+    `out GitHub page <https://github.com/vaquerizaslab/fanc/>`_ and ran the sample analysis outlined
+    in :ref:`example-fanc-auto`.
+
 .. toctree::
    :maxdepth: 2
 

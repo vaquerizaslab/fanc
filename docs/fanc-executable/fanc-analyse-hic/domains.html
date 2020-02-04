@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Hi-C domain analysis &mdash; FAN-C 0.8.15-beta documentation</title>
+  <title>Hi-C domain analysis &mdash; FAN-C 0.8.16-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.15
+                0.8.16
               </div>
             
           
@@ -368,7 +368,7 @@ be misleading if the region of interest happens to lie in an unmappable region. 
 this capability with caution!</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/domains/fanc_example_50kb_tads_insulation.png chr18:18mb-28mb <span class="se">\</span>
      -p triangular output/hic/binned/fanc_example_100kb.hic -m <span class="m">4000000</span> -vmin <span class="m">0</span> -vmax <span class="m">0</span>.05 <span class="se">\</span>
-     -p scores architecture/domains/fanc_example_100kb.insulation
+     -p scores architecture/domains/fanc_example_100kb.insulation_imputed -vmin -1 -vmax <span class="m">1</span>
 </pre></div>
 </div>
 <img alt="../../_images/fanc_example_50kb_tads_insulation_imputed.png" src="../../_images/fanc_example_50kb_tads_insulation_imputed.png" />
