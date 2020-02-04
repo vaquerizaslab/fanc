@@ -176,6 +176,7 @@ contaminants genome (by qname). All of the above filters operate on single reads
 filter out the pair if either of the reads is found to be invalid due to a filtering criterion.
 
 .. warning::
+
     The ``-u``, ``-us``, ``-q``, and ``-c`` filter MUST be applied when loading read pairs
     from SAM/BAM file, and cannot be added later!
 
