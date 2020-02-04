@@ -75,6 +75,7 @@ of system memory. If you are having trouble with memory usage, use sampling with
 replacement (``--with-replacement``).
 
 .. note::
+
     Sampling is done on uncorrected matrix values, so you may want to apply matrix
     balancing using ``fanc hic -k`` afterwards.
 
