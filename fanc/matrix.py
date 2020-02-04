@@ -2341,7 +2341,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
         try:
             self.region_data('valid', np.array(marginals) > 0)
-        except OSError:
+        except (OSError, KeyError):  # ignore older Hic versions and read-only files
             pass
 
         if selected_chromosome is not None:
