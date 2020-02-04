@@ -2352,6 +2352,15 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
     def _update_mappability(self):
         _ = self.expected_values_and_marginals(force=True)
 
+    def region_data(self, key, value=None):
+        data = RegionPairsTable.region_data(self, key, value)
+
+        if key == 'bias':
+            logger.debug("Recalculating mappability and expected values after bias vector change!")
+            self._update_mappability()
+
+        return data
+
     @classmethod
     def merge_region_matrix_tables(cls, matrices, check_regions_identical=True,
                                    *args, **kwargs):
