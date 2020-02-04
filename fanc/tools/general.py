@@ -19,6 +19,8 @@ import pysam
 import threading
 import warnings
 
+random.seed(0)
+
 sam_reference_consumers = {0, 2, 3, 7, 8}  # M, D, N, =, X
 sam_query_consumers = {0, 1, 4, 7, 8}  # M, I, S, =, X
 
