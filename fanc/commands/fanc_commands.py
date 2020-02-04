@@ -609,7 +609,7 @@ def pairs_parser():
              'Possible inputs are: two SAM/BAM files (paired-end reads, ' 
              'sorted by read name) and an output file; ' 
              'a HiC-Pro pairs file (format: ' 
-             'name\\tchr1\\tpos1\\tstrand1\\tchr2\\tpos2\\tstrand2) ' 
+             'name<tab>chr1<tab>pos1<tab>strand1<tab>chr2<tab>pos2<tab>strand2) ' 
              'and an output file; a pairs file in 4D Nucleome format '
              '(https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md) '
              'and an output file, ' 
