@@ -184,18 +184,19 @@ comparisons. You simply provide it with a FAN-C compatible matrix file:</p>
 </pre></div>
 </div>
 <img alt="../_images/fancplot_triangular_example.png" src="../_images/fancplot_triangular_example.png" />
-<p>You can truncate the triangle at a certain distance with <code class="docutils literal notranslate"><span class="pre">-m</span></code> for more compact plots:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -m 2mb output/hic/binned/fanc_example_50kb.hic
-</pre></div>
-</div>
-<img alt="../_images/fancplot_triangular_example_truncated.png" src="../_images/fancplot_triangular_example_truncated.png" />
-<p>For interactive plotting, you can add a slider that controls the saturation of the
-heatmap colors using <code class="docutils literal notranslate"><span class="pre">-r</span></code>:</p>
+<p>You often need to adjust the matrix saturation, to highlight different parts of the image.
+You can do this interactively with <code class="docutils literal notranslate"><span class="pre">-r</span></code>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -r output/hic/binned/fanc_example_50kb.hic
 </pre></div>
 </div>
 <img alt="../_images/fancplot_triangular_example_range.png" src="../_images/fancplot_triangular_example_range.png" />
-<p>Or you can set the saturation values directly using <code class="docutils literal notranslate"><span class="pre">-vmin</span></code> and <code class="docutils literal notranslate"><span class="pre">-vmax</span></code>:</p>
+<p>Or by explicitly setting a maximum saturation using <code class="docutils literal notranslate"><span class="pre">-vmax</span></code>, in this case to <code class="docutils literal notranslate"><span class="pre">0.05</span></code>.</p>
+<p>You can truncate the triangle at a certain distance with <code class="docutils literal notranslate"><span class="pre">-m</span></code> for more compact plots:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -m 2mb -vmax <span class="m">0</span>.05 output/hic/binned/fanc_example_50kb.hic
+</pre></div>
+</div>
+<img alt="../_images/fancplot_triangular_example_truncated.png" src="../_images/fancplot_triangular_example_truncated.png" />
+<p>You can also set the lower saturation values directly using <code class="docutils literal notranslate"><span class="pre">-vmin</span></code>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -vmin <span class="m">0</span> -vmax <span class="m">0</span>.03 output/hic/binned/fanc_example_50kb.hic
 </pre></div>
 </div>
@@ -203,18 +204,18 @@ heatmap colors using <code class="docutils literal notranslate"><span class="pre
 <p>To change the default colormap use <code class="docutils literal notranslate"><span class="pre">-c</span> <span class="pre">&lt;matplotlib</span> <span class="pre">colormap&gt;</span></code> - any
 <a class="reference external" href="https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html">colormap in matplotlib</a>
 is supported.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -c Greens output/hic/binned/fanc_example_50kb.hic
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -c Greens -vmax <span class="m">0</span>.05 output/hic/binned/fanc_example_50kb.hic
 </pre></div>
 </div>
 <img alt="../_images/fancplot_triangular_example_colormap.png" src="../_images/fancplot_triangular_example_colormap.png" />
 <p>You can change the color scale from linear to log using <code class="docutils literal notranslate"><span class="pre">-l</span></code>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -l output/hic/binned/fanc_example_50kb.hic
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -l -vmax <span class="m">0</span>.05 output/hic/binned/fanc_example_50kb.hic
 </pre></div>
 </div>
 <img alt="../_images/fancplot_triangular_example_log.png" src="../_images/fancplot_triangular_example_log.png" />
 <p>By default, <code class="docutils literal notranslate"><span class="pre">triangular</span></code> plots normalised matrix data. You can turn this off
 on the fly to plot uncorrected data using <code class="docutils literal notranslate"><span class="pre">-u</span></code>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -u output/hic/binned/fanc_example_50kb.hic
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -u -vmax <span class="m">30</span> output/hic/binned/fanc_example_50kb.hic
 </pre></div>
 </div>
 <img alt="../_images/fancplot_triangular_example_nonorm.png" src="../_images/fancplot_triangular_example_nonorm.png" />
@@ -222,7 +223,7 @@ on the fly to plot uncorrected data using <code class="docutils literal notransl
 matrix using <code class="docutils literal notranslate"><span class="pre">-e</span></code>. When using this option, the matrix values are automatically
 log-2 transformed and the colorscale adjusts to a divergent colormap symmetrical
 around 0.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -e output/hic/binned/fanc_example_50kb.hic
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p triangular -e -vmin -3 -vmax <span class="m">3</span> output/hic/binned/fanc_example_50kb.hic
 </pre></div>
 </div>
 <img alt="../_images/fancplot_triangular_example_oe.png" src="../_images/fancplot_triangular_example_oe.png" />
@@ -231,7 +232,7 @@ around 0.</p>
 <h2>square<a class="headerlink" href="#square" title="Permalink to this headline">¶</a></h2>
 <p>This plot is the common square matrix plot. It has nearly the same options as
 <code class="docutils literal notranslate"><span class="pre">triangle</span></code> and uses the same syntax:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p square output/hic/binned/fanc_example_50kb.hic
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot chr18:6mb-10mb -p square -vmax <span class="m">0</span>.05 output/hic/binned/fanc_example_50kb.hic
 </pre></div>
 </div>
 <img alt="../_images/fancplot_square_example.png" src="../_images/fancplot_square_example.png" />
