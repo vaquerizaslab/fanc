@@ -374,6 +374,12 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
         if self.cax:
             self.cax.cla()
 
+    def show(self, *args, **kwargs):
+        plt.show(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        self.ax.figure.savefig(*args, **kwargs)
+
 
 class BasePlotter1D(BasePlotter):
 
@@ -528,7 +534,7 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
     together with another BasePlotter class.
     """
 
-    def __init__(self, colormap=config.colormap_hic, norm="log", vmin=None, vmax=None,
+    def __init__(self, colormap=config.colormap_hic, norm="lin", vmin=None, vmax=None,
                  show_colorbar=True, blend_zero=False, replacement_color=None,
                  unmappable_color=".9", illegal_color=None, colorbar_symmetry=None,
                  cax=None, **kwargs):
