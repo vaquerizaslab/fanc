@@ -1793,38 +1793,38 @@ def dump_parser():
     parser.add_argument(
         'matrix',
         nargs='?',
-        help='''Output file for matrix entries. If not provided, will write to stdout.'''
+        help='Output file for matrix entries. If not provided, will write to stdout.'
     )
 
     parser.add_argument(
         'regions',
         nargs='?',
-        help='''Output file for Hic regions. If not provided, will write regions into matrix file.'''
+        help='Output file for Hic regions. If not provided, will write regions into matrix file.'
     )
 
     parser.add_argument(
         '-s', '--subset', dest='subset',
-        help='''Only output this matrix subset. Format:
-                <chr>[:<start>-<end>][--<chr>[:<start><end>]],
-                e.g.:
-                "chr1--chr1" to extract only the chromosome 1 submatrix;
-                "chr2:3400000-4200000" to extract contacts of this region 
-                on chromosome 2 to all other regions in the genome;'''
+        help='Only output this matrix subset. Format: '
+             '<chr>[:<start>-<end>][--<chr>[:<start><end>]], '
+             'e.g.: '
+             '"chr1--chr1" to extract only the chromosome 1 submatrix; '
+             '"chr2:3400000-4200000" to extract contacts of this region '
+             'on chromosome 2 to all other regions in the genome;'
     )
 
     parser.add_argument(
         '-S', '--no-sparse', dest='sparse',
         action='store_false',
         default=True,
-        help='''Store full, square matrix instead of sparse format.'''
+        help='Store full, square matrix instead of sparse format.'
     )
 
     parser.add_argument(
         '--only-intra', dest='only_intra',
         default=False,
         action='store_true',
-        help='''Only dump intra-chromosomal data. 
-                Dumps everything by default.'''
+        help='Only dump intra-chromosomal data. ' 
+             'Dumps everything by default.'
     )
 
     parser.add_argument(
