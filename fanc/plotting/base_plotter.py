@@ -186,7 +186,7 @@ class BasePlotter(with_metaclass(PlotMeta, object)):
 
     def __init__(self, title='', aspect=1., axes_style="ticks", ylabel=None,
                  draw_ticks=True, draw_minor_ticks=False, draw_major_ticks=True,
-                 draw_tick_labels=True, draw_tick_legend=True, draw_x_axis=True,
+                 draw_tick_labels=True, draw_tick_legend=False, draw_x_axis=True,
                  draw_chromosome_label=True, padding=None, extra_padding=0,
                  fix_chromosome=False, invert_x=False, ax=None, **kwargs):
         """
