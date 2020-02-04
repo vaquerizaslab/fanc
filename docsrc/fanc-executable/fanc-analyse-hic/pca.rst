@@ -27,9 +27,11 @@ enzymes (MboI and HindIII), as well as different input cell numbers.
 
     fanc pca -n "HindIII 100k" "HindIII 5M" "MboI 100k" "MboI 1M" "MboI 50k" \
              -Z -s 100000 -r chr19 -p architecture/pca/lowc.pca.png \
-             lowc_hindiii_100k_1mb.hic lowc_hindiii_5M_1mb.hic \
-             lowc_mboi_100k_1mb.hic lowc_mboi_1M_1mb.hic \
-             lowc_mboi_50k_1mb.hic \
+             architecture/other-hic/lowc_hindiii_100k_1mb.hic \
+             architecture/other-hic/lowc_hindiii_5M_1mb.hic \
+             architecture/other-hic/lowc_mboi_100k_1mb.hic \
+             architecture/other-hic/lowc_mboi_1M_1mb.hic \
+             architecture/other-hic/lowc_mboi_50k_1mb.hic \
              architecture/pca/lowc.pca
 
 The result looks like this, where you can clearly see the division between the different
