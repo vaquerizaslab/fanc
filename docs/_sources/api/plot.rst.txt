@@ -5,7 +5,7 @@ Plotting (API)
 ==============
 
 All plot types produced with the ``fancplot`` executable in :ref:`fancplot-executable` are also available
-in the Python API. These plots are based on Matplotlib, the `powerful Python plotting API <https://matplotlib.org/>`_,
+in the Python API. These plots are based on Matplotlib, the `Python plotting API <https://matplotlib.org/>`_,
 and therefore highly customisable.
 
 .. note::
