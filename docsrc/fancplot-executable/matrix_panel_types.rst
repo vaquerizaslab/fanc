@@ -22,6 +22,18 @@ comparisons. You simply provide it with a FAN-C compatible matrix file:
 
 .. image:: images/fancplot_triangular_example.png
 
+You often need to adjust the matrix saturation, to highlight different parts of the image.
+You can do this interactively with ``-r``:
+
+.. literalinclude:: code/panel_types_commands
+    :language: bash
+    :start-after: start snippet triangular range
+    :end-before: end snippet triangular range
+
+.. image:: images/fancplot_triangular_example_range.png
+
+Or by explicitly setting a maximum saturation using ``-vmax``, in this case to ``0.05``.
+
 You can truncate the triangle at a certain distance with ``-m`` for more compact plots:
 
 .. literalinclude:: code/panel_types_commands
@@ -31,17 +43,7 @@ You can truncate the triangle at a certain distance with ``-m`` for more compact
 
 .. image:: images/fancplot_triangular_example_truncated.png
 
-For interactive plotting, you can add a slider that controls the saturation of the
-heatmap colors using ``-r``:
-
-.. literalinclude:: code/panel_types_commands
-    :language: bash
-    :start-after: start snippet triangular range
-    :end-before: end snippet triangular range
-
-.. image:: images/fancplot_triangular_example_range.png
-
-Or you can set the saturation values directly using ``-vmin`` and ``-vmax``:
+You can also set the lower saturation values directly using ``-vmin``:
 
 .. literalinclude:: code/panel_types_commands
     :language: bash

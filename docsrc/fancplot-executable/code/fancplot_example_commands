@@ -24,12 +24,12 @@ fancplot chr18:6mb-10mb -p triangular
 # start snippet fancplot triangular example
 fancplot chr18:6mb-10mb -p triangular output/hic/binned/fanc_example_50kb.hic
 # end snippet fancplot triangular example
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_triangular_example.png chr18:6mb-10mb -p triangular output/hic/binned/fanc_example_50kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_triangular_example.png chr18:6mb-10mb -p triangular output/hic/binned/fanc_example_50kb.hic
 
 # start snippet fancplot triangular custom ticks
 fancplot chr18:6mb-10mb --tick-locations 8mb 10mb -p triangular output/hic/binned/fanc_example_50kb.hic
 # end snippet fancplot triangular custom ticks
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_triangular_example_custom_ticks.png chr18:6mb-10mb --tick-locations 8mb 10mb -p triangular -vmax 0.04 output/hic/binned/fanc_example_50kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_triangular_example_custom_ticks.png chr18:6mb-10mb --tick-locations 8mb 10mb -p triangular -vmax 0.04 output/hic/binned/fanc_example_50kb.hic
 
 
 # start snippet fancplot panel help

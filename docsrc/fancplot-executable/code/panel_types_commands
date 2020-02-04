@@ -1,62 +1,63 @@
 # start snippet triangular basic
 fancplot chr18:6mb-10mb -p triangular output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular basic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_triangular_example.png chr18:6mb-10mb -p triangular output/hic/binned/fanc_example_50kb.hic
 
 # start snippet triangular truncated
-fancplot chr18:6mb-10mb -p triangular -m 2mb output/hic/binned/fanc_example_50kb.hic
+fancplot chr18:6mb-10mb -p triangular -m 2mb -vmax 0.05 output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular truncated
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_triangular_example_truncated.png chr18:6mb-10mb -p triangular -m 2mb output/hic/binned/fanc_example_50kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_triangular_example_truncated.png chr18:6mb-10mb -p triangular -m 2mb -vmax 0.05 output/hic/binned/fanc_example_50kb.hic
 
 # start snippet triangular range
 fancplot chr18:6mb-10mb -p triangular -r output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular range
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_triangular_example_range.png chr18:6mb-10mb -p triangular -r output/hic/binned/fanc_example_50kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_triangular_example_range.png chr18:6mb-10mb -p triangular -r output/hic/binned/fanc_example_50kb.hic
 
 # start snippet triangular vminvmax
 fancplot chr18:6mb-10mb -p triangular -vmin 0 -vmax 0.03 output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular vminvmax
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_triangular_example_vminvmax.png chr18:6mb-10mb -p triangular -vmin 0 -vmax 0.03 output/hic/binned/fanc_example_50kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_triangular_example_vminvmax.png chr18:6mb-10mb -p triangular -vmin 0 -vmax 0.03 output/hic/binned/fanc_example_50kb.hic
 
 # start snippet triangular log
-fancplot chr18:6mb-10mb -p triangular -l output/hic/binned/fanc_example_50kb.hic
+fancplot chr18:6mb-10mb -p triangular -l -vmax 0.05 output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular log
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_triangular_example_log.png chr18:6mb-10mb -p triangular -l output/hic/binned/fanc_example_50kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_triangular_example_log.png chr18:6mb-10mb -p triangular -l -vmax 0.05 output/hic/binned/fanc_example_50kb.hic
 
 # start snippet triangular colormap
-fancplot chr18:6mb-10mb -p triangular -c Greens output/hic/binned/fanc_example_50kb.hic
+fancplot chr18:6mb-10mb -p triangular -c Greens -vmax 0.05 output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular colormap
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_triangular_example_colormap.png chr18:6mb-10mb -p triangular -c Greens output/hic/binned/fanc_example_50kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_triangular_example_colormap.png chr18:6mb-10mb -p triangular -c Greens -vmax 0.05 output/hic/binned/fanc_example_50kb.hic
 
 
 # start snippet triangular nonorm
-fancplot chr18:6mb-10mb -p triangular -u output/hic/binned/fanc_example_50kb.hic
+fancplot chr18:6mb-10mb -p triangular -u -vmax 30 output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular nonorm
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_triangular_example_nonorm.png chr18:6mb-10mb -p triangular -u output/hic/binned/fanc_example_50kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_triangular_example_nonorm.png chr18:6mb-10mb -p triangular -u -vmax 30 output/hic/binned/fanc_example_50kb.hic
 
 # start snippet triangular oe
-fancplot chr18:6mb-10mb -p triangular -e output/hic/binned/fanc_example_50kb.hic
+fancplot chr18:6mb-10mb -p triangular -e -vmin -3 -vmax 3 output/hic/binned/fanc_example_50kb.hic
 # end snippet triangular oe
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_triangular_example_oe.png chr18:6mb-10mb -p triangular -e output/hic/binned/fanc_example_50kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_triangular_example_oe.png chr18:6mb-10mb -p triangular -e -vmin -3 -vmax 3 output/hic/binned/fanc_example_50kb.hic
 
 
 # start snippet square basic
-fancplot chr18:6mb-10mb -p square output/hic/binned/fanc_example_50kb.hic
+fancplot chr18:6mb-10mb -p square -vmax 0.05 output/hic/binned/fanc_example_50kb.hic
 # end snippet square basic
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_square_example.png chr18:6mb-10mb -p square output/hic/binned/fanc_example_50kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_square_example.png chr18:6mb-10mb -p square -vmax 0.05 output/hic/binned/fanc_example_50kb.hic
 
 # start snippet square flip
 fancplot chr18:6mb-10mb -p square -f output/hic/binned/fanc_example_50kb.hic
 # end snippet square flip
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_square_example_flip.png chr18:6mb-10mb -p square -f output/hic/binned/fanc_example_50kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_square_example_flip.png chr18:6mb-10mb -p square -f output/hic/binned/fanc_example_50kb.hic
 
 # start snippet mirror basic
 fancplot chr18:6mb-10mb -p mirror -d 3mb output/hic/binned/fanc_example_50kb.hic output/hic/binned/fanc_example_100kb.hic
 # end snippet mirror basic
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_square_example_mirror.png chr18:6mb-10mb -p mirror -d 3mb output/hic/binned/fanc_example_50kb.hic output/hic/binned/fanc_example_100kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_square_example_mirror.png chr18:6mb-10mb -p mirror -d 3mb output/hic/binned/fanc_example_50kb.hic output/hic/binned/fanc_example_100kb.hic
 
 # start snippet mirror oe
 fancplot chr18:6mb-10mb -p mirror -d 3mb -le -lvmin -2 -lvmax 2 output/hic/binned/fanc_example_50kb.hic output/hic/binned/fanc_example_50kb.hic
 # end snippet mirror oe
-fancplot -o ../fanc-doc/fancplot-executable/images/fancplot_square_example_mirror_oe.png chr18:6mb-10mb -p mirror -d 3mb -le -lvmin -2 -lvmax 2 output/hic/binned/fanc_example_50kb.hic output/hic/binned/fanc_example_50kb.hic
+fancplot -o ../docsrc/fancplot-executable/images/fancplot_square_example_mirror_oe.png chr18:6mb-10mb -p mirror -d 3mb -le -lvmin -2 -lvmax 2 output/hic/binned/fanc_example_50kb.hic output/hic/binned/fanc_example_50kb.hic
 
 
