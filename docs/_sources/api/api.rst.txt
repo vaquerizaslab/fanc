@@ -11,4 +11,5 @@ fanc Python module
    Interfaces <interfaces>
    Generate Hi-C matrices (API) <generate>
    Analyse Hi-C matrices (API) <analyse>
+   Plotting (API) <plot>
    Reference <modules>

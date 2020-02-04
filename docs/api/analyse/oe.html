@@ -191,13 +191,6 @@ the value in the list corresponds to the separation between genomic regions in b
 <code class="docutils literal notranslate"><span class="pre">intra_expected_chromosome</span></code> is a dictionary with chromosome names as keys, and an expected
 value list as value calculated on a per-chromosome basis. <code class="docutils literal notranslate"><span class="pre">inter_expected</span></code> is a single, average
 inter-chromosomal contact value.</p>
-<p>When running the <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer.expected_values" title="fanc.matrix.RegionMatrixContainer.expected_values"><code class="xref py py-func docutils literal notranslate"><span class="pre">expected_values()</span></code></a> function on a matrix
-opened in read-only mode, you will receive a warning that the values cannot be save to the object.
-This means, the expected values will be recalculated every time they are needed in downstream
-analyses. You can ensure the values are saved to the object by opening the matrix in “append” mode:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hic_500kb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;output/hic/binned/fanc_example_500kb.hic&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;a&#39;</span><span class="p">)</span>
-</pre></div>
-</div>
 <p>The expected values are typically plotted on a log-log scale, as illustrated here using chromosome 19:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># obtain bin distances</span>
 <span class="n">bin_size</span> <span class="o">=</span> <span class="n">hic_500kb</span><span class="o">.</span><span class="n">bin_size</span>
