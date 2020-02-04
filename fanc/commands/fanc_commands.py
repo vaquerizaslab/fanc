@@ -1070,53 +1070,52 @@ def hic_parser():
     parser.add_argument(
         'input',
         nargs='+',
-        help='''IMPORTANT: The last positional argument will be 
-                the output file, unless only a single Hic object
-                is provided. In that case, binning, filtering and 
-                correcting will be done in place.
-                Input files. If these are FAN-C Pairs objects 
-                (see "fanc pairs"), they will be turned into 
-                Hic objects. Hic objects (also the ones converted 
-                from Pairs) will first be merged and the merged 
-                object will be binned, filtered and corrected as 
-                specified in the remaining parameters.
-                '''
+        help='IMPORTANT: The last positional argument will be '
+             'the output file, unless only a single Hic object '
+             'is provided. In that case, binning, filtering and '
+             'correcting will be done in place. '
+             'Input files. If these are FAN-C Pairs objects '
+             '(see "fanc pairs"), they will be turned into '
+             'Hic objects. Hic objects (also the ones converted '
+             'from Pairs) will first be merged and the merged '
+             'object will be binned, filtered and corrected as '
+             'specified in the remaining parameters.'
     )
 
     parser.add_argument(
         '-b', '--bin-size', dest='bin_size',
-        help='''Bin size in base pairs. You can use human-readable formats,
-                such as 10k, or 1mb. If omitted, the command will 
-                end after the merging step.'''
+        help='Bin size in base pairs. You can use human-readable formats,'
+             'such as 10k, or 1mb. If omitted, the command will '
+             'end after the merging step.'
     )
 
     parser.add_argument(
         '-l', '--filter-low-coverage', dest='filter_low_coverage',
         type=float,
-        help='''Filter bins with low coverage (lower than 
-                specified absolute number of contacts)'''
+        help='Filter bins with low coverage (lower than '
+             'specified absolute number of contacts)'
     )
 
     parser.add_argument(
         '-r', '--filter-low-coverage-relative', dest='filter_low_coverage_relative',
         type=float,
-        help='''Filter bins using a relative low coverage threshold
-                (lower than the specified fraction of the median contact count)'''
+        help='Filter bins using a relative low coverage threshold '
+             '(lower than the specified fraction of the median contact count)'
     )
 
     parser.add_argument(
         '-a', '--low-coverage-auto', dest='filter_low_coverage_auto',
         action='store_true',
         default=False,
-        help='''Filter bins with "low coverage" (under 
-                10%% of median coverage for all non-zero bins)'''
+        help='Filter bins with "low coverage" (under ' 
+             '10%% of median coverage for all non-zero bins)'
     )
 
     parser.add_argument(
         '-d', '--diagonal', dest='filter_diagonal',
         type=int,
-        help='''Filter bins along the diagonal up to this specified distance.
-                Use 0 for only filtering the diagonal.'''
+        help='Filter bins along the diagonal up to this specified distance. '
+             'Use 0 for only filtering the diagonal.'
     )
 
     parser.add_argument(
@@ -1142,30 +1141,30 @@ def hic_parser():
         '-i', '--ice-correct', dest='ice',
         action='store_true',
         default=False,
-        help='''Use ICE iterative correction instead of Knight matrix balancing'''
+        help='Use ICE iterative correction on the binned Hic matrix'
     )
 
     parser.add_argument(
         '-k', '--kr-correct', dest='kr',
         action='store_true',
         default=False,
-        help='''Use Knight-Ruiz matrix balancing to correct the binned Hic matrix'''
+        help='Use Knight-Ruiz matrix balancing to correct the binned Hic matrix'
     )
 
     parser.add_argument(
         '-w', '--whole-matrix', dest='whole_matrix',
         action='store_true',
         default=False,
-        help='''Correct the whole matrix at once, rather than individual chromosomes.'''
+        help='Correct the whole matrix at once, rather than individual chromosomes.'
     )
 
     parser.add_argument(
         '-c', '--restore-coverage', dest='restore_coverage',
         action='store_true',
         default=False,
-        help='''Restore coverage to the original total number of reads. 
-                Otherwise matrix entries will be contact probabilities.
-                Only available for KR matrix balancing.'''
+        help='Restore coverage to the original total number of reads. '
+             'Otherwise matrix entries will be contact probabilities. '
+             'Only available for KR matrix balancing.'
     )
 
     parser.add_argument(
@@ -1179,12 +1178,12 @@ def hic_parser():
 
     parser.add_argument(
         '-s', '--statistics', dest='stats',
-        help='''Path for saving filter statistics'''
+        help='Path for saving filter statistics'
     )
 
     parser.add_argument(
         '--statistics-plot', dest='stats_plot',
-        help='''Path for saving filter statistics plot (PDF)'''
+        help='Path for saving filter statistics plot (PDF)'
     )
 
     parser.add_argument(
@@ -1198,8 +1197,8 @@ def hic_parser():
         '-f', '--force-overwrite', dest='force_overwrite',
         action='store_true',
         default=False,
-        help='''If the specified output file exists, it will be 
-                    overwritten without warning.'''
+        help='If the specified output file exists, it will be ' 
+             'overwritten without warning.'
     )
 
     parser.add_argument(
@@ -1213,7 +1212,7 @@ def hic_parser():
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         default=False,
-        help='''Work in temporary directory'''
+        help='Work in temporary directory'
     )
 
     return parser
