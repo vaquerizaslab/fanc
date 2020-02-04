@@ -174,8 +174,10 @@ parameter (ensure no unmappable reads are in the file!).
 This will filter out all reads that have a valid alignment in the putative
 contaminants genome (by qname). All of the above filters operate on single reads, but will
 filter out the pair if either of the reads is found to be invalid due to a filtering criterion.
-IMPORTANT: the ``-u``, ``-us``, ``-q``, and ``-c`` filter MUST be applied when loading read pairs
-from SAM/BAM file, and cannot be added later!
+
+.. warning::
+    The ``-u``, ``-us``, ``-q``, and ``-c`` filter MUST be applied when loading read pairs
+    from SAM/BAM file, and cannot be added later!
 
 .. code:: bash
 
