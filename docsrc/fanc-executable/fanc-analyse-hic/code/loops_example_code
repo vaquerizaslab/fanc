@@ -4,7 +4,7 @@ fancplot -o architecture/loops/rao2014.chr11_77400000_78600000.png \
      -p triangular architecture/loops/rao2014.chr11_77400000_78600000.hic \
      -vmin 0.0 -vmax 0.05 -m 600000
 # end snippet loops example
-fancplot -o ../fanc-doc/fanc-executable/fanc-analyse-hic/images/rao2014.chr11_77400000_78600000.png \
+fancplot -o ../docsrc/fanc-executable/fanc-analyse-hic/images/rao2014.chr11_77400000_78600000.png \
      chr11:77400000-78600000 \
      -p triangular architecture/loops/rao2014.chr11_77400000_78600000.hic \
      -vmin 0.0 -vmax 0.05 -m 600000
