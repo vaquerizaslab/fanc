@@ -116,7 +116,7 @@ juicer_tools_jar_path:
 default_config = yaml.load(_default_config_content, Loader=yaml.FullLoader)
 
 _config_file_name = 'fanc.conf'
-_environment_variable_name = 'fanc_CONF'
+_environment_variable_name = 'FANC_CONF'
 
 # check common places for config file
 # modified from: http://stackoverflow.com/questions/7567642/where-to-put-a-configuration-file-in-python
