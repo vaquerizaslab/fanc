@@ -99,7 +99,7 @@ look more like a Hi-C matrix:
     :start-after: start snippet aggregate rescale
     :end-before: end snippet aggregate rescale
 
-.. image:: images/fanc_example_100kb_oe_large_res.agg.png
+.. image:: images/fanc_example_100kb_oe_large_res.png
 
 Here, we are not log-transforming the data and we are setting the saturation of the
 pixel values at 0.045 using ``--vmax``.
