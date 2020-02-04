@@ -721,6 +721,7 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
             logger.debug("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
 
     hic.region_data('bias', bias_vector)
+    hic._update_mappability()
     return bias_vector
 
 
@@ -755,6 +756,7 @@ def kr_balancing(hic, whole_matrix=True, intra_chromosomal=True, inter_chromosom
         m_corrected, bias_vector = correct_matrix(m, restore_coverage=restore_coverage)
 
     hic.region_data('bias', bias_vector)
+    hic._update_mappability()
     return bias_vector
 
 
