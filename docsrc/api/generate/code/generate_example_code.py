@@ -1,10 +1,10 @@
 import os
-import logging
 import fanc
 from fanc.tools.general import mkdir
 
 
 # start snippet logging
+import logging
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(message)s')
 # end snippet logging

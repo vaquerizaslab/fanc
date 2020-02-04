@@ -28,16 +28,6 @@ the value in the list corresponds to the separation between genomic regions in b
 value list as value calculated on a per-chromosome basis. ``inter_expected`` is a single, average
 inter-chromosomal contact value.
 
-When running the :func:`~fanc.matrix.RegionMatrixContainer.expected_values` function on a matrix
-opened in read-only mode, you will receive a warning that the values cannot be save to the object.
-This means, the expected values will be recalculated every time they are needed in downstream
-analyses. You can ensure the values are saved to the object by opening the matrix in "append" mode:
-
-.. literalinclude:: code/oe_example_code.py
-    :language: python
-    :start-after: start snippet oe append
-    :end-before: end snippet oe append
-
 The expected values are typically plotted on a log-log scale, as illustrated here using chromosome 19:
 
 .. literalinclude:: code/oe_example_code.py

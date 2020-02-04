@@ -288,11 +288,6 @@ The :func:`~fanc.matrix.RegionPairsContainer.edges` iterator is the most versati
 function in the :class:`~fanc.matrix.RegionPairsContainer` interface, but by far not the only one.
 We will briefly list the most useful other functions with a brief description and examples here.
 
-regions_identical
-edge_data
-
-mappable
-
 ~~~~~~~~~~~~~~~~~
 regions_and_edges
 ~~~~~~~~~~~~~~~~~
