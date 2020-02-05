@@ -1,0 +1,4 @@
+0.8.17
+
+- Renamed --tads-flyamer to --tads-imakaev in fanc aggregate
+- option for strings passed to max_dist in triangular matrix plot API
