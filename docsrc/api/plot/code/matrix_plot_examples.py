@@ -9,8 +9,8 @@ import fanc.plotting as fancplot
 import matplotlib.pyplot as plt
 # end snippet fancplot matplotlib
 
-#fanc_base = '..'
-fanc_base = '/Users/kkruse/dev/fanc'
+fanc_base = '..'
+#fanc_base = '/Users/kkruse/dev/fanc'
 
 # start snippet fancplot load hic
 hic = fanc.load("output/hic/binned/fanc_example_50kb.hic")
