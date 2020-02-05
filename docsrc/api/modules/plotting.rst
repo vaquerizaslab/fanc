@@ -14,8 +14,9 @@ Index of plot classes
 .. autosummary::
 
     GenomicFigure
-    HicPlot
-    HicPlot2D
+    TriangularMatrixPlot
+    SquareMatrixPlot
+    SplitMatrixPlot
     LinePlot
     BigWigPlot
     GenePlot
@@ -32,6 +33,7 @@ Index of plot classes
     HighlightAnnotation
     SymmetricNorm
     LimitGroup
+    MirrorMatrixPlot
 
 Description and examples
 ''''''''''''''''''''''''
