@@ -3,6 +3,7 @@ from fanc.config import config
 from fanc.plotting.base_plotter import BasePlotterMatrix, BasePlotter1D, BasePlotter2D, ScalarDataPlot, \
                                        PlotMeta, BaseOverlayPlotter
 from fanc.plotting.helpers import append_axes, style_ticks_whitegrid
+from fanc.tools.general import str_to_int
 from genomic_regions import GenomicRegion, as_region
 from ..matrix import RegionMatrixTable, RegionMatrixContainer
 from ..architecture.comparisons import SplitMatrix
@@ -480,7 +481,7 @@ class TriangularMatrixPlot(BasePlotterHic, BasePlotter1D):
         kwargs.setdefault("aspect", None)
         super(TriangularMatrixPlot, self).__init__(hic_data=hic_data, **kwargs)
         self.proportional = proportional
-        self.max_dist = max_dist
+        self.max_dist = str_to_int(max_dist)
         self.hm = None
         self.rasterized = rasterized
         self.collection = None
