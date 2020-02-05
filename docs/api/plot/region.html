@@ -96,7 +96,14 @@
 <li class="toctree-l2 current"><a class="reference internal" href="../plot.html">Plotting (API)</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="plot_basics.html">Plotting basics</a></li>
 <li class="toctree-l3"><a class="reference internal" href="matrix.html">Matrix plots</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Region and score plots</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Region and score plots</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#line-plot">Line plot</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#bar-plot">Bar plot</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#score-heatmaps">Score heatmaps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#layer-plots">Layer plots</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gene-plots">Gene plots</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../modules.html">Reference</a></li>
@@ -172,6 +179,113 @@
             
   <div class="section" id="region-and-score-plots">
 <span id="api-plot-region"></span><h1>Region and score plots<a class="headerlink" href="#region-and-score-plots" title="Permalink to this headline">¶</a></h1>
+<p>In addition to matrix-based plots, FAN-C provides a number of plots to plot genomic tracks alongside
+Hi-C data (although they can certainly also be used independently). The main plots in this category are</p>
+<ul class="simple">
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">LinePlot</span></code>, which plots (ideally continuous) scores associated with genomic
+regions as a line plot.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">BarPlot</span></code>, which plots genomic region scores as bars</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicVectorArrayPlot</span></code>, which plots multiple scores associated with the
+same regions, such as insulation scores at different window sizes, as a heatmap</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">FeatureLayerPlot</span></code>, which plots the location of features as blocks, grouped
+by user-specified attributes, such as the location TAD boundaries in different matrices</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">GenePlot</span></code>, which, as the name suggests, can plot gene and transcript
+annotations, including exon-intron structures.</p></li>
+</ul>
+<div class="section" id="line-plot">
+<h2>Line plot<a class="headerlink" href="#line-plot" title="Permalink to this headline">¶</a></h2>
+<p><code class="xref py py-class docutils literal notranslate"><span class="pre">LinePlot</span></code> accepts a <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionBased</span></code> object as input.
+These can be created very easily from any compatible genomic regions format, including BED, GFF/GTF, BigWig,
+Tabix, and more. So let’s load some BED files:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">insulation_scores_1mb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/domains/fanc_example_100kb.insulation_1mb.bed&quot;</span><span class="p">)</span>
+<span class="n">insulation_scores_2mb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/domains/fanc_example_100kb.insulation_2mb.bed&quot;</span><span class="p">)</span>
+<span class="n">boundaries_1mb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/domains/fanc_example_100kb.insulation_boundaries_1mb.bed&quot;</span><span class="p">)</span>
+<span class="n">boundaries_2mb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/domains/fanc_example_100kb.insulation_boundaries_2mb.bed&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We can then use that directly as input:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">LinePlot</span><span class="p">(</span><span class="n">insulation_scores_1mb</span><span class="p">)</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr18:6mb-10mb&#39;</span><span class="p">)</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../../_images/plot_line.png" src="../../_images/plot_line.png" />
+<p>By default, FAN-C fills the area between the X axis and the curve. We can disable that using
+<code class="docutils literal notranslate"><span class="pre">fill=False</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">LinePlot</span><span class="p">(</span><span class="n">insulation_scores_1mb</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr18:6mb-10mb&#39;</span><span class="p">)</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../../_images/plot_line_nofill.png" src="../../_images/plot_line_nofill.png" />
+<p>Instead of the step-wise style of the line, we can only connect points at each midpoint of the genomic
+regions:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">LinePlot</span><span class="p">(</span><span class="n">insulation_scores_1mb</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s1">&#39;mid&#39;</span><span class="p">)</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr18:6mb-10mb&#39;</span><span class="p">)</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../../_images/plot_line_mid.png" src="../../_images/plot_line_mid.png" />
+<p>We can change the color of the line with <code class="docutils literal notranslate"><span class="pre">colors</span></code>. Other plot aspects affecting the line drawing,
+passed to the internal matplotlib <code class="docutils literal notranslate"><span class="pre">ax.plot</span></code> function, can be controlled through the <code class="docutils literal notranslate"><span class="pre">plot_kwargs</span></code>
+dictionary, as shown here for transparency:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">LinePlot</span><span class="p">(</span><span class="n">insulation_scores_1mb</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s1">&#39;mid&#39;</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="s1">&#39;cyan&#39;</span><span class="p">,</span>
+                       <span class="n">plot_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;alpha&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">})</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr18:6mb-10mb&#39;</span><span class="p">)</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../../_images/plot_line_col.png" src="../../_images/plot_line_col.png" />
+<p>Finally, we can control the y axis limits with <code class="docutils literal notranslate"><span class="pre">ylim</span></code> (or you can use a <a class="reference external" href="api_plot_matplotlib">custom axis</a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">LinePlot</span><span class="p">(</span><span class="n">insulation_scores_1mb</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s1">&#39;mid&#39;</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="s1">&#39;cyan&#39;</span><span class="p">,</span>
+                       <span class="n">plot_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;alpha&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span> <span class="n">ylim</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr18:6mb-10mb&#39;</span><span class="p">)</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../../_images/plot_line_ylim.png" src="../../_images/plot_line_ylim.png" />
+<p>It is also possible to add multiple score tracks to the same <code class="xref py py-class docutils literal notranslate"><span class="pre">LinePlot</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">LinePlot</span><span class="p">((</span><span class="n">insulation_scores_1mb</span><span class="p">,</span> <span class="n">insulation_scores_2mb</span><span class="p">),</span>
+                       <span class="n">style</span><span class="o">=</span><span class="s1">&#39;mid&#39;</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;cyan&#39;</span><span class="p">,</span> <span class="s1">&#39;magenta&#39;</span><span class="p">),</span>
+                       <span class="n">plot_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;alpha&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span> <span class="n">ylim</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                       <span class="n">labels</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;1mb&#39;</span><span class="p">,</span> <span class="s1">&#39;2mb&#39;</span><span class="p">))</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr18:6mb-10mb&#39;</span><span class="p">)</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../../_images/plot_line_multi.png" src="../../_images/plot_line_multi.png" />
+</div>
+<div class="section" id="bar-plot">
+<h2>Bar plot<a class="headerlink" href="#bar-plot" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">BarPlot</span></code> works in virtually the same way as the
+<code class="xref py py-class docutils literal notranslate"><span class="pre">LinePlot</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">BarPlot</span><span class="p">((</span><span class="n">insulation_scores_1mb</span><span class="p">,</span> <span class="n">insulation_scores_2mb</span><span class="p">),</span>
+                      <span class="n">colors</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;cyan&#39;</span><span class="p">,</span> <span class="s1">&#39;magenta&#39;</span><span class="p">),</span>
+                      <span class="n">plot_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;alpha&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span> <span class="n">ylim</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                      <span class="n">labels</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;1mb&#39;</span><span class="p">,</span> <span class="s1">&#39;2mb&#39;</span><span class="p">))</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr18:6mb-10mb&#39;</span><span class="p">)</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../../_images/plot_bar.png" src="../../_images/plot_bar.png" />
+<p>In addition, it also works very well for non-continuous data, such as shown here for domain boundaries
+in a larger interval:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">BarPlot</span><span class="p">(</span><span class="n">boundaries_1mb</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="s1">&#39;cyan&#39;</span><span class="p">)</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr18:20mb-30mb&#39;</span><span class="p">)</span>
+<span class="n">hp</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../../_images/plot_bar_boundaries.png" src="../../_images/plot_bar_boundaries.png" />
+</div>
+<div class="section" id="score-heatmaps">
+<h2>Score heatmaps<a class="headerlink" href="#score-heatmaps" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="layer-plots">
+<h2>Layer plots<a class="headerlink" href="#layer-plots" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="gene-plots">
+<h2>Gene plots<a class="headerlink" href="#gene-plots" title="Permalink to this headline">¶</a></h2>
+</div>
 </div>
 
 

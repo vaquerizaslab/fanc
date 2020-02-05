@@ -196,59 +196,65 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicFigure" title="fanc.plotting.GenomicFigure"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicFigure</span></code></a>(plots[, width, ticks_last, …])</p></td>
 <td><p>GenomicFigure composed of one or more plots.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.HicPlot" title="fanc.plotting.HicPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicPlot</span></code></a></p></td>
-<td><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.hic_plotter.TriangularMatrixPlot</span></code></p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">TriangularMatrixPlot</span></code>(hic_data[, max_dist, …])</p></td>
+<td><p>A triangle Hi-C heatmap plot.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.HicPlot2D" title="fanc.plotting.HicPlot2D"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicPlot2D</span></code></a></p></td>
-<td><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.hic_plotter.SquareMatrixPlot</span></code></p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">SquareMatrixPlot</span></code>(hic_data[, flip])</p></td>
+<td><p>Plot Hi-C map as a square matrix.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.LinePlot" title="fanc.plotting.LinePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LinePlot</span></code></a>(data[, bin_size, fill, attribute, …])</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">SplitMatrixPlot</span></code>(hic_top, hic_bottom[, …])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.LinePlot" title="fanc.plotting.LinePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LinePlot</span></code></a>(data[, bin_size, fill, attribute, …])</p></td>
 <td><p>Plot data as line.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.BigWigPlot" title="fanc.plotting.BigWigPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BigWigPlot</span></code></a>(bigwigs[, names, bin_size, fill, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.BigWigPlot" title="fanc.plotting.BigWigPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BigWigPlot</span></code></a>(bigwigs[, names, bin_size, fill, …])</p></td>
 <td><p>Plot data from on or more BigWig or Bedgraph files.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenePlot" title="fanc.plotting.GenePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenePlot</span></code></a>(genes[, feature_types, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenePlot" title="fanc.plotting.GenePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenePlot</span></code></a>(genes[, feature_types, …])</p></td>
 <td><p>Plot genes including exon/intron structure from BED, GTF files or similar.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicFeaturePlot" title="fanc.plotting.GenomicFeaturePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicFeaturePlot</span></code></a>(regions[, feature_types, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenomicFeaturePlot" title="fanc.plotting.GenomicFeaturePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicFeaturePlot</span></code></a>(regions[, feature_types, …])</p></td>
 <td><p>Plot discrete genomic regions from BED, GTF files or similar.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.HicComparisonPlot2D" title="fanc.plotting.HicComparisonPlot2D"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicComparisonPlot2D</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.HicComparisonPlot2D" title="fanc.plotting.HicComparisonPlot2D"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicComparisonPlot2D</span></code></a></p></td>
 <td><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.hic_plotter.SplitMatrixPlot</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.HicSlicePlot" title="fanc.plotting.HicSlicePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicSlicePlot</span></code></a>(hic_data, slice_region[, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.HicSlicePlot" title="fanc.plotting.HicSlicePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicSlicePlot</span></code></a>(hic_data, slice_region[, …])</p></td>
 <td><p>Draw Hi-C data as virtual 4C-plot.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.HicPeakPlot" title="fanc.plotting.HicPeakPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicPeakPlot</span></code></a>(peaks[, radius, circle_props])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.HicPeakPlot" title="fanc.plotting.HicPeakPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicPeakPlot</span></code></a>(peaks[, radius, circle_props])</p></td>
 <td><p>Overlay peaks onto Hicplot or HicPlot2D.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.VerticalSplitPlot" title="fanc.plotting.VerticalSplitPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VerticalSplitPlot</span></code></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.VerticalSplitPlot" title="fanc.plotting.VerticalSplitPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VerticalSplitPlot</span></code></a></p></td>
 <td><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.plotter.MirrorMatrixPlot</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenomicVectorArrayPlot" title="fanc.plotting.GenomicVectorArrayPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicVectorArrayPlot</span></code></a>(array[, parameters, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicVectorArrayPlot" title="fanc.plotting.GenomicVectorArrayPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicVectorArrayPlot</span></code></a>(array[, parameters, …])</p></td>
 <td><p>Plot matrix from a <code class="xref py py-class docutils literal notranslate"><span class="pre">MultiVectorArchitecturalRegionFeature</span></code> object.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicRegionsPlot" title="fanc.plotting.GenomicRegionsPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicRegionsPlot</span></code></a>(regions[, attributes, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenomicRegionsPlot" title="fanc.plotting.GenomicRegionsPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicRegionsPlot</span></code></a>(regions[, attributes, …])</p></td>
 <td><p>Plot scalar values from one or more <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegions</span></code> objects</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenomicFeatureScorePlot" title="fanc.plotting.GenomicFeatureScorePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicFeatureScorePlot</span></code></a>(regions[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicFeatureScorePlot" title="fanc.plotting.GenomicFeatureScorePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicFeatureScorePlot</span></code></a>(regions[, …])</p></td>
 <td><p>Plot discrete genomic regions from BED, GTF files or similar.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.FeatureLayerPlot" title="fanc.plotting.FeatureLayerPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FeatureLayerPlot</span></code></a>(features[, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.FeatureLayerPlot" title="fanc.plotting.FeatureLayerPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FeatureLayerPlot</span></code></a>(features[, …])</p></td>
 <td><p>Plot genomic features in layers grouped by name/type..</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenomicDataFramePlot" title="fanc.plotting.GenomicDataFramePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicDataFramePlot</span></code></a>(genomic_data_frame[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicDataFramePlot" title="fanc.plotting.GenomicDataFramePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicDataFramePlot</span></code></a>(genomic_data_frame[, …])</p></td>
 <td><p>Plot data from a table.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.HighlightAnnotation" title="fanc.plotting.HighlightAnnotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HighlightAnnotation</span></code></a>(bed[, plot1, plot2, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.HighlightAnnotation" title="fanc.plotting.HighlightAnnotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HighlightAnnotation</span></code></a>(bed[, plot1, plot2, …])</p></td>
 <td><p>Vertical lines or rectangles (shaded regions) which can be positioned at specific genomic coordinates from a BED file and can span multiple panels of the GenomicFigure.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.SymmetricNorm" title="fanc.plotting.SymmetricNorm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SymmetricNorm</span></code></a>([vmin, vmax, percentile])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.SymmetricNorm" title="fanc.plotting.SymmetricNorm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SymmetricNorm</span></code></a>([vmin, vmax, percentile])</p></td>
 <td><p>Normalizes data for plotting on a divergent colormap.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.LimitGroup" title="fanc.plotting.LimitGroup"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LimitGroup</span></code></a>([limit, sig])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.LimitGroup" title="fanc.plotting.LimitGroup"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LimitGroup</span></code></a>([limit, sig])</p></td>
 <td><p>Can be used for synchronizing axis limits across multiple plots.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">MirrorMatrixPlot</span></code>(top_plot, bottom_plot[, …])</p></td>
+<td><p>Stack two plots on top of each other, bottom plot inverted.</p></td>
 </tr>
 </tbody>
 </table>
