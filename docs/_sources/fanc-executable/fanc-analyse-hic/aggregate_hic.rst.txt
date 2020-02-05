@@ -113,7 +113,7 @@ For both the log2(O/E) and rescaled versions of the aggregate matrices, there ar
 preset flags you can use called ``--tads`` and ``--tads-imakaev``, respectively. The
 latter is named after the first author of the publication that first used rescaled
 aggregate matrices in this fashion
-(`Flyamer and Imakaev et al., 2017 <http://www.nature.com/doifinder/10.1038/nature21711>`_). In
+(`Flyamer, Gassler, and Imakaev et al., 2017 <http://www.nature.com/doifinder/10.1038/nature21711>`_). In
 the above example, you can simply run
 
 .. literalinclude:: code/aggregate_example_code
