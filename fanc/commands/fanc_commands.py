@@ -4038,7 +4038,7 @@ def aggregate_parser():
     )
 
     parser.add_argument(
-        '--tads-flyamer', dest='tads_flyamer_preset',
+        '--tads-imakaev', dest='tads_imakaev_preset',
         default=False,
         action='store_true',
         help='Use presets for aggregate TADs: '
@@ -4214,7 +4214,7 @@ def aggregate(argv, **kwargs):
     matrix_file = os.path.expanduser(args.matrix_file) if args.matrix_file is not None else None
     plot_file = os.path.expanduser(args.plot_file) if args.plot_file is not None else None
     tads_preset = args.tads_preset
-    tads_flyamer_preset = args.tads_flyamer_preset
+    tads_imakaev_preset = args.tads_imakaev_preset
     loops_preset = args.loops_preset
     window = args.window
     pixels = args.pixels
@@ -4235,9 +4235,9 @@ def aggregate(argv, **kwargs):
     labels = args.labels
     tmp = args.tmp
 
-    presets = sum([tads_preset, tads_flyamer_preset, loops_preset])
+    presets = sum([tads_preset, tads_imakaev_preset, loops_preset])
     if presets > 1:
-        parser.error("--tads, --tads-flyamer, and --loops are mutually exclusive!")
+        parser.error("--tads, --tads-imakaev, and --loops are mutually exclusive!")
 
     if tads_preset:
         if relative is None:
@@ -4250,7 +4250,7 @@ def aggregate(argv, **kwargs):
         if vmax is None:
             vmax = 1
 
-    if tads_flyamer_preset:
+    if tads_imakaev_preset:
         relative = 1.0
         oe = True
         log = False
