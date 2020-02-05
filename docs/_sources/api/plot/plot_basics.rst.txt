@@ -21,9 +21,9 @@ For the following sections we will load a :class:`~fanc.hic.Hic` file for plotti
     :end-before: end snippet fancplot load hic
 
 
-===========
+***********
 BasePlotter
-===========
+***********
 
 Each plot type is based on the :class:`~fanc.plotting.base_plotter.BasePlotter` class.
 It controls the formatting of the X axis in genomic coordinates (kb, mb, etc), and provides
@@ -61,9 +61,9 @@ to ``False``.
 
 .. _api_plot_matplotlib:
 
-===============================
+*******************************
 Using dedicated Matplotlib Axes
-===============================
+*******************************
 
 For the highest level of control over your plot, you can build your figures on top of
 `Matplotlib <https://matplotlib.org/>`_. This enables you to modify each aspect of the

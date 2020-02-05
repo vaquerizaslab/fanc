@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Hi-C aggregate analysis &mdash; FAN-C 0.8.16-beta documentation</title>
+  <title>Hi-C aggregate analysis &mdash; FAN-C 0.8.17-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.16
+                0.8.17
               </div>
             
           
@@ -190,7 +190,7 @@ vicinity.</p>
 <img alt="../../_images/aggregate_examples_biorxiv.png" src="../../_images/aggregate_examples_biorxiv.png" />
 <p>You can easily create your own aggregate plots using <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">aggregate</span></code>.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">aggregate</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span> <span class="n">MATRIX_FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">PLOT_FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">tads</span><span class="p">]</span>
-                      <span class="p">[</span><span class="o">--</span><span class="n">tads</span><span class="o">-</span><span class="n">flyamer</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">loops</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">pixels</span> <span class="n">PIXELS</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">--</span><span class="n">tads</span><span class="o">-</span><span class="n">imakaev</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">loops</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">pixels</span> <span class="n">PIXELS</span><span class="p">]</span>
                       <span class="p">[</span><span class="o">-</span><span class="n">v</span> <span class="n">REGION_VIEWPOINT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BOUNDARY_MODE</span><span class="p">]</span>
                       <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">INTERPOLATION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RELATIVE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">a</span> <span class="n">ABSOLUTE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">e</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span>
                       <span class="p">[</span><span class="o">--</span><span class="n">rescale</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">colormap</span> <span class="n">COLORMAP</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">vmin</span> <span class="n">VMIN</span><span class="p">]</span>
@@ -225,7 +225,7 @@ vicinity.</p>
 <dt><kbd>--tads</kbd></dt>
 <dd><p>Use presets for aggregate TADs: –relative 1.0 –expected –log –vmin -1 –vmax 1</p>
 </dd>
-<dt><kbd>--tads-flyamer</kbd></dt>
+<dt><kbd>--tads-imakaev</kbd></dt>
 <dd><p>Use presets for aggregate TADs: –relative 1.0 –expected–rescale</p>
 </dd>
 <dt><kbd>--loops</kbd></dt>
@@ -364,10 +364,10 @@ pixel values at 0.045 using <code class="docutils literal notranslate"><span cla
 <div class="section" id="aggregate-tads">
 <h2>Aggregate TADs<a class="headerlink" href="#aggregate-tads" title="Permalink to this headline">¶</a></h2>
 <p>For both the log2(O/E) and rescaled versions of the aggregate matrices, there are
-preset flags you can use called <code class="docutils literal notranslate"><span class="pre">--tads</span></code> and <code class="docutils literal notranslate"><span class="pre">--tads-flyamer</span></code>, respectively. The
+preset flags you can use called <code class="docutils literal notranslate"><span class="pre">--tads</span></code> and <code class="docutils literal notranslate"><span class="pre">--tads-imakaev</span></code>, respectively. The
 latter is named after the first author of the publication that first used rescaled
 aggregate matrices in this fashion
-(<a class="reference external" href="http://www.nature.com/doifinder/10.1038/nature21711">Flyamer et al., 2017</a>). In
+(<a class="reference external" href="http://www.nature.com/doifinder/10.1038/nature21711">Flyamer and Imakaev et al., 2017</a>). In
 the above example, you can simply run</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc aggregate output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
                architecture/domains/gm12878_tads.bed <span class="se">\</span>
