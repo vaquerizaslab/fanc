@@ -1641,20 +1641,25 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         self._flush_edges(silent=silent)
 
     def _disable_edge_indexes(self):
-        for _, edge_table in self._iter_edge_tables():
+        logger.debug("Disabling edge indexes")
+        for ix, edge_table in self._iter_edge_tables():
+            logger.debug("Disabling {}".format(ix))
             if edge_table.cols.source.is_indexed:
                 edge_table.cols.source.remove_index()
             if edge_table.cols.sink.is_indexed:
                 edge_table.cols.sink.remove_index()
             edge_table.disable_mask_index()
+            edge_table.flush()
 
     def _enable_edge_indexes(self):
+        logger.debug("Enabling edge indexes")
         for _, edge_table in self._iter_edge_tables():
             if not edge_table.cols.source.is_indexed:
                 create_col_index(edge_table.cols.source)
             if not edge_table.cols.sink.is_indexed:
                 create_col_index(edge_table.cols.sink)
             edge_table.enable_mask_index()
+            edge_table.flush()
 
     def _update_partitions(self):
         logger.debug("Updating partitions!")
