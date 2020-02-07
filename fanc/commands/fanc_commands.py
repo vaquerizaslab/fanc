@@ -1592,6 +1592,88 @@ def from_juicer(argv, **kwargs):
     logger.info("All done.")
 
 
+def from_txt_parser():
+    parser = argparse.ArgumentParser(
+        prog="fanc from-txt",
+        description='Import a Hi-C object from a sparse matrix txt format'
+    )
+
+    parser.add_argument(
+        'contacts',
+        help='Contacts file in sparse matrix format, i.e. each row '
+             'should contain <bin1><tab><bin2><tab><weight>.'
+    )
+
+    parser.add_argument(
+        'regions',
+        help='Path to file with genomic regions, for example in BED format: '
+             '<chromosome><tab><start><tab><end>. The BED can optionally contain '
+             'the bin index, as corresponding to the index used in the contacts file.'
+    )
+
+    parser.add_argument(
+        'output',
+        help='''Output Hic file.'''
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        default=False,
+        help='''Work in temporary directory'''
+    )
+    return parser
+
+
+def from_txt(argv, **kwargs):
+    parser = from_txt_parser()
+
+    args = parser.parse_args(argv[2:])
+    contacts_file = os.path.expanduser(args.contacts)
+    regions_file = os.path.expanduser(args.regions)
+    output_file = os.path.expanduser(args.output)
+    tmp = args.tmp
+
+    from genomic_regions.files import create_temporary_copy
+
+    original_contacts_file = contacts_file
+    original_regions_file = regions_file
+    original_output_file = output_file
+    try:
+        if tmp:  # copy file if required
+            tmp = False  # to prevent deleting input file should this be interrupted at this point
+            logger.info("Copying input files...")
+            contacts_file = create_temporary_copy(original_contacts_file)
+            regions_file = create_temporary_copy(original_regions_file)
+
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.hic')
+            tmp_file.close()
+            output_file = tmp_file.name
+            logger.info("Temporary output file: %s" % output_file)
+            tmp = True
+
+        from fanc.compatibility.txt import load_regions, load_contacts
+        import fanc
+        regions, ix_converter = load_regions(regions_file)
+
+        hic = fanc.Hic(file_name=output_file, mode='w')
+        hic.add_regions(regions)
+
+        for source, sink, weight in load_contacts(contacts_file, ix_converter=ix_converter):
+            hic.add_edge_simple(source, sink, weight=weight)
+        hic.flush()
+        hic.close()
+    finally:
+        if tmp:
+            logger.info("Removing tmp files...")
+            os.remove(contacts_file)
+            os.remove(regions_file)
+            shutil.copy(output_file, original_output_file)
+            os.remove(output_file)
+
+    logger.info("All done.")
+
+
 def to_cooler_parser():
     parser = argparse.ArgumentParser(
         prog="fanc hic_to_cooler",
