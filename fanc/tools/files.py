@@ -540,7 +540,7 @@ def write_bigwig(file_name, regions, mode='w', score_field='score'):
     return file_name
 
 
-def sort_natural_sam(sam_file, output_file=None, sambamba=True, _sambamba_path='sambamba'):
+def sort_natural_sam(sam_file, output_file=None, sambamba=True, threads=1, _sambamba_path='sambamba'):
     if which(_sambamba_path) is None and sambamba:
         logger.info('Cannot find {} on this machine, falling back to samtools sort. '
                     'This is not a problem, but if you want to speed up your SAM/BAM '
@@ -556,7 +556,7 @@ def sort_natural_sam(sam_file, output_file=None, sambamba=True, _sambamba_path='
         replace_input = True
 
     if sambamba:
-        sambamba_command = [_sambamba_path, 'sort', '-N', '-o', output_file, sam_file]
+        sambamba_command = [_sambamba_path, 'sort', '-N', '-t', str(threads), '-o', output_file, sam_file]
         ret = subprocess.call(sambamba_command)
         if ret != 0:
             sambamba = False

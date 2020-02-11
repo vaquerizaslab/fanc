@@ -545,11 +545,18 @@ def sort_sam_parser():
     )
 
     parser.add_argument(
+        '-t', '--threads', dest='threads',
+        default=1,
+        type=int,
+        help='Number of sorting threads (only when sambamba is available)'
+    )
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
+        default=False,
         help='Work in temporary directory'
     )
-    parser.set_defaults(tmp=False)
 
     return parser
 
@@ -560,6 +567,7 @@ def sort_sam(argv, **kwargs):
 
     sam_file = os.path.expanduser(args.sam)
     output_file = None if args.output is None else os.path.expanduser(args.output)
+    threads = args.threads
     tmp = args.tmp
 
     from genomic_regions.files import create_temporary_copy
@@ -581,7 +589,7 @@ def sort_sam(argv, **kwargs):
             tmp = True
             logger.info("Working in tmp: {}, ".format(sam_file, output_file))
 
-        output_file = sort_natural_sam(sam_file, output_file)
+        output_file = sort_natural_sam(sam_file, output_file, threads=threads)
         success = True
     finally:
         if tmp:
