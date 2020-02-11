@@ -40,12 +40,12 @@ Description and examples
 
 .. automodule:: fanc.plotting
     :members:
-        HicPlot, HicPlot2D, HicComparisonPlot2D,
+        TriangularMatrixPlot, SquareMatrixPlot, SplitMatrixPlot, HicComparisonPlot2D,
         HicSlicePlot, HicPeakPlot, VerticalSplitPlot, GenomicVectorArrayPlot,
         GenomicFeaturePlot, GenomicRegionsPlot, GenomicFeatureScorePlot,
         GenomicFigure, BigWigPlot, LinePlot,
         GenePlot, FeatureLayerPlot, GenomicDataFramePlot, HighlightAnnotation,
-        SymmetricNorm, LimitGroup
+        SymmetricNorm, LimitGroup, MirrorMatrixPlot
     :special-members: __init__
 
     .. data:: example_data
