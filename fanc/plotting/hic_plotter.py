@@ -239,6 +239,9 @@ class BufferedCombinedMatrix(BufferedMatrix):
                  **kwargs):
         super(BufferedCombinedMatrix, self).__init__(None, **kwargs)
 
+        if top_matrix.bin_size != bottom_matrix.bin_size:
+            raise ValueError("Can only combine matrices with equal binning!")
+
         scaling_factor = top_matrix.scaling_factor(bottom_matrix) if scale_matrices else 1.
         self.data = SplitMatrix(top_matrix, bottom_matrix, scaling_factor=scaling_factor)
 
