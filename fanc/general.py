@@ -622,7 +622,7 @@ class MaskedTable(t.Table):
                  title="", filters=_filter, expectedrows=None,
                  chunkshape=None, byteorder=None, _log=False,
                  mask_field='_mask', mask_index_field='_mask_ix',
-                 ignore_reserved_fields=False):
+                 ignore_reserved_fields=False, create_mask_index=False):
         """
         Pytables Table extension to provide masking functionality.
         """
@@ -668,7 +668,7 @@ class MaskedTable(t.Table):
                          chunkshape=chunkshape,
                          byteorder=byteorder)
         
-        if description is not None:
+        if create_mask_index and description is not None:
             self.enable_mask_index()
 
     def disable_mask_index(self):

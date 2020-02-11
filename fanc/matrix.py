@@ -1372,7 +1372,7 @@ class TableBuffer(object):
                                    silent=config.hide_progressbars or partition is not None,
                                    prefix="Buffers") as pb:
             for i, partition in enumerate(partitions):
-                edge_table = self._matrix._edge_table(partition[0], partition[1])
+                edge_table = self._matrix._edge_table(partition[0], partition[1], create_index=False)
                 buffer_table = self._buffer[partition]
                 ix = self._counter[partition]
                 flush = False
@@ -1562,7 +1562,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         # set up edge buffer
         self._edge_buffer = TableBuffer(self, buffer_size=_edge_buffer_size)
 
-    def _edge_table(self, source_partition, sink_partition, fields=None, create_if_missing=True):
+    def _edge_table(self, source_partition, sink_partition, fields=None, create_if_missing=True, create_index=True):
         """
         Create and register an edge table for a partition combination.
         """
@@ -1580,13 +1580,15 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         edge_table = MaskedTable(self._edges,
                                  edge_table_name,
                                  fields, ignore_reserved_fields=True,
-                                 expectedrows=10000000)
+                                 expectedrows=10000000,
+                                 create_mask_index=create_index)
         edge_table.attrs['source_partition'] = source_partition
         edge_table.attrs['sink_partition'] = sink_partition
 
         # index
-        create_col_index(edge_table.cols.source)
-        create_col_index(edge_table.cols.sink)
+        if create_index:
+            create_col_index(edge_table.cols.source)
+            create_col_index(edge_table.cols.sink)
 
         return edge_table
 
