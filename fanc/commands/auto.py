@@ -873,6 +873,8 @@ def auto(argv, **kwargs):
             file_types[i] = 'sam'
 
     if sam_sort:
+        sort_threads = min(4, threads)
+
         sam_sort_tasks = []
         # sort SAM files
         sam_files = []
@@ -892,7 +894,8 @@ def auto(argv, **kwargs):
 
                 sorted_sam_files.append(sorted_sam_file)
 
-                sort_command = fanc_base_command + ['sort_sam', file_names[ix], sorted_sam_file]
+                sort_command = fanc_base_command + ['sort_sam', '-t', str(sort_threads),
+                                                    file_names[ix], sorted_sam_file]
                 if tmp:
                     sort_command.append('-tmp')
 
