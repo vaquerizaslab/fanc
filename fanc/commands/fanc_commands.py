@@ -461,14 +461,16 @@ def fragments_parser():
 
     parser.add_argument(
         'input',
-        help="Path to genome file (FASTA, folder with FASTA, hdf5 file), " +
-             "which will be used in conjunction with the type of restriction enzyme to " +
+        help="Path to genome file (FASTA, folder with FASTA, hdf5 file), "
+             "which will be used in conjunction with the type of restriction enzyme to "
              "calculate fragments directly."
     )
 
     parser.add_argument(
         're_or_bin_size',
-        help="Restriction enzyme name or bin size to divide genome into fragments."
+        help="Restriction enzyme name or bin size to divide genome into fragments. "
+             "Restriction names can be any supported by Biopython, which obtains data "
+             "from REBASE (http://rebase.neb.com/rebase/rebase.html)"
     )
 
     parser.add_argument(
@@ -478,8 +480,7 @@ def fragments_parser():
 
     parser.add_argument(
         '-c', '--chromosomes', dest='chromosomes',
-        nargs='+',
-        help='List of chromosomes to include in fragments BED file. '
+        help='Comma-separated list of chromosomes to include in fragments BED file. '
              'Other chromosomes will be excluded. The order of chromosomes will '
              'be as stated in the list.'
     )
@@ -506,6 +507,7 @@ def fragments(argv, **kwargs):
     from collections import defaultdict
 
     if chromosomes is not None:
+        chromosomes = chromosomes.split(",")
         chromosome_regions = defaultdict(list)
         for region in regions:
             chromosome_regions[region.chromosome].append(region)
