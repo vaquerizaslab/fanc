@@ -2,3 +2,12 @@
 
 - Renamed --tads-flyamer to --tads-imakaev in fanc aggregate
 - option for strings passed to max_dist in triangular matrix plot API
+
+0.8.18
+
+- Fix for an index bug that could lead to table write errors in some settings
+- add from-txt capability to fanc
+- Support for loading gzipped FASTA files as genome. Closes issues #1 and #2
+- Updated fanc fragments. Note that the --chromosomes argument now requires a comma-separated list as input. Closes issue #4
+- Support for multi-threaded SAM/BAM sorting with sambamba. Closes issue #5
+- Check for equal bin sizes before combining matrix for split plot. Fixes issue #7
