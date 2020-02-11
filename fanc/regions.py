@@ -62,6 +62,7 @@ in silico digestion and genome binning.
 from __future__ import division, print_function
 
 import os.path
+import gzip
 
 import numpy as np
 import tables as t
@@ -193,7 +194,9 @@ class Chromosome(object):
                  sequence in the file, list(:class:`~Chromosome`) if
                  there are multiple sequences.
         """
-        with open(file_name, 'r') as fasta_file:
+        open_ = gzip.open if file_name.endswith('.gz') or file_name.endswith('.gzip') else open
+
+        with open_(file_name, 'rt') as fasta_file:
             fastas = SeqIO.parse(fasta_file, 'fasta')
 
             chromosomes = []
