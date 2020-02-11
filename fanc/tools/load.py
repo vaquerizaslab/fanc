@@ -50,6 +50,7 @@ def load(file_name, *args, **kwargs):
     """
     mode = kwargs.pop('mode', 'r')
     file_name = os.path.expanduser(file_name)
+    logger.debug("Searching for file type compatible with {}".format(file_name))
 
     try:
         logger.debug("Trying FileBased classes")
@@ -66,9 +67,8 @@ def load(file_name, *args, **kwargs):
         return cls_(file_name=file_name, mode=mode, *args, **kwargs)
     except (tables.HDF5ExtError, AttributeError, KeyError) as e:
         logger.debug("Not a FileBased class (exception: {})".format(e))
-        pass
-    except OSError:
-        logger.debug("Exact filename not found, might still be cooler uri")
+    except OSError as e:
+        logger.debug("Exact filename not found, might still be cooler uri (exception: {})".format(e))
 
     try:
         with warnings.catch_warnings():
@@ -77,11 +77,14 @@ def load(file_name, *args, **kwargs):
         if is_cooler(file_name):
             logger.debug("Cooler file detected")
             return CoolerHic(file_name, *args, **kwargs)
-    except (ImportError, OSError, FileNotFoundError):
-        pass
+    except (ImportError, OSError, FileNotFoundError) as e:
+        logger.debug("Not a Cooler file (exception: {}".format(e))
 
     from fanc.compatibility.juicer import JuicerHic, is_juicer
     if is_juicer(file_name):
         return JuicerHic(file_name, *args, **kwargs)
+    else:
+        logger.debug("Not a Juicer file")
 
+    logger.debug("Passing the file on to genomic_region.load to try region_based file types")
     return gr_load(file_name, *args, **kwargs)
