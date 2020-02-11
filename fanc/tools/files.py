@@ -86,7 +86,9 @@ def is_fasta_file(file_name):
 
     try:
         is_fasta = True
-        with open(file_name, 'r') as f:
+        open_ = gzip.open if file_name.endswith('.gz') or file_name.endswith('.gzip') else open
+
+        with open_(file_name, 'rt') as f:
             fastas = SeqIO.parse(f, 'fasta')
 
             try:
