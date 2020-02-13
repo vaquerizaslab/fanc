@@ -1102,19 +1102,27 @@ class Genome(FileGroup):
 
         regions = RegionsTable(file_name=file_name)
 
+        if isinstance(split, string_types) or isinstance(split, int):
+            splits = [split]
+        else:
+            splits = split
+
         region_list = []
         for chromosome in self:
             if chromosomes is not None and chromosome.name not in chromosomes:
                 continue
             split_locations = []
-            if isinstance(split, string_types):
-                split_locations = chromosome.get_restriction_sites(split)
-            elif isinstance(split, int):
-                for i in range(split, len(chromosome) - 1, split):
-                    split_locations.append(i)
-            else:
-                for i in split:
-                    split_locations.append(i)
+            for split in splits:
+
+                if isinstance(split, string_types):
+                    split_locations += chromosome.get_restriction_sites(split)
+                elif isinstance(split, int):
+                    for i in range(split, len(chromosome) - 1, split):
+                        split_locations.append(i)
+                else:
+                    raise ValueError("split argument {} not supported".format(split))
+
+            split_locations = sorted(set(split_locations))
 
             for i in range(0, len(split_locations)):
                 if i == 0:

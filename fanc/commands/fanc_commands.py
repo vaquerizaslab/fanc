@@ -470,7 +470,8 @@ def fragments_parser():
         're_or_bin_size',
         help="Restriction enzyme name or bin size to divide genome into fragments. "
              "Restriction names can be any supported by Biopython, which obtains data "
-             "from REBASE (http://rebase.neb.com/rebase/rebase.html)"
+             "from REBASE (http://rebase.neb.com/rebase/rebase.html). "
+             "Use commas to separate multiple restriction enzymes, e.g. 'HindIII,MboI'"
     )
 
     parser.add_argument(
@@ -495,7 +496,7 @@ def fragments(argv, **kwargs):
     import os
 
     genome_file = os.path.expanduser(args.input)
-    re_or_bin_size = args.re_or_bin_size
+    re_or_bin_size = args.re_or_bin_size.split(",")
     output_file = os.path.expanduser(args.output)
     chromosomes = args.chromosomes
 
