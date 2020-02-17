@@ -182,8 +182,10 @@ def map_parser():
         '-r', '--restriction-enzyme', dest='restriction_enzyme',
         help='Name (case sensitive) of restriction enzyme used in Hi-C experiment. '
              'Will be used to split reads by predicted ligation junction before mapping. '
-             'You can omit this if you do not want to split your reads by ligation junction.'
-
+             'You can omit this if you do not want to split your reads by ligation junction. '
+             'Restriction names can be any supported by Biopython, which obtains data '
+             'from REBASE (http://rebase.neb.com/rebase/rebase.html). '
+             'For restriction enzyme cocktails, separate enzyme names with ","'
     )
 
     parser.add_argument(
@@ -284,6 +286,9 @@ def map(argv, **kwargs):
         threads, mapper_threads = 1, args.threads
     else:
         threads, mapper_threads = args.threads, 1
+
+    if restriction_enzyme is not None:
+        restriction_enzyme = restriction_enzyme.split(",")
 
     import fanc.map as map
     from fanc.tools.general import mkdir
@@ -435,7 +440,7 @@ def map(argv, **kwargs):
                         if trim_front:
                             split_command += ['--trim-front']
                         if restriction_enzyme is not None:
-                            split_command += ['--restriction-enzyme', restriction_enzyme]
+                            split_command += ['--restriction-enzyme', ",".join(restriction_enzyme)]
 
                         rt = subprocess.call(split_command)
                         split_fastq_results.append(rt)
@@ -644,7 +649,10 @@ def pairs_parser():
         '-r', '--restriction_enzyme',
         help='Name of the restriction enzyme used in the '
              'experiment, e.g. HindIII, or MboI. Case-sensitive, '
-             'only necessary when --genome is provided as FASTA.'
+             'only necessary when --genome is provided as FASTA. '
+             'Restriction names can be any supported by Biopython, which obtains data '
+             'from REBASE (http://rebase.neb.com/rebase/rebase.html). '
+             'Separate multiple restriction enzymes with ","'
     )
 
     parser.add_argument(
@@ -850,6 +858,9 @@ def pairs(argv, **kwargs):
 
     from genomic_regions.files import create_temporary_copy, create_temporary_output
 
+    if restriction_enzyme is not None:
+        restriction_enzyme = restriction_enzyme.split(",")
+
     tmp_input_files = []
     original_pairs_file = None
     pairs_file = None
@@ -942,6 +953,7 @@ def pairs(argv, **kwargs):
             logger.info("Two arguments detected, assuming HiC-Pro or 4D Nucleome input.")
             from fanc.pairs import HicProPairGenerator, FourDNucleomePairGenerator, ReadPairs
             from fanc.regions import genome_regions
+            import genomic_regions as gr
 
             input_file = os.path.expanduser(input_files[0])
             pairs_file = os.path.expanduser(input_files[1])
@@ -964,7 +976,10 @@ def pairs(argv, **kwargs):
 
             pairs = ReadPairs(file_name=pairs_file, mode='w')
 
-            pairs.add_regions(regions, preserve_attributes=False)
+            if isinstance(regions, gr.RegionBased):
+                pairs.add_regions(regions.regions, preserve_attributes=False)
+            else:
+                pairs.add_regions(regions, preserve_attributes=False)
             pairs.add_read_pairs(sb, threads=threads, batch_size=batch_size)
             pairs.close()
         elif len(input_files) == 1:

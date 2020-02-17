@@ -381,7 +381,10 @@ def auto_parser():
         help="Restriction enzyme name. "
              "Used for in silico digestion "
              "of genomic sequences and splitting of reads at Hi-C "
-             "ligation junctions. (e.g. HindIII, case-sensitive)"
+             "ligation junctions. (e.g. HindIII, case-sensitive). "
+             "Separate multiple enzymes with ','. "
+             "Restriction names can be any supported by Biopython, which obtains data "
+             "from REBASE (http://rebase.neb.com/rebase/rebase.html). "
     )
 
     parser.add_argument(
@@ -802,11 +805,13 @@ def auto(argv, **kwargs):
             except ValueError:
                 parser.error("Must provide restriction enzyme (-r) to process read pair files!")
         else:
+            res = restriction_enzyme.split(",")
             from Bio import Restriction
-            try:
-                getattr(Restriction, restriction_enzyme)
-            except AttributeError:
-                parser.error("Restriction enzyme string '{}' is not recognized".format(restriction_enzyme))
+            for r in res:
+                try:
+                    getattr(Restriction, r)
+                except AttributeError:
+                    parser.error("Restriction enzyme string '{}' is not recognized".format(restriction_enzyme))
 
     logger.info("Output folder: {}".format(output_folder))
     logger.info("Input files: {}".format(", ".join(file_names)))
