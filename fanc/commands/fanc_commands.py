@@ -1337,7 +1337,7 @@ def hic(argv, **kwargs):
                     parser.error("File ({}) type {} not supported."
                                  "Provide Pairs or Hic files!".format(original_input_file, type(o)))
             finally:
-                if o is not None:
+                if o is not None and hasattr(o, 'close'):
                     o.close()
 
         if len(pairs_files) > 0:
