@@ -121,8 +121,8 @@ def _bin_hic_partition_worker(hic_file, qin, qout,
                 logger.debug("Received stop signal, worker terminating.")
                 break
 
-            chromosome1, chromosome2 = worker_input
-            logger.debug("Received {}-{}".format(chromosome1, chromosome2))
+            partition1, partition2 = worker_input
+            logger.debug("Received {}-{}".format(partition1, partition2))
 
             with access_lock:
                 hic = None
@@ -130,7 +130,8 @@ def _bin_hic_partition_worker(hic_file, qin, qout,
                     hic = load(hic_file)
                     _weight_field = hic._default_score_field
                     all_edges = []
-                    for edge in hic.edges_dict((chromosome1, chromosome2), lazy=True):
+                    key = slice(partition1[0], partition1[1], 1), slice(partition2[0], partition2[1], 1)
+                    for edge in hic.edges_dict(key, lazy=True):
                         try:
                             all_edges.append([edge['source'], edge['sink'], edge[_weight_field]])
                         except KeyError:
@@ -181,7 +182,7 @@ class Hic(RegionMatrixTable):
 
     def load_from_hic(self, hic, threads=1, chromosomes=None,
                       _edges_by_overlap_method=_edge_overlap_split_rao,
-                      _partition_size=1000):
+                      _regions_soft_max=50000):
         """
         Load data from another :class:`~Hic` object.
 
@@ -200,7 +201,10 @@ class Hic(RegionMatrixTable):
                                          a supplied overlap map. By default
                                          it uses the Rao et al. (2014) method.
                                          See :func:`~_edge_overlap_split_rao`
-        :param _partition_size: Number of edges processed by each thread
+        :param _regions_soft_max: Maximum dimension of each processed submatrix
+                                  per thread. This is a soft maximum, which may be
+                                  increased as required for very large chromosomes or
+                                  small bin sizes
         """
         # if we do not have any nodes in this Hi-C object...
         if len(self.regions) == 0:
@@ -258,22 +262,41 @@ class Hic(RegionMatrixTable):
                                     _edges_by_overlap_method,
                                     access_lock))
 
+                    n_fragments = len(hic.regions)
+                    thread_max = min(int(n_fragments/threads), _regions_soft_max)
+                    partitions = [[0, 0]]
+                    previous_chromosome = None
+                    for i, region in enumerate(hic.regions(lazy=True)):
+                        if previous_chromosome is not None and (region.chromosome != previous_chromosome
+                                                                or i == n_fragments - 1):
+                            partition_size = partitions[-1][1] - partitions[-1][0]
+                            current_size = i - partitions[-1][1]
+                            partition_empty = thread_max - partition_size
+
+                            if partition_size == 0 or partition_empty > current_size/2:
+                                partitions[-1][1] = i
+                            else:
+                                partitions.append([partitions[-1][1], i])
+                        previous_chromosome = region.chromosome
+                    partitions[-1][1] = n_fragments
+
                     logger.info("Submitting partitions")
-                    if chromosomes is None:
-                        chromosomes = hic.chromosomes()
 
-                    if len(chromosomes) > 100:
-                        warnings.warn("Number of chromosomes ({}) is very large. Consider limiting "
-                                      "the processed chromosomes using the 'chromosomes' argument or "
-                                      "expect significant slowdown during binning!".format(len(chromosomes)))
-
+                    # submit intra-chromosomal first to distribute
+                    # load among workers more evenly
                     n_chunks = 0
-                    for cix1, chromosome1 in enumerate(chromosomes):
-                        for cix2 in range(cix1, len(chromosomes)):
-                            chromosome2 = chromosomes[cix2]
-                            qin.put((chromosome1, chromosome2))
+                    for partition in partitions:
+                        qin.put((partition, partition))
+                        n_chunks += 1
+
+                    # then submit inter-chromosomal partitions
+                    for cix1, partition1 in enumerate(partitions):
+                        for cix2 in range(cix1 + 1, len(partitions)):
+                            partition2 = partitions[cix2]
+                            qin.put((partition1, partition2))
                             n_chunks += 1
 
+                    self._disable_edge_indexes()
                     logger.info("Collecting results")
                     with RareUpdateProgressBar(max_value=n_chunks, prefix="Binning") as pb:
                         for i in range(n_chunks):
