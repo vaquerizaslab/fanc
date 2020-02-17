@@ -9,6 +9,9 @@ from genomic_regions import GenomicRegion
 from ..tools.sambam import natural_cmp
 from functools import cmp_to_key
 import tempfile
+import warnings
+from ..tools.files import tmp_file_name
+import shutil
 
 
 from ..matrix import RegionMatrixContainer, Edge
@@ -244,10 +247,38 @@ class LazyCoolerRegion(GenomicRegion):
 
 class CoolerHic(RegionMatrixContainer, cooler.Cooler):
     def __init__(self, *args, **kwargs):
+        mode = kwargs.pop("mode", 'r')
+        tmpdir = kwargs.pop('tmpdir', None)
+
+        if mode != 'r':
+            warnings.warn("Mode {} not compatible with CoolerHic. "
+                          "File will be opened in read-only mode and "
+                          "changes will not be saved to file!")
         largs = list(args)
-        if "@" in args[0]:
-            hic_file, at_resolution = args[0].split("@")
+        at_resolution = None
+
+        hic_file = largs[0]
+        if "@" in largs[0]:
+            hic_file, at_resolution = largs[0].split("@")
+
+        if tmpdir is None or (isinstance(tmpdir, bool) and not tmpdir):
+            self.tmp_file_name = None
+        else:
+            logger.info("Working in temporary directory...")
+            if isinstance(tmpdir, bool):
+                tmpdir = tempfile.gettempdir()
+            else:
+                tmpdir = os.path.expanduser(tmpdir)
+            self.tmp_file_name = tmp_file_name(tmpdir, prefix='tmp_fanc', extension='.mcool')
+            logger.info("Temporary file: {}".format(self.tmp_file_name))
+            shutil.copyfile(hic_file, self.tmp_file_name)
+            hic_file = self.tmp_file_name
+
+        if at_resolution is None:
+            largs[0] = hic_file
+        else:
             largs[0] = hic_file + '::resolutions/{}'.format(at_resolution)
+
         cooler.Cooler.__init__(self, *largs, **kwargs)
         RegionMatrixContainer.__init__(self)
         self._mappability = None
@@ -256,7 +287,20 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        return True
+        self.close()
+        return exc_type is None
+
+    def close(self, remove_tmp=True):
+        """
+        Close this Juicer file and run exit operations.
+
+        If file was opened with tmpdir in read-only mode:
+        close file and delete temporary copy.
+
+        :param remove_tmp: If False, does not delete temporary copy of file.
+        """
+        if self.tmp_file_name is not None and remove_tmp:
+            os.remove(self.tmp_file_name)
 
     def _series_to_region(self, series, ix=None, lazy_region=None):
         if lazy_region is not None:

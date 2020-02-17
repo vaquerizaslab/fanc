@@ -10,7 +10,9 @@ from ..hic import Hic
 from ..pairs import ReadPairs
 from ..matrix import RegionMatrixContainer, Edge
 from ..config import config
+from ..tools.files import tmp_file_name
 
+import os
 import subprocess
 import warnings
 import tempfile
@@ -257,7 +259,7 @@ class LazyJuicerEdge(Edge):
 
 
 class JuicerHic(RegionMatrixContainer):
-    def __init__(self, hic_file, resolution=None, norm='KR'):
+    def __init__(self, hic_file, resolution=None, mode='r', tmpdir=None, norm='KR'):
         RegionMatrixContainer.__init__(self)
         if '@' in hic_file:
             hic_file, at_resolution = hic_file.split("@")
@@ -265,7 +267,20 @@ class JuicerHic(RegionMatrixContainer):
                 raise ValueError("Conflicting resolution specifications: "
                                  "{} and {}".format(at_resolution, resolution))
             resolution = int(at_resolution)
-        self._hic_file = hic_file
+
+        if tmpdir is None or (isinstance(tmpdir, bool) and not tmpdir):
+            self.tmp_file_name = None
+            self._hic_file = hic_file
+        else:
+            logger.info("Working in temporary directory...")
+            if isinstance(tmpdir, bool):
+                tmpdir = tempfile.gettempdir()
+            else:
+                tmpdir = os.path.expanduser(tmpdir)
+            self.tmp_file_name = tmp_file_name(tmpdir, prefix='tmp_fanc', extension='_juicer.hic')
+            logger.info("Temporary file: {}".format(self.tmp_file_name))
+            shutil.copyfile(hic_file, self.tmp_file_name)
+            self._hic_file = self.tmp_file_name
 
         bp_resolutions, _ = self.resolutions()
         if resolution is None:
@@ -273,6 +288,12 @@ class JuicerHic(RegionMatrixContainer):
             warnings.warn("No resolution chosen for Juicer Hic! Using {}bp".format(resolution))
         if resolution not in bp_resolutions:
             raise ValueError("Resolution {} not supported ({})".format(resolution, bp_resolutions))
+
+        if mode != 'r':
+            warnings.warn("Mode {} not compatible with JuicerHic. "
+                          "File will be opened in read-only mode and "
+                          "changes will not be saved to file!")
+
         self._resolution = resolution
         self._normalisation = norm
         self._unit = 'BP'
@@ -286,7 +307,20 @@ class JuicerHic(RegionMatrixContainer):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        return True
+        self.close()
+        return exc_type is None
+
+    def close(self, remove_tmp=True):
+        """
+        Close this Juicer file and run exit operations.
+
+        If file was opened with tmpdir in read-only mode:
+        close file and delete temporary copy.
+
+        :param remove_tmp: If False, does not delete temporary copy of file.
+        """
+        if self.tmp_file_name is not None and remove_tmp:
+            os.remove(self.tmp_file_name)
 
     @property
     def version(self):
