@@ -32,6 +32,7 @@ import pysam
 import tempfile
 import shutil
 import uuid
+from future.utils import string_types
 from .config import config
 from .tools.files import which
 from .tools.general import ligation_site_pattern, split_at_ligation_junction, WorkerMonitor
@@ -673,9 +674,12 @@ def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
     monitor.set_submitting(True)
 
     if restriction_enzyme is not None:
-        ligation_pattern = ligation_site_pattern(restriction_enzyme)
+        if isinstance(restriction_enzyme, string_types):
+            restriction_enzyme = [restriction_enzyme]
+
+        ligation_patterns = [ligation_site_pattern(r) for r in restriction_enzyme]
     else:
-        ligation_pattern = None
+        ligation_patterns = None
 
     tmp_output_file = None
     line_counter = 0
@@ -700,7 +704,7 @@ def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
 
                 # line = line.decode() if isinstance(line, bytes) else line
                 if line_counter % 4 == 0:
-                    if not ligation_pattern:
+                    if not ligation_patterns:
                         for fastq_line in current_fastq:
                             tmp_output_file.write(fastq_line)
                         read_counter += 1
@@ -708,7 +712,7 @@ def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
                         name, info = read_name(current_fastq[0].rstrip().decode())
                         seq = current_fastq[1].rstrip()
                         qual = current_fastq[3].rstrip()
-                        seqs = split_at_ligation_junction(seq.decode(), ligation_pattern)
+                        seqs = split_at_ligation_junction(seq.decode(), ligation_patterns)
 
                         qualities = []
                         current_pos = 0
