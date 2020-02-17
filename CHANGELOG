@@ -21,4 +21,8 @@
 - Added support for multiple restriction enzymes in fanc fragments, pairs, map, and auto
 - Optimised binning for large number of very small contigs
 
+0.8.21
+
+- Temporary file support for Juicer and Cooler files
+
 
