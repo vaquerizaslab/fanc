@@ -394,20 +394,32 @@ def ligation_site_pattern(restriction_enzyme):
 
 
 def split_at_ligation_junction(sequence, pattern):
+    patterns = []
     if isinstance(pattern, string_types):
-        pattern = ligation_site_pattern(pattern)
+        patterns.append(ligation_site_pattern(pattern))
+    elif isinstance(pattern, tuple) or isinstance(pattern, list):
+        if (isinstance(pattern, tuple) and len(pattern) == 4 and
+                isinstance(pattern[1], int) and isinstance(pattern[3], int)):
+            patterns.append(pattern)
+        else:
+            for p in pattern:
+                if isinstance(p, tuple) and len(p) == 4:
+                    patterns.append(p)
+                else:
+                    patterns.append(ligation_site_pattern(p))
 
     if isinstance(sequence, bytes):
         sequence = sequence.decode()
 
     hits = []
-    forward, lf, reverse, lr = pattern
-    for m in re.finditer(forward, sequence, re.IGNORECASE):
-        hits.append(m.start() + lf)
+    for pattern in patterns:
+        forward, lf, reverse, lr = pattern
+        for m in re.finditer(forward, sequence, re.IGNORECASE):
+            hits.append(m.start() + lf)
 
-    if forward != reverse:
-        for m in re.finditer(reverse, sequence, re.IGNORECASE):
-            hits.append(m.start() + lr)
+        if forward != reverse:
+            for m in re.finditer(reverse, sequence, re.IGNORECASE):
+                hits.append(m.start() + lr)
 
     sub_sequences = []
     previous_hit = 0
