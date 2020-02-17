@@ -12,6 +12,13 @@
 - Support for multi-threaded SAM/BAM sorting with sambamba. Closes issue #5
 - Check for equal bin sizes before combining matrix for split plot. Fixes issue #7
 
+0.8.19
+
+- Fixed issue # 9 where BED files were not loaded correctly as genome files
+
 0.8.20
 
-- Added support for multiple restriction enzymes in fanc fragments
+- Added support for multiple restriction enzymes in fanc fragments, pairs, map, and auto
+- Optimised binning for large number of very small contigs
+
+
