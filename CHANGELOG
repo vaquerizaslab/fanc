@@ -1,7 +1,21 @@
-0.8.17
+0.8.22
 
-- Renamed --tads-flyamer to --tads-imakaev in fanc aggregate
-- option for strings passed to max_dist in triangular matrix plot API
+- Juicer compatibility improvements
+- Fix for a bug in fanc dump which ignored expected value normalisation in some cases
+- Improved compartments help text
+
+0.8.21
+
+- Temporary file support for Juicer and Cooler files
+
+0.8.20
+
+- Added support for multiple restriction enzymes in fanc fragments, pairs, map, and auto
+- Optimised binning for large number of very small contigs
+
+0.8.19
+
+- Fixed issue # 9 where BED files were not loaded correctly as genome files
 
 0.8.18
 
@@ -12,17 +26,7 @@
 - Support for multi-threaded SAM/BAM sorting with sambamba. Closes issue #5
 - Check for equal bin sizes before combining matrix for split plot. Fixes issue #7
 
-0.8.19
+0.8.17
 
-- Fixed issue # 9 where BED files were not loaded correctly as genome files
-
-0.8.20
-
-- Added support for multiple restriction enzymes in fanc fragments, pairs, map, and auto
-- Optimised binning for large number of very small contigs
-
-0.8.21
-
-- Temporary file support for Juicer and Cooler files
-
-
+- Renamed --tads-flyamer to --tads-imakaev in fanc aggregate
+- option for strings passed to max_dist in triangular matrix plot API
