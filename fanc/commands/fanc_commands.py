@@ -3619,7 +3619,10 @@ def compartments_parser():
         action='store_true',
         default=False,
         help='Calculate AB compartments on the whole genome '
-             'matrix, instead of individual chromosomes.'
+             'matrix, instead of individual chromosomes. '
+             'Only enable if you are sure your use-case requires it. '
+             'This is likely to introduce artefacts when working '
+             'with matrices that have been normalised per-chromosome.'
     )
 
     parser.add_argument(
