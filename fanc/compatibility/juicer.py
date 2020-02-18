@@ -11,6 +11,7 @@ from ..pairs import ReadPairs
 from ..matrix import RegionMatrixContainer, Edge
 from ..config import config
 from ..tools.files import tmp_file_name
+from ..tools.general import str_to_int
 
 import os
 import subprocess
@@ -263,10 +264,10 @@ class JuicerHic(RegionMatrixContainer):
         RegionMatrixContainer.__init__(self)
         if '@' in hic_file:
             hic_file, at_resolution = hic_file.split("@")
-            if resolution is not None and int(at_resolution) != resolution:
+            if resolution is not None and str_to_int(at_resolution) != resolution:
                 raise ValueError("Conflicting resolution specifications: "
                                  "{} and {}".format(at_resolution, resolution))
-            resolution = int(at_resolution)
+            resolution = str_to_int(at_resolution)
 
         if tmpdir is None or (isinstance(tmpdir, bool) and not tmpdir):
             self.tmp_file_name = None
@@ -285,7 +286,8 @@ class JuicerHic(RegionMatrixContainer):
         bp_resolutions, _ = self.resolutions()
         if resolution is None:
             resolution = bp_resolutions[0]
-            warnings.warn("No resolution chosen for Juicer Hic! Using {}bp".format(resolution))
+            warnings.warn("No resolution chosen for Juicer Hic - using {}bp. "
+                          "Specify a custom resolution using <.hic file>@<resolution>".format(resolution))
         if resolution not in bp_resolutions:
             raise ValueError("Resolution {} not supported ({})".format(resolution, bp_resolutions))
 
@@ -571,7 +573,14 @@ class JuicerHic(RegionMatrixContainer):
             vectors, scaling_factors = self.expected_value_vectors()
         else:
             vectors, scaling_factors = self.normalised_expected_value_vectors(normalisation)
-        return np.array(vectors[resolution]) / scaling_factors[resolution][chromosome_ix]
+
+        try:
+            sf = scaling_factors[resolution][chromosome_ix]
+        except KeyError:
+            warnings.warn("Cannot find an expected value scaling factor "
+                          "for {}, setting to 0.".format(chromosome))
+            sf = 0.0
+        return np.array(vectors[resolution]) / sf
 
     def expected_value_vectors(self):
         with open(self._hic_file, 'rb') as req:
