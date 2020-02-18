@@ -2013,7 +2013,7 @@ def dump(argv, **kwargs):
         col_regions_dict = {region.ix: (region, i) for i, region in enumerate(col_regions)}
 
         if oe:
-            _, expected_intra, expected_inter = hic.expected_values()
+            _, expected_intra, expected_inter = hic.expected_values(norm=norm)
         else:
             expected_intra, expected_inter = {}, 1
 
