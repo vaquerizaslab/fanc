@@ -15,6 +15,7 @@ from queue import Empty
 from timeit import default_timer as timer
 import tempfile
 import shutil
+from datetime import datetime
 
 import msgpack
 import numpy as np
@@ -187,11 +188,18 @@ def _load_paired_sam_worker(monitor, input_file_queue, output_file_queue, fi, fe
         tmpdir = tempfile.mkdtemp()
 
     file_counter = 0
+    cumulative_wait_time = 0
     while True:
         # wait for input
         monitor.set_worker_idle(worker_uuid)
         logger.debug("Worker {} waiting for input".format(worker_uuid))
+        s = datetime.now()
         read_pairs_file, chunk_size, unmappable = input_file_queue.get(True)
+        w = datetime.now() - s
+        logger.debug("Worker {} wait time: {}".format(worker_uuid, w))
+        cumulative_wait_time += w.total_seconds()
+
+        s = datetime.now()
         monitor.set_worker_busy(worker_uuid)
         logger.debug('Worker {} received input!'.format(worker_uuid))
 
@@ -252,6 +260,9 @@ def _load_paired_sam_worker(monitor, input_file_queue, output_file_queue, fi, fe
 
         logger.debug("Done obtaining fragment info for {} in {}".format(read_pairs_file, output_file))
         output_file_queue.put((read_pairs_file, output_file, pair_generator.stats()))
+
+        l = datetime.now() - s
+        logger.debug("Worker {} load time: {}".format(worker_uuid, l))
 
 
 def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
@@ -1376,8 +1387,8 @@ class ReadPairs(RegionPairsTable):
         all_stats = defaultdict(int)
         try:
             queue_manager = mp.Manager()
-            input_file_queue = queue_manager.Queue()
-            output_file_queue = queue_manager.Queue()
+            input_file_queue = queue_manager.Queue(maxsize=threads * 3)
+            output_file_queue = queue_manager.Queue(maxsize=threads * 3)
 
             monitor = Monitor()
             monitor.set_generating_pairs(True)
@@ -1395,15 +1406,26 @@ class ReadPairs(RegionPairsTable):
                                    read_filters, pairs_tmpdir))
 
             output_counter = 0
+            cumulative_wait_time = 0
+            cumulative_load_time = 0
             while output_counter < monitor.value() or not monitor.workers_idle() or monitor.is_generating_pairs():
                 try:
+                    s = datetime.now()
                     input_file, read_pairs_file, chunk_stats = output_file_queue.get(block=True)
+                    w = datetime.now() - s
+                    logger.debug("Wait time: {}".format(w))
+                    cumulative_wait_time += w.total_seconds()
+
+                    s = datetime.now()
                     os.remove(input_file)
                     self.load_read_pairs_fragment_info_file(read_pairs_file)
                     os.remove(read_pairs_file)
                     for key, value in chunk_stats.items():
                         all_stats[key] += value
                     output_counter += 1
+                    l = datetime.now() - s
+                    logger.debug("Load time: {}".format(l))
+                    cumulative_load_time += l.total_seconds()
                 except Empty:
                     logger.warning("Reached SAM pair generator timeout. This could mean that no "
                                    "valid read pairs were found after filtering. "
@@ -1415,6 +1437,8 @@ class ReadPairs(RegionPairsTable):
                 t_split.join()
             shutil.rmtree(split_tmpdir)
             shutil.rmtree(pairs_tmpdir)
+
+        logger.debug('Cumulative: {} wait, {} load'.format(cumulative_wait_time, cumulative_load_time))
 
         if 'read_filter_stats' not in self.meta:
             self.meta.read_filter_stats = all_stats
