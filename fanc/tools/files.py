@@ -352,7 +352,8 @@ def reads_with_same_qname(iterator, last_read=None):
     try:
         next_read = read
         while natural_cmp(next_read.qname.encode('utf-8'), qname) == 0:
-            reads.append(next_read)
+            if not next_read.is_unmapped:
+                reads.append(next_read)
             next_read = next(iterator)
     except StopIteration:
         next_read = None
@@ -373,8 +374,9 @@ def split_sam_pairs(sam_file_1, sam_file_2, output_prefix,
                           <output_prefix>_<n>.bam
     :param check_sorted: If True, will raise an Exception if SAM/BAM files are not
                          sorted by read name
-    :param chunk_size:
-    :return:
+    :param chunk_size: Number of
+    :return: iterator over tuples with path to chunk output file, valid read pairs,
+             unmappable read pairs
     """
     if isinstance(sam_file_1, pysam.AlignmentFile):
         sam1 = sam_file_1
@@ -390,20 +392,17 @@ def split_sam_pairs(sam_file_1, sam_file_2, output_prefix,
     sam2_iter = iter(sam2)
 
     output_counter = 0
-    if sam1.is_bam:
-        output_base = output_prefix + "_{}.bam"
-        mode = 'wb'
-    else:
-        output_base = output_prefix + "_{}.sam"
-        mode = 'w'
-
+    output_base = output_prefix + "_{}.sam"
     output_file_name = output_base.format(output_counter)
-    output_file = pysam.AlignmentFile(output_file_name, mode=mode, template=sam1)
-    current_chunk_size = 0
+    output_file = open(output_file_name, 'w')
+    output_file.write(str(sam1.header))
 
+    get_reads = reads_with_same_qname
+    unmappable = 0
+    total = 0
     try:
-        qname1, reads1, next_read1 = reads_with_same_qname(sam1_iter)
-        qname2, reads2, next_read2 = reads_with_same_qname(sam2_iter)
+        qname1, reads1, next_read1 = get_reads(sam1_iter)
+        qname2, reads2, next_read2 = get_reads(sam2_iter)
 
         while True:
             check1 = False
@@ -413,29 +412,36 @@ def split_sam_pairs(sam_file_1, sam_file_2, output_prefix,
 
             cmp = natural_cmp(qname1, qname2)
             if cmp == 0:  # read name identical
-                for read in reads1:
-                    output_file.write(read)
-                for read in reads2:
-                    output_file.write(read)
+                read_counter = 0
+                if len(reads1) + len(reads2) > 1:
+                    total += 1
+                    for read in reads1 + reads2:
+                        output_file.write(read.to_string() + '\n')
+                        read_counter += 1
 
-                current_chunk_size += 1
+                if read_counter == 0:
+                    unmappable += 1
 
-                if current_chunk_size >= chunk_size:
+                if total >= chunk_size:
                     output_file.close()
-                    yield output_file_name
+                    yield output_file_name, total, unmappable
                     output_counter += 1
                     output_file_name = output_base.format(output_counter)
-                    output_file = pysam.AlignmentFile(output_file_name, mode=mode, template=sam1)
-                    current_chunk_size = 0
+                    output_file = open(output_file_name, 'w')
+                    output_file.write(str(sam1.header))
+                    total = 0
+                    unmappable = 0
 
-                qname1, reads1, next_read1 = reads_with_same_qname(sam1_iter, last_read=next_read1)
-                qname2, reads2, next_read2 = reads_with_same_qname(sam2_iter, last_read=next_read2)
+                qname1, reads1, next_read1 = get_reads(sam1_iter, last_read=next_read1)
+                qname2, reads2, next_read2 = get_reads(sam2_iter, last_read=next_read2)
             elif cmp < 0:  # first pointer behind
-                qname1, reads1, next_read1 = reads_with_same_qname(sam1_iter, last_read=next_read1)
+                qname1, reads1, next_read1 = get_reads(sam1_iter, last_read=next_read1)
                 check1 = True
+                unmappable += 1
             else:  # second pointer behind
-                qname2, reads2, next_read2 = reads_with_same_qname(sam2_iter, last_read=next_read2)
+                qname2, reads2, next_read2 = get_reads(sam2_iter, last_read=next_read2)
                 check2 = True
+                unmappable += 1
 
             # check that the files are sorted
             if check_sorted:
@@ -451,7 +457,7 @@ def split_sam_pairs(sam_file_1, sam_file_2, output_prefix,
         pass
     finally:
         output_file.close()
-        yield output_file_name
+        yield output_file_name, total, unmappable
 
 
 def write_bed(file_name, regions, mode='w', **kwargs):
