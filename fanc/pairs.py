@@ -163,10 +163,11 @@ def _split_sam_worker(sam_file1, sam_file2, input_queue, monitor, batch_size=100
         output_prefix = os.path.join(tmpdir, 'split_pairs')
         try:
             logger.debug("Splitting and pairing SAM files")
-            for pairs_file in split_sam_pairs(sam_file1, sam_file2, output_prefix,
-                                              chunk_size=batch_size, check_sorted=check_sorted):
+            for pairs_file, chunk_size, unmappable in split_sam_pairs(sam_file1, sam_file2, output_prefix,
+                                                                      chunk_size=batch_size,
+                                                                      check_sorted=check_sorted):
                 logger.debug("Split pairs batch {}".format(pairs_file))
-                input_queue.put(pairs_file)
+                input_queue.put([pairs_file, chunk_size, unmappable])
                 monitor.increment()
         except ValueError as e:
             logger.error(e)
@@ -190,7 +191,7 @@ def _load_paired_sam_worker(monitor, input_file_queue, output_file_queue, fi, fe
         # wait for input
         monitor.set_worker_idle(worker_uuid)
         logger.debug("Worker {} waiting for input".format(worker_uuid))
-        read_pairs_file = input_file_queue.get(True)
+        read_pairs_file, chunk_size, unmappable = input_file_queue.get(True)
         monitor.set_worker_busy(worker_uuid)
         logger.debug('Worker {} received input!'.format(worker_uuid))
 
@@ -204,6 +205,7 @@ def _load_paired_sam_worker(monitor, input_file_queue, output_file_queue, fi, fe
         if read_filters is not None:
             for f in read_filters:
                 pair_generator.add_filter(f)
+        pair_generator._unmappable_count = unmappable
 
         for read1, read2 in pair_generator:
             chrom1, pos1, flag1 = read1.reference_name, read1.pos, read1.flag
@@ -713,17 +715,11 @@ class PairedSamBamReadPairGenerator(ReadPairGenerator):
         current_qname = None
         reads = []
         for read in sam:
-            if read.is_unmapped:
-                continue
-
             qname = read.qname.encode('utf-8')
             if current_qname is None or natural_cmp(qname, current_qname) == 0:
                 reads.append(read)
             else:
-                if len(reads) < 2:
-                    # one or both halves must be unmappable
-                    self._unmappable_count += 1
-                else:
+                if len(reads) >= 2:
                     read1, read2, is_chimeric = PairedSamBamReadPairGenerator.resolve_chimeric(reads)
                     if read1 is not None and read2 is not None:
                         yield (read1, read2)
@@ -737,10 +733,7 @@ class PairedSamBamReadPairGenerator(ReadPairGenerator):
             current_qname = qname
 
         # final reads
-        if len(reads) < 2:
-            # one or both halves must be unmappable
-            self._unmappable_count += 1
-        else:
+        if len(reads) >= 2:
             read1, read2, is_chimeric = PairedSamBamReadPairGenerator.resolve_chimeric(reads)
             if read1 is not None and read2 is not None:
                 yield (read1, read2)
@@ -1358,7 +1351,7 @@ class ReadPairs(RegionPairsTable):
                 self._edge_buffer.add_dict(edge, partition=(int(info1[0]), int(info2[0])))
                 self._pair_count += 1
 
-    def add_read_pairs_from_sam(self, sam_file1, sam_file2, batch_size=10000000, threads=1,
+    def add_read_pairs_from_sam(self, sam_file1, sam_file2, batch_size=1000000, threads=1,
                                 read_filters=None, check_sorted=True, tmpdir=None):
         self._edges_dirty = True
         self._disable_edge_indexes()
