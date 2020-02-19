@@ -378,6 +378,7 @@ def split_sam_pairs(sam_file_1, sam_file_2, output_prefix,
     :return: iterator over tuples with path to chunk output file, valid read pairs,
              unmappable read pairs
     """
+    logger.debug("Chunk size: {}".format(chunk_size))
     if isinstance(sam_file_1, pysam.AlignmentFile):
         sam1 = sam_file_1
     else:
