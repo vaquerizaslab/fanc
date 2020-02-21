@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Helper tools in fanc &mdash; FAN-C 0.8.17-beta documentation</title>
+  <title>Helper tools in fanc &mdash; FAN-C 0.8.23-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.17
+                0.8.23
               </div>
             
           
@@ -315,8 +315,7 @@ and use the resulting BED file as input for the <code class="docutils literal no
 <p>If you supply an integer as the second positional argument instead of a restriction enzyme
 name, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">fragments</span></code> will perform binning rather than in silico digestion and return
 a BED file with equally sized regions.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">fragments</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">CHROMOSOMES</span> <span class="p">[</span><span class="n">CHROMOSOMES</span> <span class="o">...</span><span class="p">]]</span>
-                      <span class="nb">input</span> <span class="n">re_or_bin_size</span> <span class="n">output</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">fragments</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">CHROMOSOMES</span><span class="p">]</span> <span class="nb">input</span> <span class="n">re_or_bin_size</span> <span class="n">output</span>
 </pre></div>
 </div>
 <div class="section" id="Positional Arguments">
@@ -326,7 +325,7 @@ a BED file with equally sized regions.</p>
 <dd><p>Path to genome file (FASTA, folder with FASTA, hdf5 file), which will be used in conjunction with the type of restriction enzyme to calculate fragments directly.</p>
 </dd>
 <dt><kbd>re_or_bin_size</kbd></dt>
-<dd><p>Restriction enzyme name or bin size to divide genome into fragments.</p>
+<dd><p>Restriction enzyme name or bin size to divide genome into fragments. Restriction names can be any supported by Biopython, which obtains data from REBASE (<a class="reference external" href="http://rebase.neb.com/rebase/rebase.html">http://rebase.neb.com/rebase/rebase.html</a>). Use commas to separate multiple restriction enzymes, e.g. ‘HindIII,MboI’</p>
 </dd>
 <dt><kbd>output</kbd></dt>
 <dd><p>Output file with restriction fragments in BED format.</p>
@@ -337,7 +336,7 @@ a BED file with equally sized regions.</p>
 <h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
 <dl class="option-list">
 <dt><kbd>-c, --chromosomes</kbd></dt>
-<dd><p>List of chromosomes to include in fragments BED file. Other chromosomes will be excluded. The order of chromosomes will be as stated in the list.</p>
+<dd><p>Comma-separated list of chromosomes to include in fragments BED file. Other chromosomes will be excluded. The order of chromosomes will be as stated in the list.</p>
 </dd>
 </dl>
 </div>
@@ -349,7 +348,7 @@ a BED file with equally sized regions.</p>
 but <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">sam-sort</span></code> will also do the sorting for you. it automatically chooses the fastest
 sorting implementation available and also provides the option to work in a temporary folder,
 which can speed the sorting up if you are working on a network volume.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">sort</span><span class="o">-</span><span class="n">sam</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="n">sam</span> <span class="p">[</span><span class="n">output</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">sort</span><span class="o">-</span><span class="n">sam</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="n">sam</span> <span class="p">[</span><span class="n">output</span><span class="p">]</span>
 </pre></div>
 </div>
 <div class="section" id="Positional Arguments">
@@ -366,6 +365,9 @@ which can speed the sorting up if you are working on a network volume.</p>
 <div class="section" id="Named Arguments">
 <h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
 <dl class="option-list">
+<dt><kbd>-t, --threads</kbd></dt>
+<dd><p>Number of sorting threads (only when sambamba is available)</p>
+</dd>
 <dt><kbd>-tmp, --work-in-tmp</kbd></dt>
 <dd><p>Work in temporary directory</p>
 </dd>

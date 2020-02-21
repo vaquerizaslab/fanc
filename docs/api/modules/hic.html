@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Hic module &mdash; FAN-C 0.8.17-beta documentation</title>
+  <title>Hic module &mdash; FAN-C 0.8.23-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.17
+                0.8.23
               </div>
             
           
@@ -998,7 +998,7 @@ is not necessarily itself a power of 2.</p>
 
 <dl class="method">
 <dt id="fanc.hic.Hic.load_from_hic">
-<code class="sig-name descname">load_from_hic</code><span class="sig-paren">(</span><em class="sig-param">hic</em>, <em class="sig-param">threads=1</em>, <em class="sig-param">chromosomes=None</em>, <em class="sig-param">_edges_by_overlap_method=&lt;function _edge_overlap_split_rao&gt;</em>, <em class="sig-param">_partition_size=1000</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.Hic.load_from_hic" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">load_from_hic</code><span class="sig-paren">(</span><em class="sig-param">hic</em>, <em class="sig-param">threads=1</em>, <em class="sig-param">chromosomes=None</em>, <em class="sig-param">_edges_by_overlap_method=&lt;function _edge_overlap_split_rao&gt;</em>, <em class="sig-param">_regions_soft_max=50000</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.Hic.load_from_hic" title="Permalink to this definition">¶</a></dt>
 <dd><p>Load data from another <a class="reference internal" href="#fanc.hic.Hic" title="fanc.hic.Hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code></a> object.</p>
 <p>If this object has no associated regions, the regions and
 contacts of the provided object will simply be copied.</p>
@@ -1016,7 +1016,10 @@ one genomic region to others using
 a supplied overlap map. By default
 it uses the Rao et al. (2014) method.
 See <code class="xref py py-func docutils literal notranslate"><span class="pre">_edge_overlap_split_rao()</span></code></p></li>
-<li><p><strong>_partition_size</strong> – Number of edges processed by each thread</p></li>
+<li><p><strong>_regions_soft_max</strong> – Maximum dimension of each processed submatrix
+per thread. This is a soft maximum, which may be
+increased as required for very large chromosomes or
+small bin sizes</p></li>
 </ul>
 </dd>
 </dl>

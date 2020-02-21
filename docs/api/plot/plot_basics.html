@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Plotting API basics &mdash; FAN-C 0.8.17-beta documentation</title>
+  <title>Plotting API basics &mdash; FAN-C 0.8.23-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.17
+                0.8.23
               </div>
             
           
@@ -193,7 +193,7 @@ It controls the formatting of the X axis in genomic coordinates (kb, mb, etc), a
 a <code class="xref py py-func docutils literal notranslate"><span class="pre">plot()</span></code> function, common to all FAN-C plot types,
 which accepts genomic interval definitions in the form of strings (<code class="docutils literal notranslate"><span class="pre">chr18:6mb-8mb</span></code>) or
 <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> objects.</p>
-<p>As an example of basic functionality, we will be looking at the <code class="xref py py-class docutils literal notranslate"><span class="pre">TriangularMatrixPlot</span></code>:</p>
+<p>As an example of basic functionality, we will be looking at the <a class="reference internal" href="../modules/plotting.html#fanc.plotting.TriangularMatrixPlot" title="fanc.plotting.TriangularMatrixPlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">TriangularMatrixPlot</span></code></a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">TriangularMatrixPlot</span><span class="p">(</span><span class="n">hic</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>
 <span class="n">hp</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr18:6mb-10mb&#39;</span><span class="p">)</span>
 <span class="n">hp</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>

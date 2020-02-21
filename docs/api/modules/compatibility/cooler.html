@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Cooler module &mdash; FAN-C 0.8.17-beta documentation</title>
+  <title>Cooler module &mdash; FAN-C 0.8.23-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.17
+                0.8.23
               </div>
             
           
@@ -492,6 +492,19 @@ in bp.</p>
 <dt id="fanc.compatibility.cooler.CoolerHic.chromsizes">
 <em class="property">property </em><code class="sig-name descname">chromsizes</code><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chromsizes" title="Permalink to this definition">¶</a></dt>
 <dd><p>Ordered mapping of reference sequences to their lengths in bp</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.compatibility.cooler.CoolerHic.close">
+<code class="sig-name descname">close</code><span class="sig-paren">(</span><em class="sig-param">remove_tmp=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close this Juicer file and run exit operations.</p>
+<p>If file was opened with tmpdir in read-only mode:
+close file and delete temporary copy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>remove_tmp</strong> – If False, does not delete temporary copy of file.</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">

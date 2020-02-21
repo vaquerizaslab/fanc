@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>AB compartment analysis &mdash; FAN-C 0.8.17-beta documentation</title>
+  <title>AB compartment analysis &mdash; FAN-C 0.8.23-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.17
+                0.8.23
               </div>
             
           
@@ -224,7 +224,7 @@ compartment, also called ‘A’ and ‘B’ compartments, respectively.</p>
 <dd><p>Genome file. Used to “orient” the eigenvector values (change sign) using the average GC content of domains. Possible input files are FASTA, folder with FASTA, comma-separated list of FASTA) used to change sign of eigenvector based on GC content.</p>
 </dd>
 <dt><kbd>-w, --whole-genome</kbd></dt>
-<dd><p>Calculate AB compartments on the whole genome matrix, instead of individual chromosomes.</p>
+<dd><p>Calculate AB compartments on the whole genome matrix, instead of individual chromosomes. Only enable if you are sure your use-case requires it. This is likely to introduce artefacts when working with matrices that have been normalised per-chromosome.</p>
 </dd>
 <dt><kbd>-r, --region</kbd></dt>
 <dd><p>Only outputs domains / eigenvector values in this region. Only works with the -d and -e arguments. Compartmentalisation is always calculated on the whole genome.</p>

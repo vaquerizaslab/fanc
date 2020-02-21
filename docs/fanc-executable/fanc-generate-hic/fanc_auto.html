@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.8.17-beta documentation</title>
+  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.8.23-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.17
+                0.8.23
               </div>
             
           
@@ -226,7 +226,7 @@ the processing and filtering of objects in the pipeline.</p>
 <dd><p>Genome for the Hi-C object.Path to region-based file (BED, GFF, …) containing the non-overlapping regions to be used for Hi-C object construction. Typically restriction-enzyme fragments. Alternatively: Path to genome file (FASTA, folder with FASTA, hdf5 file), which will be used in conjunction with the type of restriction enzyme (-r) to calculate fragments directly.</p>
 </dd>
 <dt><kbd>-r, --restriction-enzyme</kbd></dt>
-<dd><p>Restriction enzyme name. Used for in silico digestion of genomic sequences and splitting of reads at Hi-C ligation junctions. (e.g. HindIII, case-sensitive)</p>
+<dd><p>Restriction enzyme name. Used for in silico digestion of genomic sequences and splitting of reads at Hi-C ligation junctions. (e.g. HindIII, case-sensitive). Separate multiple enzymes with ‘,’. Restriction names can be any supported by Biopython, which obtains data from REBASE (<a class="reference external" href="http://rebase.neb.com/rebase/rebase.html">http://rebase.neb.com/rebase/rebase.html</a>).</p>
 </dd>
 <dt><kbd>-i, --genome-index</kbd></dt>
 <dd><p>Bowtie 2 or BWA genome index. Only required when passing FASTQ files as input.</p>

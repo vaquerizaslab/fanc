@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Plotting API &mdash; FAN-C 0.8.17-beta documentation</title>
+  <title>Plotting API &mdash; FAN-C 0.8.23-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.17
+                0.8.23
               </div>
             
           
@@ -196,13 +196,13 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicFigure" title="fanc.plotting.GenomicFigure"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicFigure</span></code></a>(plots[, width, ticks_last, …])</p></td>
 <td><p>GenomicFigure composed of one or more plots.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">TriangularMatrixPlot</span></code>(hic_data[, max_dist, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.TriangularMatrixPlot" title="fanc.plotting.TriangularMatrixPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TriangularMatrixPlot</span></code></a>(hic_data[, max_dist, …])</p></td>
 <td><p>A triangle Hi-C heatmap plot.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">SquareMatrixPlot</span></code>(hic_data[, flip])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.SquareMatrixPlot" title="fanc.plotting.SquareMatrixPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SquareMatrixPlot</span></code></a>(hic_data[, flip])</p></td>
 <td><p>Plot Hi-C map as a square matrix.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">SplitMatrixPlot</span></code>(hic_top, hic_bottom[, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.SplitMatrixPlot" title="fanc.plotting.SplitMatrixPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SplitMatrixPlot</span></code></a>(hic_top, hic_bottom[, …])</p></td>
 <td><p></p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.LinePlot" title="fanc.plotting.LinePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LinePlot</span></code></a>(data[, bin_size, fill, attribute, …])</p></td>
@@ -253,7 +253,7 @@
 <tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.LimitGroup" title="fanc.plotting.LimitGroup"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LimitGroup</span></code></a>([limit, sig])</p></td>
 <td><p>Can be used for synchronizing axis limits across multiple plots.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">MirrorMatrixPlot</span></code>(top_plot, bottom_plot[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.MirrorMatrixPlot" title="fanc.plotting.MirrorMatrixPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MirrorMatrixPlot</span></code></a>(top_plot, bottom_plot[, …])</p></td>
 <td><p>Stack two plots on top of each other, bottom plot inverted.</p></td>
 </tr>
 </tbody>
@@ -263,7 +263,7 @@
 <span id="description-and-examples"></span><h2>Description and examples<a class="headerlink" href="#module-fanc.plotting" title="Permalink to this headline">¶</a></h2>
 <p>Provide plotting functions for genomic data types.</p>
 <p>Many common data types used in genomics research are supported. Including, but
-not limited to, <a class="reference internal" href="#fanc.plotting.HicPlot" title="fanc.plotting.HicPlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hi-C</span></code></a>,
+not limited to, <code class="xref py py-class docutils literal notranslate"><span class="pre">Hi-C</span></code>,
 <a class="reference internal" href="#fanc.plotting.GenomicFeaturePlot" title="fanc.plotting.GenomicFeaturePlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">bed</span></code></a>,
 <a class="reference internal" href="#fanc.plotting.BigWigPlot" title="fanc.plotting.BigWigPlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">bigwig</span></code></a>
 and <a class="reference internal" href="#fanc.plotting.GenePlot" title="fanc.plotting.GenePlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">gene</span> <span class="pre">(GTF)</span></code></a> file visualization.
@@ -272,7 +272,7 @@ arranged vertically and share a common x-axis representing genomic coordinates.<
 <p>Each panel is created separately and then combined into a single figure.
 For example, when analyzing Hi-C data it is often interesting to correlate
 features in the Hi-C map with ChIP-seq tracks. In that case, one would first
-create a <a class="reference internal" href="#fanc.plotting.HicPlot" title="fanc.plotting.HicPlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">HicPlot</span></code></a> object, which visualizes
+create a <code class="xref py py-class docutils literal notranslate"><span class="pre">HicPlot</span></code> object, which visualizes
 Hi-C data, and then a <a class="reference internal" href="#fanc.plotting.BigWigPlot" title="fanc.plotting.BigWigPlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">BigWigPlot</span></code></a> object, which
 can plot bigwig files that are used during ChIP-seq analysis. Finally, the two
 objects are used to create a <a class="reference internal" href="#fanc.plotting.GenomicFigure" title="fanc.plotting.GenomicFigure"><code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code></a>.</p>
@@ -447,16 +447,217 @@ Hi-C datasets are visualized in a single figure:</p>
 of plots. Draws a grid of lines on the plot.</p>
 </dd></dl>
 
-<dl class="attribute">
-<dt id="fanc.plotting.HicPlot">
-<code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">HicPlot</code><a class="headerlink" href="#fanc.plotting.HicPlot" title="Permalink to this definition">¶</a></dt>
-<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.hic_plotter.TriangularMatrixPlot</span></code></p>
+<dl class="class">
+<dt id="fanc.plotting.TriangularMatrixPlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">TriangularMatrixPlot</code><span class="sig-paren">(</span><em class="sig-param">hic_data</em>, <em class="sig-param">max_dist=None</em>, <em class="sig-param">proportional=True</em>, <em class="sig-param">rasterized=True</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.TriangularMatrixPlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>A triangle Hi-C heatmap plot.</p>
+<dl class="method">
+<dt id="fanc.plotting.TriangularMatrixPlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">hic_data</em>, <em class="sig-param">max_dist=None</em>, <em class="sig-param">proportional=True</em>, <em class="sig-param">rasterized=True</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.TriangularMatrixPlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>max_dist</strong> – Only draw interactions up to this distance</p></li>
+<li><p><strong>proportional</strong> – Automatically determine aspect ratio of plot
+so that x- and y-axis are proportional. Default: True</p></li>
+<li><p><strong>rasterized</strong> – Draw map as image (True) or vector graphic (False).
+Default: True</p></li>
+<li><p><strong>hic_data</strong> – Path to Hi-C data on disk or
+<code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrix</span></code></p></li>
+<li><p><strong>adjust_range</strong> – Draw a slider to adjust vmin/vmax interactively. Default: False</p></li>
+<li><p><strong>buffering_strategy</strong> – A valid buffering strategy for <code class="xref py py-class docutils literal notranslate"><span class="pre">BufferedMatrix</span></code></p></li>
+<li><p><strong>buffering_arg</strong> – Adjust range of buffering for <code class="xref py py-class docutils literal notranslate"><span class="pre">BufferedMatrix</span></code></p></li>
+<li><p><strong>colormap</strong> – Can be the name of a colormap or a Matplotlib colormap instance</p></li>
+<li><p><strong>norm</strong> – Can be “lin”, “log” or any Matplotlib Normalization instance</p></li>
+<li><p><strong>vmin</strong> (<em>float</em>) – Clip interactions below this value</p></li>
+<li><p><strong>vmax</strong> (<em>float</em>) – Clip interactions above this value</p></li>
+<li><p><strong>show_colorbar</strong> (<em>bool</em>) – Draw a colorbar. Default: True</p></li>
+<li><p><strong>blend_zero</strong> (<em>bool</em>) – If True then zero count bins will be drawn using replacement_color</p></li>
+<li><p><strong>replacement_color</strong> (<em>str</em>) – If None use the lowest color in the colormap, otherwise
+use the specified color. Can be any valid matplotlib
+color name or specification.</p></li>
+<li><p><strong>unmappable_color</strong> – Draw unmappable bins using this color. Defaults to
+light gray (“.9”)</p></li>
+<li><p><strong>illegal_color</strong> – Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
+None (no special color).</p></li>
+<li><p><strong>colorbar_symmetry</strong> (<em>float</em>) – Set to enforce that the colorbar is symmetric around
+this value. Default: None</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
-<dl class="attribute">
-<dt id="fanc.plotting.HicPlot2D">
-<code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">HicPlot2D</code><a class="headerlink" href="#fanc.plotting.HicPlot2D" title="Permalink to this definition">¶</a></dt>
-<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.hic_plotter.SquareMatrixPlot</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.SquareMatrixPlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">SquareMatrixPlot</code><span class="sig-paren">(</span><em class="sig-param">hic_data</em>, <em class="sig-param">flip=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.SquareMatrixPlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot Hi-C map as a square matrix.</p>
+<dl class="method">
+<dt id="fanc.plotting.SquareMatrixPlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">hic_data</em>, <em class="sig-param">flip=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.SquareMatrixPlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>flip</strong> – Transpose matrix before plotting</p></li>
+<li><p><strong>hic_data</strong> – Path to Hi-C data on disk or
+<code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrix</span></code></p></li>
+<li><p><strong>adjust_range</strong> – Draw a slider to adjust vmin/vmax interactively. Default: False</p></li>
+<li><p><strong>buffering_strategy</strong> – A valid buffering strategy for <code class="xref py py-class docutils literal notranslate"><span class="pre">BufferedMatrix</span></code></p></li>
+<li><p><strong>buffering_arg</strong> – Adjust range of buffering for <code class="xref py py-class docutils literal notranslate"><span class="pre">BufferedMatrix</span></code></p></li>
+<li><p><strong>colormap</strong> – Can be the name of a colormap or a Matplotlib colormap instance</p></li>
+<li><p><strong>norm</strong> – Can be “lin”, “log” or any Matplotlib Normalization instance</p></li>
+<li><p><strong>vmin</strong> (<em>float</em>) – Clip interactions below this value</p></li>
+<li><p><strong>vmax</strong> (<em>float</em>) – Clip interactions above this value</p></li>
+<li><p><strong>show_colorbar</strong> (<em>bool</em>) – Draw a colorbar. Default: True</p></li>
+<li><p><strong>blend_zero</strong> (<em>bool</em>) – If True then zero count bins will be drawn using replacement_color</p></li>
+<li><p><strong>replacement_color</strong> (<em>str</em>) – If None use the lowest color in the colormap, otherwise
+use the specified color. Can be any valid matplotlib
+color name or specification.</p></li>
+<li><p><strong>unmappable_color</strong> – Draw unmappable bins using this color. Defaults to
+light gray (“.9”)</p></li>
+<li><p><strong>illegal_color</strong> – Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
+None (no special color).</p></li>
+<li><p><strong>colorbar_symmetry</strong> (<em>float</em>) – Set to enforce that the colorbar is symmetric around
+this value. Default: None</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.SplitMatrixPlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">SplitMatrixPlot</code><span class="sig-paren">(</span><em class="sig-param">hic_top</em>, <em class="sig-param">hic_bottom</em>, <em class="sig-param">scale_matrices=True</em>, <em class="sig-param">weight_field=None</em>, <em class="sig-param">default_value=None</em>, <em class="sig-param">smooth_sigma=None</em>, <em class="sig-param">matrix_norm=True</em>, <em class="sig-param">oe=False</em>, <em class="sig-param">log=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.SplitMatrixPlot" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="fanc.plotting.SplitMatrixPlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">hic_top</em>, <em class="sig-param">hic_bottom</em>, <em class="sig-param">scale_matrices=True</em>, <em class="sig-param">weight_field=None</em>, <em class="sig-param">default_value=None</em>, <em class="sig-param">smooth_sigma=None</em>, <em class="sig-param">matrix_norm=True</em>, <em class="sig-param">oe=False</em>, <em class="sig-param">log=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.SplitMatrixPlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>flip</strong> – Transpose matrix before plotting</p></li>
+<li><p><strong>hic_data</strong> – Path to Hi-C data on disk or
+<code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrix</span></code></p></li>
+<li><p><strong>adjust_range</strong> – Draw a slider to adjust vmin/vmax interactively. Default: False</p></li>
+<li><p><strong>buffering_strategy</strong> – A valid buffering strategy for <code class="xref py py-class docutils literal notranslate"><span class="pre">BufferedMatrix</span></code></p></li>
+<li><p><strong>buffering_arg</strong> – Adjust range of buffering for <code class="xref py py-class docutils literal notranslate"><span class="pre">BufferedMatrix</span></code></p></li>
+<li><p><strong>colormap</strong> – Can be the name of a colormap or a Matplotlib colormap instance</p></li>
+<li><p><strong>norm</strong> – Can be “lin”, “log” or any Matplotlib Normalization instance</p></li>
+<li><p><strong>vmin</strong> (<em>float</em>) – Clip interactions below this value</p></li>
+<li><p><strong>vmax</strong> (<em>float</em>) – Clip interactions above this value</p></li>
+<li><p><strong>show_colorbar</strong> (<em>bool</em>) – Draw a colorbar. Default: True</p></li>
+<li><p><strong>blend_zero</strong> (<em>bool</em>) – If True then zero count bins will be drawn using replacement_color</p></li>
+<li><p><strong>replacement_color</strong> (<em>str</em>) – If None use the lowest color in the colormap, otherwise
+use the specified color. Can be any valid matplotlib
+color name or specification.</p></li>
+<li><p><strong>unmappable_color</strong> – Draw unmappable bins using this color. Defaults to
+light gray (“.9”)</p></li>
+<li><p><strong>illegal_color</strong> – Draw non-finite (NaN, +inf, -inf) bins using this color. Defaults to
+None (no special color).</p></li>
+<li><p><strong>colorbar_symmetry</strong> (<em>float</em>) – Set to enforce that the colorbar is symmetric around
+this value. Default: None</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="attribute">
@@ -1342,6 +1543,61 @@ Default: (None, None)</p></li>
 <li><p><strong>sig</strong> – Round limits to sig significant digits.
 If None, don’t round.
 Default: 2</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.MirrorMatrixPlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">MirrorMatrixPlot</code><span class="sig-paren">(</span><em class="sig-param">top_plot</em>, <em class="sig-param">bottom_plot</em>, <em class="sig-param">gap=0</em>, <em class="sig-param">cax_gap=0.05</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.MirrorMatrixPlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stack two plots on top of each other, bottom plot inverted.
+Especially suited to stacking two Hic plots (triangles) on top
+of each other.</p>
+<dl class="method">
+<dt id="fanc.plotting.MirrorMatrixPlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">top_plot</em>, <em class="sig-param">bottom_plot</em>, <em class="sig-param">gap=0</em>, <em class="sig-param">cax_gap=0.05</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.MirrorMatrixPlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>top_plot</strong> – Plot instance on top</p></li>
+<li><p><strong>bottom_plot</strong> – Plot instance on bottom</p></li>
+<li><p><strong>gap</strong> – Gap between plots in inches</p></li>
+<li><p><strong>cax_gap</strong> – Gap between colorbars in inches</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
 </ul>
 </dd>
 </dl>

@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Individual pipeline steps &mdash; FAN-C 0.8.17-beta documentation</title>
+  <title>Individual pipeline steps &mdash; FAN-C 0.8.23-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.17
+                0.8.23
               </div>
             
           
@@ -234,7 +234,7 @@ the following command would use Bowtie2 as a mapper:</p>
 <dd><p>Mapping quality cutoff. Alignments with a quality score lower than this will be sent to another mapping iteration. Default: 3 (BWA), 30 (Bowtie2)</p>
 </dd>
 <dt><kbd>-r, --restriction-enzyme</kbd></dt>
-<dd><p>Name (case sensitive) of restriction enzyme used in Hi-C experiment. Will be used to split reads by predicted ligation junction before mapping. You can omit this if you do not want to split your reads by ligation junction.</p>
+<dd><p>Name (case sensitive) of restriction enzyme used in Hi-C experiment. Will be used to split reads by predicted ligation junction before mapping. You can omit this if you do not want to split your reads by ligation junction. Restriction names can be any supported by Biopython, which obtains data from REBASE (<a class="reference external" href="http://rebase.neb.com/rebase/rebase.html">http://rebase.neb.com/rebase/rebase.html</a>). For restriction enzyme cocktails, separate enzyme names with “,”</p>
 </dd>
 <dt><kbd>-k, --max-alignments</kbd></dt>
 <dd><p>Maximum number of alignments per read to be reported.Default: 1</p>
@@ -373,7 +373,7 @@ the filtering of read pairs according to various criteria.</p>
 <dd><p>Path to region-based file (BED, GFF, …) containing the non-overlapping regions to be used for Hi-C binning. Typically restriction-enzyme fragments. Alternatively: Path to genome file (FASTA, folder with FASTA, HDF5 file), which will be used in conjunction with the type of restriction enzyme to calculate fragments directly.</p>
 </dd>
 <dt><kbd>-r, --restriction_enzyme</kbd></dt>
-<dd><p>Name of the restriction enzyme used in the experiment, e.g. HindIII, or MboI. Case-sensitive, only necessary when –genome is provided as FASTA.</p>
+<dd><p>Name of the restriction enzyme used in the experiment, e.g. HindIII, or MboI. Case-sensitive, only necessary when –genome is provided as FASTA. Restriction names can be any supported by Biopython, which obtains data from REBASE (<a class="reference external" href="http://rebase.neb.com/rebase/rebase.html">http://rebase.neb.com/rebase/rebase.html</a>). Separate multiple restriction enzymes with “,”</p>
 </dd>
 <dt><kbd>-m, --filter-unmappable</kbd></dt>
 <dd><p>Filter read pairs where one or both halves are unmappable. Only applies to SAM/BAM input!</p>
