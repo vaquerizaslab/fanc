@@ -242,10 +242,10 @@ class ABCompartmentMatrix(RegionMatrixTable):
                 current_domain = gr.GenomicRegion(chromosome=region.chromosome,
                                                   start=region.start, end=region.end,
                                                   name='A' if ev[i] >= 0 else 'B')
-                current_ev_scores.append(ev[i])
+                current_ev_scores = [ev[i]]
             else:
                 if current_domain.chromosome == region.chromosome and \
-                        ev[i] < 0 == current_ev_scores[0] < 0:
+                        (ev[i] < 0) == (current_ev_scores[0] < 0):
                     current_domain.end = region.end
                     current_ev_scores.append(ev[i])
                 else:
@@ -254,7 +254,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
                     current_domain = gr.GenomicRegion(chromosome=region.chromosome,
                                                       start=region.start, end=region.end,
                                                       name='A' if ev[i] >= 0 else 'B')
-                    current_ev_scores.append(ev[i])
+                    current_ev_scores = [ev[i]]
         if current_domain is not None:
             current_domain.score = np.nanmean(current_ev_scores)
             domains.append(current_domain)
