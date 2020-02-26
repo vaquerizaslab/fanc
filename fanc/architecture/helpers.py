@@ -89,11 +89,11 @@ def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True
                         c[j_bin, i_bin] += 1
     else:
         oem = matrix.matrix(oe=True)
-        for i in range(oem.shape):
+        for i in range(oem.shape[0]):
             if not mappable[i]:
                 continue
             i_bin = s - bins[i] - 1
-            for j in range(i, oem.shape):
+            for j in range(i, oem.shape[1]):
                 if not mappable[j]:
                     continue
 
