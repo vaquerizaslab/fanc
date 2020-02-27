@@ -65,7 +65,7 @@ def fanc_parser():
     parser.add_argument(
         '-s', '--silent', dest='silent',
         action='store_true',
-        help='Do not print log messages to to command line.'
+        help='Do not print log messages to command line.'
     )
     parser.set_defaults(silent=False)
 
@@ -1164,6 +1164,19 @@ def hic_parser():
     )
 
     parser.add_argument(
+        '--subset', dest='subset',
+        help='Comma-separated list of regions that will be used in the output '
+             'Hic object. All contacts between these regions '
+             'will be in the output object. For example, '
+             '"chr1,chr3" will result in a Hic object with '
+             'all regions in chromosomes 1 and 3, plus all '
+             'contacts within chromosome 1, all contacts within '
+             'chromosome 3, and all contacts between chromosome '
+             '1 and 3. "chr1" will only contain regions and contacts'
+             'within chromosome 1.'
+    )
+
+    parser.add_argument(
         '-i', '--ice-correct', dest='ice',
         action='store_true',
         default=False,
@@ -1258,6 +1271,7 @@ def hic(argv, **kwargs):
     filter_low_coverage_auto = args.filter_low_coverage_auto
     filter_diagonal = args.filter_diagonal
     downsample = args.downsample
+    subset = args.subset
     ice = args.ice
     kr = args.kr
     whole_matrix = args.whole_matrix
@@ -1374,7 +1388,7 @@ def hic(argv, **kwargs):
             merged_hic = fanc.load(merged_hic_file)
 
             logger.info("Binning Hic file ({})".format(bin_size))
-            if downsample is None:
+            if downsample is None and subset is None:
                 output_binned_file = output_file
             else:
                 f = tempfile.NamedTemporaryFile(delete=False, suffix='.hic')
@@ -1383,7 +1397,7 @@ def hic(argv, **kwargs):
             binned_hic = merged_hic.bin(bin_size, file_name=output_binned_file,
                                         threads=threads, chromosomes=limit_chromosomes)
         else:
-            if downsample is None and output_file is not None:
+            if downsample is None and subset is None and output_file is not None:
                 shutil.copy(merged_hic_file, output_file)
                 merged_hic_file = output_file
             binned_hic = fanc.load(merged_hic_file, mode='a')
@@ -1391,6 +1405,11 @@ def hic(argv, **kwargs):
         if downsample is not None:
             downsampled_hic = binned_hic.downsample(downsample, file_name=output_file)
             binned_hic = downsampled_hic
+
+        if subset is not None:
+            subset_regions = subset.split(",")
+            subset_hic = binned_hic.subset(*subset_regions, file_name=output_file)
+            binned_hic = subset_hic
 
         if reset_filters:
             logger.info("Resetting all filters")
