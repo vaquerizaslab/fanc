@@ -2374,7 +2374,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
     def region_data(self, key, value=None):
         data = RegionPairsTable.region_data(self, key, value)
 
-        if key == 'bias':
+        if key == 'bias' and value is not None:
             logger.debug("Recalculating mappability and expected values after bias vector change!")
             self._update_mappability()
 
