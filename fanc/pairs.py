@@ -681,7 +681,7 @@ class PairedSamBamReadPairGenerator(ReadPairGenerator):
         self.sam_file = sam_file
 
     @staticmethod
-    def resolve_chimeric(reads, max_dist_same_locus=100):
+    def resolve_chimeric(reads, max_dist_same_locus=200):
         """
         :return: read1, read2, is_chimeric
         """
@@ -690,26 +690,41 @@ class PairedSamBamReadPairGenerator(ReadPairGenerator):
         elif len(reads) == 3:
             if reads[0].reference_id != reads[1].reference_id != reads[2].reference_id:
                 return None, None, False
-            elif reads[0].reference_id == reads[1].reference_id != reads[2].reference_id:
-                return reads[0], reads[2], True
-            elif reads[0].reference_id != reads[1].reference_id == reads[2].reference_id:
-                return reads[0], reads[1], True
             else:
                 start0, stop0 = reads[0].pos, reads[0].pos + reads[0].alen
                 start1, stop1 = reads[1].pos, reads[1].pos + reads[1].alen
                 start2, stop2 = reads[2].pos, reads[2].pos + reads[2].alen
 
-                d0 = min(abs(start0 - stop1), abs(start1 - stop0))
-                d1 = min(abs(start0 - stop2), abs(start2 - stop0))
-                d2 = min(abs(start1 - stop2), abs(start2 - stop1))
+                d0_1 = min(abs(start0 - stop1), abs(start1 - stop0))
+                d0_2 = min(abs(start0 - stop2), abs(start2 - stop0))
+                d1_2 = min(abs(start1 - stop2), abs(start2 - stop1))
 
-                if d0 < max_dist_same_locus < d1 <= d2:
-                    return reads[0], reads[2], True
-                elif d1 < max_dist_same_locus < d0 <= d2:
-                    return reads[0], reads[1], True
-                elif d2 < max_dist_same_locus < d0 <= d1:
-                    return reads[0], reads[1], True
-                return None, None, None
+                # inter-chromosomal or complex
+                if reads[0].reference_id == reads[1].reference_id != reads[2].reference_id:
+                    if d0_1 < max_dist_same_locus:
+                        return reads[0], reads[2], True
+                    else:
+                        return None, None, False
+                elif reads[0].reference_id != reads[1].reference_id == reads[2].reference_id:
+                    if d1_2 < max_dist_same_locus:
+                        return reads[0], reads[1], True
+                    else:
+                        return None, None, False
+                elif reads[0].reference_id == reads[2].reference_id != reads[1].reference_id:
+                    if d0_2 < max_dist_same_locus:
+                        return reads[1], reads[2], True
+                    else:
+                        return None, None, False
+                # intra-chromosomal
+                else:
+                    if d0_1 <= max_dist_same_locus and d0_2 > max_dist_same_locus and d1_2 > max_dist_same_locus:
+                        return reads[0], reads[2], True
+                    elif d0_2 <= max_dist_same_locus  and d0_1 > max_dist_same_locus and d1_2 > max_dist_same_locus:
+                        return reads[1], reads[2], True
+                    elif d1_2 <= max_dist_same_locus  and d0_1 > max_dist_same_locus and d0_2 > max_dist_same_locus:
+                        return reads[0], reads[1], True
+
+                    return None, None, None
         else:
             return None, None, False
 
