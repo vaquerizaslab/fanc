@@ -1618,7 +1618,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             RegionsTable._flush_regions(self)
             self._update_partitions()
 
-    def _flush_edges(self, silent=config.hide_progressbars):
+    def _flush_edges(self, silent=config.hide_progressbars, update_mappability=True):
         if self._edges_dirty:
             logger.debug("Flushing edge buffer")
             self._edge_buffer.flush()
@@ -1631,16 +1631,18 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             self._enable_edge_indexes()
             self._edges_dirty = False
 
-            self._update_mappability()
+            if update_mappability:
+                self._update_mappability()
 
-    def flush(self, silent=config.hide_progressbars):
+    def flush(self, silent=config.hide_progressbars, update_mappability=True):
         """
         Write data to file and flush buffers.
 
         :param silent: do not print flush progress
+        :param update_mappability: After writing data, update mappability and expected values
         """
         self._flush_regions()
-        self._flush_edges(silent=silent)
+        self._flush_edges(silent=silent, update_mappability=update_mappability)
 
     def _disable_edge_indexes(self):
         logger.debug("Disabling edge indexes")
@@ -2268,11 +2270,11 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
             except tables.NoSuchNodeError:
                 pass
 
-    def _flush_edges(self, silent=config.hide_progressbars):
+    def _flush_edges(self, **kwargs):
         if self._edges_dirty:
            self._remove_expected_values()
 
-        RegionPairsTable._flush_edges(self, silent=silent)
+        RegionPairsTable._flush_edges(self, **kwargs)
 
     def set_biases(self, biases):
         self.region_data('bias', biases)
