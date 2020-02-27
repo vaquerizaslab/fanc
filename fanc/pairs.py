@@ -681,7 +681,7 @@ class PairedSamBamReadPairGenerator(ReadPairGenerator):
         self.sam_file = sam_file
 
     @staticmethod
-    def resolve_chimeric(reads, max_dist_same_locus=200):
+    def resolve_chimeric(reads, max_dist_same_locus=500):
         """
         :return: read1, read2, is_chimeric
         """
@@ -723,8 +723,8 @@ class PairedSamBamReadPairGenerator(ReadPairGenerator):
                         return reads[1], reads[2], True
                     elif d1_2 <= max_dist_same_locus  and d0_1 > max_dist_same_locus and d0_2 > max_dist_same_locus:
                         return reads[0], reads[1], True
-
-                    return None, None, None
+                    else:
+                        return None, None, None
         else:
             return None, None, False
 
