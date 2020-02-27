@@ -2176,13 +2176,18 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         :param kwargs: Supports
                        file_name: destination file name of subset Hic object;
                        tmpdir: if True works in tmp until object is closed
+                       additional parameters are passed to
+                       :func:`~RegionMatrixTable.edges`
         :return: :class:`~fanc.Hic`
         """
+        logger.debug("Subsetting matrix")
         file_name = kwargs.get("file_name", None)
         tmpdir = kwargs.get('tmpdir', None)
+        norm = kwargs.get('norm', False)
 
         new_pairs = self.__class__(file_name=file_name, mode='w', tmpdir=tmpdir)
 
+        logger.debug("Adding subset regions")
         ix_converter = {}
         ix = 0
         new_regions = []
@@ -2192,15 +2197,20 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 ix += 1
                 new_regions.append(region)
         new_pairs.add_regions(new_regions, preserve_attributes=False)
+        bias_vector = [r.bias for r in new_regions]
 
+        logger.debug("Adding subset edges")
         for i, region_string1 in enumerate(regions):
             for j in range(i, len(regions)):
                 region_string2 = regions[j]
-                for edge in self.edges((region_string1, region_string2), lazy=True):
+                for edge in self.edges((region_string1, region_string2), lazy=True, norm=norm, **kwargs):
                     source = ix_converter[edge.source]
                     sink = ix_converter[edge.sink]
                     new_pairs.add_edge([source, sink, edge.weight])
-        new_pairs.flush()
+        new_pairs.flush(update_mappability=False)
+
+        logger.debug("Adding subset bias vector")
+        new_pairs.bias_vector(bias_vector)
 
         return new_pairs
 
