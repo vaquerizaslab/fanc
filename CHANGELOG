@@ -1,3 +1,8 @@
+0.8.25
+
+- Improved subsetting that maintains uncorrected matrix version
+- Removed redundant calculation of expected values when retrieving bias vector
+
 0.8.24
 
 - Silence divide by zero warning in compartment analysis
