@@ -1725,7 +1725,7 @@ class ReadPairs(RegionPairsTable):
                         total += stats[key]
                     pb.update(i)
             if log_progress:
-                logger.info("Total: {}. Valid: {}".format(total, total - filtered))
+                logger.debug("Total: {}. Valid: {}".format(total, total - filtered))
         else:
             self._queued_filters.append(pair_filter)
 
