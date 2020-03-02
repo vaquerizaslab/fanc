@@ -41,7 +41,7 @@ setup(
         'pysam>=0.9.1',
         'biopython',
         'pytest',
-        'msgpack-python',
+        'msgpack',
         'msgpack-numpy',
         'gridmap',
         'scikit-learn',
