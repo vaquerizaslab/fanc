@@ -21,7 +21,16 @@ Here is a minimal example:
 
 This command will map the FASTQ file ``SRR4271982_chr18_19_1.fastq.gzip`` using the BWA
 index specified with ``-i bwa-index/hg19_chr18_19.fa`` and output the mapped reads
-to ``SRR4271982_chr18_19_1.sam``. You can change the suffix of the output file to ``.bam``
+to ``SRR4271982_chr18_19_1.sam``.
+
+.. note::
+
+   When downloading FASTQ files from SRA using SRAtools, e.g. with `fastq-dump`, do not
+   use the ``-I / --readids`` option, which appends ``.1`` or ``.2`` to the read name. This
+   interferes with the sorting and read pairing step in FAN-C. **Read names of the two mates
+   must be identical**.
+
+You can change the suffix of the output file to ``.bam``
 and ``fanc map`` will automatically convert the mapping output to BAM format.
 
 Importantly, ``fanc map`` will autodetect if you supply a BWA or Bowtie2 index, so
@@ -149,6 +158,13 @@ As you can see, the ``-g`` parameter is not necessary when proving an existing P
 as this already has all the fragment information stored in the object. Neither do we need an
 output file, as further operations will be performed in place. This primarily applies to
 the filtering of read pairs according to various criteria.
+
+.. note::
+
+   **Read names of the two mates must be identical**. Some read names, especially those obtained
+   from SRA using SRAtools with the ``-I / --readids`` option, have ``.1`` or ``.2`` appended
+   to the read name. This interferes with the sorting and read pairing step in FAN-C, and you
+   need to remove those endings before import.
 
 Additional parameters primarily control the filtering of read pairs:
 

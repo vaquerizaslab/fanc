@@ -44,6 +44,13 @@ Note that we are calling iterative mapping twice, independently for each FASTQ f
 appropriate for a Hi-C experiment. ``min_size`` determines the minimum size of a truncated
 read after which it will be discarded, while ``step_size`` determines the truncation amount.
 
+.. note::
+
+   When downloading FASTQ files from SRA using SRAtools, e.g. with `fastq-dump`, do not
+   use the ``-I / --readids`` option, which appends ``.1`` or ``.2`` to the read name. This
+   interferes with the sorting and read pairing step in FAN-C. **Read names of the two mates
+   must be identical**.
+
 By providing a ``restriction_enzyme`` name, we enable ligation junction splitting. Each read
 will be scanned for a predicted ligation junction of the provided restriction enzyme and if
 one is encountered, it will be split at the junction before alignment. This can greatly increase

@@ -120,7 +120,16 @@ Once you have these prerequisites, you can call ``fanc auto`` like this, assumin
 The first two arguments are the paired-end FASTQ files. ``fanc auto`` works with FASTQ and gzipped
 FASTQ files. In general, ``fanc auto`` assumes that two consecutive FASTQ file arguments are mate
 pairs (there is no pattern matching on _1 and _2 involved, so make sure you have the correct order
-of input files!). Following the FASTQ files as the last positional argument is the output folder
+of input files!).
+
+.. note::
+
+   When downloading FASTQ files from SRA using SRAtools, e.g. with `fastq-dump`, do not
+   use the ``-I / --readids`` option, which appends ``.1`` or ``.2`` to the read name. This
+   interferes with the sorting and read pairing step in FAN-C. **Read names of the two mates
+   must be identical**.
+
+Following the FASTQ files as the last positional argument is the output folder
 (``example_output``). ``-i`` or ``--genome-index`` instructs ``fanc auto`` to use the specified index
 for mapping the FASTQ files to a reference genome. It will automatically determine whether a
 BWA mem or Bowtie2 index is provided and choose the mapping software accordingly. Other mappers are
