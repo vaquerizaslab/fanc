@@ -140,8 +140,21 @@ Example analysis
 For this example, we are going to use the command ``fanc auto`` (see :ref:`fanc-auto`) to
 construct a Hi-C map from a subset of a previously published adrenal tissue data set
 (`SRR4271982 of GSM2322539 <https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM2322539>`_).
-You can access the sample and all necessary files in the ``examples/`` folder on
-our `GitHub page <http://www.github.com/vaquerizaslab/fanc>`_.
+
+You can download the files from `our lab homepage <http://www.vaquerizaslab.org/datasets/fanc-examples.zip>`_:
+
+.. code:: python
+
+   wget http://www.vaquerizaslab.org/datasets/fanc-examples.zip
+   unzip fanc-examples.zip
+   cd examples
+
+or clone the FAN-C repository from our `GitHub page <http://www.github.com/vaquerizaslab/fanc>`_:
+
+.. code:: python
+
+   git clone http://www.github.com/vaquerizaslab/fanc
+   cd examples
 
 From the examples folder, run:
 
