@@ -114,7 +114,7 @@ def _bin_hic_partition_worker(hic_file, qin, qout,
                               access_lock):
 
     try:
-        overlap_map = msgpack.loads(overlap_map)
+        overlap_map = msgpack.loads(overlap_map, strict_map_key=False)
         while True:
             worker_input = qin.get()
             if worker_input is None:
@@ -303,7 +303,7 @@ class Hic(RegionMatrixTable):
                             out = qout.get(block=True)
                             if isinstance(out, Exception):
                                 raise out
-                            edges = msgpack.loads(out, use_list=False)
+                            edges = msgpack.loads(out, use_list=False, strict_map_key=False)
                             for (source, sink), weight in edges.items():
                                 self.add_edge_simple(source, sink, weight=weight)
                             pb.update(i)

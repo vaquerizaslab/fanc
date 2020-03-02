@@ -289,7 +289,7 @@ def _fragment_info_worker(monitor, input_queue, output_queue, fi, fe):
         read_pairs = input_queue.get(True)
         monitor.set_worker_busy(worker_uuid)
         logger.debug('Worker {} reveived input!'.format(worker_uuid))
-        read_pairs = msgpack.loads(read_pairs)
+        read_pairs = msgpack.loads(read_pairs, strict_map_key=False)
 
         fragment_infos = []
         skipped_counter = 0
@@ -1298,7 +1298,7 @@ class ReadPairs(RegionPairsTable):
                 try:
                     read_pair_infos = output_queue.get(block=True, timeout=timeout)
 
-                    for read1_info, read2_info in msgpack.loads(read_pair_infos):
+                    for read1_info, read2_info in msgpack.loads(read_pair_infos, strict_map_key=False):
                         yield read1_info, read2_info
                     output_counter += 1
                     del read_pair_infos

@@ -1055,7 +1055,7 @@ class RaoPeakCaller(object):
         logger.debug("Got gridmap output.")
 
         for compressed_results in job_outputs:
-            results = msgpack.loads(compressed_results)
+            results = msgpack.loads(compressed_results, strict_map_key=False)
             for result in results:
                 found_none = False
                 for value in result:
@@ -1354,7 +1354,7 @@ def process_matrix_segment_intra(data):
         i_range, i_inspect, mappable_i, c_i, \
         j_range, j_inspect, mappable_j, c_j, \
         w, p, min_locus_dist, min_ll_reads, min_mappable, \
-        max_w = msgpack.loads(data)
+        max_w = msgpack.loads(data, strict_map_key=False)
 
     m_original = np.array(m_original)
     # construct convenient matrices
