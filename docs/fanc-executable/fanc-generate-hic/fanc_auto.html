@@ -362,7 +362,15 @@ ligation junctions are sequenced.</p>
 <p>The first two arguments are the paired-end FASTQ files. <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> works with FASTQ and gzipped
 FASTQ files. In general, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> assumes that two consecutive FASTQ file arguments are mate
 pairs (there is no pattern matching on _1 and _2 involved, so make sure you have the correct order
-of input files!). Following the FASTQ files as the last positional argument is the output folder
+of input files!).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When downloading FASTQ files from SRA using SRAtools, e.g. with <cite>fastq-dump</cite>, do not
+use the <code class="docutils literal notranslate"><span class="pre">-I</span> <span class="pre">/</span> <span class="pre">--readids</span></code> option, which appends <code class="docutils literal notranslate"><span class="pre">.1</span></code> or <code class="docutils literal notranslate"><span class="pre">.2</span></code> to the read name. This
+interferes with the sorting and read pairing step in FAN-C. <strong>Read names of the two mates
+must be identical</strong>.</p>
+</div>
+<p>Following the FASTQ files as the last positional argument is the output folder
 (<code class="docutils literal notranslate"><span class="pre">example_output</span></code>). <code class="docutils literal notranslate"><span class="pre">-i</span></code> or <code class="docutils literal notranslate"><span class="pre">--genome-index</span></code> instructs <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> to use the specified index
 for mapping the FASTQ files to a reference genome. It will automatically determine whether a
 BWA mem or Bowtie2 index is provided and choose the mapping software accordingly. Other mappers are

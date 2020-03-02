@@ -215,6 +215,13 @@ mapping automatically.</p>
 <p>Note that we are calling iterative mapping twice, independently for each FASTQ file, as
 appropriate for a Hi-C experiment. <code class="docutils literal notranslate"><span class="pre">min_size</span></code> determines the minimum size of a truncated
 read after which it will be discarded, while <code class="docutils literal notranslate"><span class="pre">step_size</span></code> determines the truncation amount.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When downloading FASTQ files from SRA using SRAtools, e.g. with <cite>fastq-dump</cite>, do not
+use the <code class="docutils literal notranslate"><span class="pre">-I</span> <span class="pre">/</span> <span class="pre">--readids</span></code> option, which appends <code class="docutils literal notranslate"><span class="pre">.1</span></code> or <code class="docutils literal notranslate"><span class="pre">.2</span></code> to the read name. This
+interferes with the sorting and read pairing step in FAN-C. <strong>Read names of the two mates
+must be identical</strong>.</p>
+</div>
 <p>By providing a <code class="docutils literal notranslate"><span class="pre">restriction_enzyme</span></code> name, we enable ligation junction splitting. Each read
 will be scanned for a predicted ligation junction of the provided restriction enzyme and if
 one is encountered, it will be split at the junction before alignment. This can greatly increase

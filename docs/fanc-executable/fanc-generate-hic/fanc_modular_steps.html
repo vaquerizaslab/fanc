@@ -185,7 +185,15 @@
 </div>
 <p>This command will map the FASTQ file <code class="docutils literal notranslate"><span class="pre">SRR4271982_chr18_19_1.fastq.gzip</span></code> using the BWA
 index specified with <code class="docutils literal notranslate"><span class="pre">-i</span> <span class="pre">bwa-index/hg19_chr18_19.fa</span></code> and output the mapped reads
-to <code class="docutils literal notranslate"><span class="pre">SRR4271982_chr18_19_1.sam</span></code>. You can change the suffix of the output file to <code class="docutils literal notranslate"><span class="pre">.bam</span></code>
+to <code class="docutils literal notranslate"><span class="pre">SRR4271982_chr18_19_1.sam</span></code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When downloading FASTQ files from SRA using SRAtools, e.g. with <cite>fastq-dump</cite>, do not
+use the <code class="docutils literal notranslate"><span class="pre">-I</span> <span class="pre">/</span> <span class="pre">--readids</span></code> option, which appends <code class="docutils literal notranslate"><span class="pre">.1</span></code> or <code class="docutils literal notranslate"><span class="pre">.2</span></code> to the read name. This
+interferes with the sorting and read pairing step in FAN-C. <strong>Read names of the two mates
+must be identical</strong>.</p>
+</div>
+<p>You can change the suffix of the output file to <code class="docutils literal notranslate"><span class="pre">.bam</span></code>
 and <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">map</span></code> will automatically convert the mapping output to BAM format.</p>
 <p>Importantly, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">map</span></code> will autodetect if you supply a BWA or Bowtie2 index, so
 the following command would use Bowtie2 as a mapper:</p>
@@ -347,6 +355,13 @@ in place.</p>
 as this already has all the fragment information stored in the object. Neither do we need an
 output file, as further operations will be performed in place. This primarily applies to
 the filtering of read pairs according to various criteria.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Read names of the two mates must be identical</strong>. Some read names, especially those obtained
+from SRA using SRAtools with the <code class="docutils literal notranslate"><span class="pre">-I</span> <span class="pre">/</span> <span class="pre">--readids</span></code> option, have <code class="docutils literal notranslate"><span class="pre">.1</span></code> or <code class="docutils literal notranslate"><span class="pre">.2</span></code> appended
+to the read name. This interferes with the sorting and read pairing step in FAN-C, and you
+need to remove those endings before import.</p>
+</div>
 <p>Additional parameters primarily control the filtering of read pairs:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">pairs</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span> <span class="n">GENOME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RESTRICTION_ENZYME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">u</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">us</span><span class="p">]</span>
                   <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">CONTAMINANT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">INWARD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OUTWARD</span><span class="p">]</span>
