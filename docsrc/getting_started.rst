@@ -143,7 +143,7 @@ construct a Hi-C map from a subset of a previously published adrenal tissue data
 
 You can download the files from `our lab homepage <http://www.vaquerizaslab.org/datasets/fanc-examples.zip>`_:
 
-.. code:: python
+.. code:: bash
 
    wget http://www.vaquerizaslab.org/datasets/fanc-examples.zip
    unzip fanc-examples.zip
@@ -151,7 +151,7 @@ You can download the files from `our lab homepage <http://www.vaquerizaslab.org/
 
 or clone the FAN-C repository from our `GitHub page <http://www.github.com/vaquerizaslab/fanc>`_:
 
-.. code:: python
+.. code:: bash
 
    git clone http://www.github.com/vaquerizaslab/fanc
    cd examples
