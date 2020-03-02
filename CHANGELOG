@@ -2,6 +2,8 @@
 
 - Improved subsetting that maintains uncorrected matrix version
 - Removed redundant calculation of expected values when retrieving bias vector
+- Fixed msgpack 1.0.0 compatibility
+- Improved chimeric read resolution
 
 0.8.24
 
