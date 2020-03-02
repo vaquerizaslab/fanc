@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Comparisons module &mdash; FAN-C 0.8.23-beta documentation</title>
+  <title>Comparisons module &mdash; FAN-C 0.8.25-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.23
+                0.8.25
               </div>
             
           
@@ -849,11 +849,14 @@ query region</p>
 
 <dl class="method">
 <dt id="fanc.architecture.comparisons.ComparisonMatrix.flush">
-<code class="sig-name descname">flush</code><span class="sig-paren">(</span><em class="sig-param">silent=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.comparisons.ComparisonMatrix.flush" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">flush</code><span class="sig-paren">(</span><em class="sig-param">silent=False</em>, <em class="sig-param">update_mappability=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.comparisons.ComparisonMatrix.flush" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write data to file and flush buffers.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>silent</strong> – do not print flush progress</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>silent</strong> – do not print flush progress</p></li>
+<li><p><strong>update_mappability</strong> – After writing data, update mappability and expected values</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -1201,7 +1204,9 @@ Hic object.</p>
 <li><p><strong>regions</strong> – string or GenomicRegion object(s)</p></li>
 <li><p><strong>kwargs</strong> – Supports
 file_name: destination file name of subset Hic object;
-tmpdir: if True works in tmp until object is closed</p></li>
+tmpdir: if True works in tmp until object is closed
+additional parameters are passed to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -2725,11 +2730,14 @@ query region</p>
 
 <dl class="method">
 <dt id="fanc.architecture.comparisons.DifferenceMatrix.flush">
-<code class="sig-name descname">flush</code><span class="sig-paren">(</span><em class="sig-param">silent=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.comparisons.DifferenceMatrix.flush" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">flush</code><span class="sig-paren">(</span><em class="sig-param">silent=False</em>, <em class="sig-param">update_mappability=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.comparisons.DifferenceMatrix.flush" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write data to file and flush buffers.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>silent</strong> – do not print flush progress</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>silent</strong> – do not print flush progress</p></li>
+<li><p><strong>update_mappability</strong> – After writing data, update mappability and expected values</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -3077,7 +3085,9 @@ Hic object.</p>
 <li><p><strong>regions</strong> – string or GenomicRegion object(s)</p></li>
 <li><p><strong>kwargs</strong> – Supports
 file_name: destination file name of subset Hic object;
-tmpdir: if True works in tmp until object is closed</p></li>
+tmpdir: if True works in tmp until object is closed
+additional parameters are passed to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -4601,11 +4611,14 @@ query region</p>
 
 <dl class="method">
 <dt id="fanc.architecture.comparisons.FoldChangeMatrix.flush">
-<code class="sig-name descname">flush</code><span class="sig-paren">(</span><em class="sig-param">silent=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.comparisons.FoldChangeMatrix.flush" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">flush</code><span class="sig-paren">(</span><em class="sig-param">silent=False</em>, <em class="sig-param">update_mappability=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.comparisons.FoldChangeMatrix.flush" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write data to file and flush buffers.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>silent</strong> – do not print flush progress</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>silent</strong> – do not print flush progress</p></li>
+<li><p><strong>update_mappability</strong> – After writing data, update mappability and expected values</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -4953,7 +4966,9 @@ Hic object.</p>
 <li><p><strong>regions</strong> – string or GenomicRegion object(s)</p></li>
 <li><p><strong>kwargs</strong> – Supports
 file_name: destination file name of subset Hic object;
-tmpdir: if True works in tmp until object is closed</p></li>
+tmpdir: if True works in tmp until object is closed
+additional parameters are passed to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>

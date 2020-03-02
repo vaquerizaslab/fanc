@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Individual pipeline steps &mdash; FAN-C 0.8.23-beta documentation</title>
+  <title>Individual pipeline steps &mdash; FAN-C 0.8.25-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.23
+                0.8.25
               </div>
             
           
@@ -533,8 +533,8 @@ overview of all parameters:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">hic</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BIN_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span> <span class="n">FILTER_LOW_COVERAGE</span><span class="p">]</span>
                 <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">FILTER_LOW_COVERAGE_RELATIVE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">a</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">FILTER_DIAGONAL</span><span class="p">]</span>
                 <span class="p">[</span><span class="o">--</span><span class="n">marginals</span><span class="o">-</span><span class="n">plot</span> <span class="n">MARGINALS_PLOT</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">reset</span><span class="o">-</span><span class="n">filters</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">--</span><span class="n">downsample</span> <span class="n">DOWNSAMPLE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">k</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">only</span><span class="o">-</span><span class="n">inter</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STATS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">statistics</span><span class="o">-</span><span class="n">plot</span> <span class="n">STATS_PLOT</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">downsample</span> <span class="n">DOWNSAMPLE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">subset</span> <span class="n">SUBSET</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">k</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">c</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">only</span><span class="o">-</span><span class="n">inter</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STATS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">statistics</span><span class="o">-</span><span class="n">plot</span> <span class="n">STATS_PLOT</span><span class="p">]</span>
                 <span class="p">[</span><span class="o">--</span><span class="n">chromosomes</span> <span class="n">CHROMOSOMES</span> <span class="p">[</span><span class="n">CHROMOSOMES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
                 <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
                 <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span>
@@ -574,6 +574,9 @@ overview of all parameters:</p>
 </dd>
 <dt><kbd>--downsample</kbd></dt>
 <dd><p>Downsample a binned Hi-C object before filtering and correcting. Sample size or reference Hi-C object. If sample size is &lt; 1,will be interpreted as a fraction of valid pairs.</p>
+</dd>
+<dt><kbd>--subset</kbd></dt>
+<dd><p>Comma-separated list of regions that will be used in the output Hic object. All contacts between these regions will be in the output object. For example, “chr1,chr3” will result in a Hic object with all regions in chromosomes 1 and 3, plus all contacts within chromosome 1, all contacts within chromosome 3, and all contacts between chromosome 1 and 3. “chr1” will only contain regions and contactswithin chromosome 1.</p>
 </dd>
 <dt><kbd>-i, --ice-correct</kbd></dt>
 <dd><p>Use ICE iterative correction on the binned Hic matrix</p>

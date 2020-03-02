@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Pairs module &mdash; FAN-C 0.8.23-beta documentation</title>
+  <title>Pairs module &mdash; FAN-C 0.8.25-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.23
+                0.8.25
               </div>
             
           
@@ -966,7 +966,7 @@ removed.</p>
 
 <dl class="method">
 <dt id="fanc.pairs.PairedSamBamReadPairGenerator.resolve_chimeric">
-<em class="property">static </em><code class="sig-name descname">resolve_chimeric</code><span class="sig-paren">(</span><em class="sig-param">reads</em>, <em class="sig-param">max_dist_same_locus=100</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.pairs.PairedSamBamReadPairGenerator.resolve_chimeric" title="Permalink to this definition">¶</a></dt>
+<em class="property">static </em><code class="sig-name descname">resolve_chimeric</code><span class="sig-paren">(</span><em class="sig-param">reads</em>, <em class="sig-param">max_dist_same_locus=500</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.pairs.PairedSamBamReadPairGenerator.resolve_chimeric" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
 <dd class="field-odd"><p>read1, read2, is_chimeric</p>
@@ -2174,7 +2174,9 @@ will be continuously reported.</p>
 <li><p><strong>regions</strong> – string or GenomicRegion object(s)</p></li>
 <li><p><strong>kwargs</strong> – Supports
 file_name: destination file name of subset Hic object;
-tmpdir: if True works in tmp until object is closed</p></li>
+tmpdir: if True works in tmp until object is closed
+additional parameters are passed to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
