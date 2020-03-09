@@ -1360,7 +1360,8 @@ def process_matrix_segment_intra(data):
     # construct convenient matrices
     row_ixs = np.arange(i_range[0], i_range[1])
     col_ixs = np.arange(j_range[0], j_range[1])
-    m_uncorrected = np.rint(m_original/c_i[:, None]/c_j)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        m_uncorrected = np.rint(m_original/c_i[:, None]/c_j)
     m_distance = np.array([abs(col_ixs - i) for i in row_ixs])
     expected_f = np.vectorize(lambda x: e[x])
     m_expected = expected_f(m_distance)
