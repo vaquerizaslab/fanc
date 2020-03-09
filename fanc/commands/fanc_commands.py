@@ -144,7 +144,7 @@ def map_parser():
         type=int,
         default=25,
         help='Minimum length of read before extension. '
-             'Default 25.'
+             'Default %(default)d.'
     )
 
     parser.add_argument(
@@ -152,7 +152,7 @@ def map_parser():
         type=int,
         default=10,
         help='Number of base pairs to extend at each round of mapping. '
-             'Default is 10.'
+             'Default is %(default)d.'
     )
 
     parser.add_argument(
@@ -166,7 +166,7 @@ def map_parser():
         '-t', '--threads', dest='threads',
         type=int,
         default=1,
-        help='Number of threads used for mapping'
+        help='Number of threads used for mapping. Default: %(default)d'
     )
 
     parser.add_argument(
@@ -192,7 +192,7 @@ def map_parser():
         '-k', '--max-alignments', dest='max_alignments',
         type=int,
         help='Maximum number of alignments per read to be reported.'
-             'Default: 1'
+             'Default: %(default)d'
     )
 
     parser.add_argument(
@@ -208,7 +208,7 @@ def map_parser():
         type=int,
         default=100000,
         help='Number of reads processed (mapped and merged) in one go per worker. '
-             'The default (100000) works well for large indexes (e.g. human, mouse). '
+             'The default %(default)d works well for large indexes (e.g. human, mouse). '
              'Smaller indexes (e.g. yeast) will finish individual bowtie2 processes '
              'very quickly - set this number higher to spawn new processes '
              'less frequently. '
@@ -554,7 +554,8 @@ def sort_sam_parser():
         '-t', '--threads', dest='threads',
         default=1,
         type=int,
-        help='Number of sorting threads (only when sambamba is available)'
+        help='Number of sorting threads (only when sambamba is available). '
+             'Default: %(default)d'
     )
 
     parser.add_argument(
@@ -690,7 +691,8 @@ def pairs_parser():
              'on the AS tag instead of mapping quality (only BWA). '
              'The quality cutoff is then interpreted as the '
              'fraction of bases that have to be matched for any '
-             'given read. Only applies to SAM/BAM input!'
+             'given read. Only applies to SAM/BAM input! '
+             'Default: no mapping quality filter.'
     )
 
     parser.add_argument(
@@ -698,19 +700,22 @@ def pairs_parser():
         help='Filter contaminating reads from other organism. '
              'Path to mapped SAM/BAM file. ' 
              'Will filter out reads with the same name. ' 
-             'Only applies to SAM/BAM input!'
+             'Only applies to SAM/BAM input! '
+             'Default: no contaminant filter'
     )
 
     parser.add_argument(
         '-i', '--filter-inward', dest='inward',
         type=int,
-        help='Minimum distance for inward-facing read pairs'
+        help='Minimum distance for inward-facing read pairs. '
+             'Default: no inward ligation error filter'
     )
 
     parser.add_argument(
         '-o', '--filter-outward', dest='outward',
         type=int,
-        help='Minimum distance for outward-facing read pairs'
+        help='Minimum distance for outward-facing read pairs. '
+             'Default: no outward ligation error filter'
     )
 
     parser.add_argument(
@@ -718,20 +723,24 @@ def pairs_parser():
         action='store_true',
         default=False,
         help='Auto-guess settings for inward/outward read pair filters. '
-             'Overrides --filter-outward and --filter-inward if set.'
+             'Overrides --filter-outward and --filter-inward if set. This '
+             'is highly experimental and known to overshoot in some cases. '
+             'It is generally recommended to specify cutoffs manually.'
     )
 
     parser.add_argument(
         '-d', '--filter-re-distance', dest='redist',
         type=int,
-        help='Maximum distance for a read to the nearest restriction site'
+        help='Maximum distance for a read to the nearest restriction site. '
+             'Default: no RE distance filter'
     )
 
     parser.add_argument(
         '-l', '--filter-self-ligations', dest='self_ligated',
         action='store_true',
         default=False,
-        help='Remove read pairs representing self-ligated fragments'
+        help='Remove read pairs representing self-ligated fragments.'
+             'Default: no self-ligation filter.'
     )
 
     parser.add_argument(
@@ -739,7 +748,8 @@ def pairs_parser():
         type=int,
         help='If specified, filter read pairs for PCR duplicates. Parameter determines '
              'distance between alignment starts below which they are considered starting '
-             'at same position. Sensible values are between 1 and 5.'
+             'at same position. Sensible values are between 1 and 5. Default: '
+             'no PCR duplicates filter'
     )
 
     parser.add_argument(
@@ -777,14 +787,16 @@ def pairs_parser():
         '-t', '--threads', dest='threads',
         type=int,
         default=1,
-        help='Number of threads to use for extracting fragment information'
+        help='Number of threads to use for extracting fragment information. '
+             'Default: %(default)d'
     )
 
     parser.add_argument(
         '-b', '--batch-size', dest='batch_size',
         type=int,
         default=1000000,
-        help='Batch size for read pairs to be submitted to individual processes.'
+        help='Batch size for read pairs to be submitted to individual processes. '
+             'Default: %(default)d'
     )
 
     parser.add_argument(
@@ -2021,70 +2033,84 @@ def dump(argv, **kwargs):
 
     logger.info("Extracting the following matrix region: {} vs {}".format(row_subset_region, col_subset_region))
 
-    with fanc.load(hic_file, mode='r', tmpdir=tmp) as hic:
-        ix_to_chromosome = dict()
-        for i, region in enumerate(hic.regions):
-            ix_to_chromosome[region.ix] = region.chromosome
+    original_output_matrix = output_matrix
+    try:
+        if tmp:
+            tmp = False
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mat')
+            tmp_file.close()
+            output_matrix = tmp_file.name
+            logger.info("Temporary output file: {}".format(output_matrix))
+            tmp = True
 
-        row_regions = [region for region in hic.regions(row_subset_region)]
-        col_regions = [region for region in hic.regions(col_subset_region)]
-        row_regions_dict = {region.ix: (region, i) for i, region in enumerate(row_regions)}
-        col_regions_dict = {region.ix: (region, i) for i, region in enumerate(col_regions)}
+        with fanc.load(hic_file, mode='r', tmpdir=tmp) as hic:
+            ix_to_chromosome = dict()
+            for i, region in enumerate(hic.regions):
+                ix_to_chromosome[region.ix] = region.chromosome
 
-        if oe:
-            _, expected_intra, expected_inter = hic.expected_values(norm=norm)
-        else:
-            expected_intra, expected_inter = {}, 1
+            row_regions = [region for region in hic.regions(row_subset_region)]
+            col_regions = [region for region in hic.regions(col_subset_region)]
+            row_regions_dict = {region.ix: (region, i) for i, region in enumerate(row_regions)}
+            col_regions_dict = {region.ix: (region, i) for i, region in enumerate(col_regions)}
 
-        if log2:
-            transform = np.log2
-        else:
-            transform = float
-
-        if not sparse:
-            if output_matrix is None or output_regions is None:
-                raise ValueError("Cannot write matrix to stdout, must provide "
-                                 "both matrix and regions file for output")
-            m = hic.matrix(key=(row_subset_region, col_subset_region), oe=oe, log=log2, norm=norm)
-            np.savetxt(output_matrix, m)
-        else:
-            if output_matrix is None:
-                o = sys.stdout
+            if oe:
+                _, expected_intra, expected_inter = hic.expected_values(norm=norm)
             else:
-                o = open(output_matrix, 'w')
+                expected_intra, expected_inter = {}, 1
 
-            try:
-                for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True, norm=norm):
-                    source, i = row_regions_dict[edge.source]
-                    sink, j = col_regions_dict[edge.sink]
-                    weight = getattr(edge, hic._default_score_field)
-                    source_ix, sink_ix = source.ix, sink.ix
-                    source_chromosome, sink_chromosome = ix_to_chromosome[source_ix], ix_to_chromosome[sink_ix]
+            if log2:
+                transform = np.log2
+            else:
+                transform = float
 
-                    if source_chromosome == sink_chromosome:
-                        if oe:
-                            weight /= expected_intra[source_chromosome][abs(sink_ix - source_ix)]
-                    else:
-                        if only_intra:
-                            continue
-                        if oe:
-                            weight /= expected_inter
+            if not sparse:
+                if output_matrix is None or output_regions is None:
+                    raise ValueError("Cannot write matrix to stdout, must provide "
+                                     "both matrix and regions file for output")
+                m = hic.matrix(key=(row_subset_region, col_subset_region), oe=oe, log=log2, norm=norm)
+                np.savetxt(output_matrix, m)
+            else:
+                if output_matrix is None:
+                    o = sys.stdout
+                else:
+                    o = open(output_matrix, 'w')
 
-                    if output_regions is None:
-                        print("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-                            source.chromosome, source.start, source.end,
-                            sink.chromosome, sink.start, sink.end,
-                            transform(weight)
-                        ), file=o)
-                    else:
-                        print("{}\t{}\t{}".format(
-                            i, j, transform(weight)
-                        ), file=o)
-            except BrokenPipeError:
-                pass
-            finally:
-                if output_matrix is not None:
-                    o.close()
+                try:
+                    for edge in hic.edges(key=(row_subset_region, col_subset_region), lazy=True, norm=norm):
+                        source, i = row_regions_dict[edge.source]
+                        sink, j = col_regions_dict[edge.sink]
+                        weight = getattr(edge, hic._default_score_field)
+                        source_ix, sink_ix = source.ix, sink.ix
+                        source_chromosome, sink_chromosome = ix_to_chromosome[source_ix], ix_to_chromosome[sink_ix]
+
+                        if source_chromosome == sink_chromosome:
+                            if oe:
+                                weight /= expected_intra[source_chromosome][abs(sink_ix - source_ix)]
+                        else:
+                            if only_intra:
+                                continue
+                            if oe:
+                                weight /= expected_inter
+
+                        if output_regions is None:
+                            print("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+                                source.chromosome, source.start, source.end,
+                                sink.chromosome, sink.start, sink.end,
+                                transform(weight)
+                            ), file=o)
+                        else:
+                            print("{}\t{}\t{}".format(
+                                i, j, transform(weight)
+                            ), file=o)
+                except BrokenPipeError:
+                    pass
+                finally:
+                    if output_matrix is not None:
+                        o.close()
+    finally:
+        if tmp and original_output_matrix is not None:
+            shutil.copy(output_matrix, original_output_matrix)
+            os.remove(output_matrix)
 
     # write regions to file
     if output_regions is not None:
