@@ -145,7 +145,10 @@ class ParallelTaskRunner(TaskRunner):
 
 class SgeTaskRunner(TaskRunner):
     def __init__(self, task_prefix=None,
-                 log_dir=None, trap_sigusr=True):
+                 log_dir=None, trap_sigusr=True,
+                 startup_commands_file=None,
+                 cleanup_commands_file=None,
+                 buffer_python_output=False):
         TaskRunner.__init__(self)
         if task_prefix is None:
             from fanc.tools.files import random_name
@@ -159,6 +162,9 @@ class SgeTaskRunner(TaskRunner):
         else:
             self._log_dir = os.path.expanduser(log_dir)
         self._trap_sigusr = trap_sigusr
+        self._startup_commands_file = startup_commands_file
+        self._cleanup_commands_file = cleanup_commands_file
+        self._buffer_python_output = buffer_python_output
 
     def _submit_task(self, task, kill=True):
         task_ix = self._task_ixs[task.id]
@@ -169,7 +175,15 @@ class SgeTaskRunner(TaskRunner):
                                '(>&2 echo "Received termination notice")\n}\n')
                 tmp_file.write("trap notify_handler SIGUSR1\n")
                 tmp_file.write("trap notify_handler SIGUSR2\n\n")
+            if not self._buffer_python_output:
                 tmp_file.write("export PYTHONUNBUFFERED=1\n\n")
+
+            if self._startup_commands_file is not None:
+                with open(self._startup_commands_file) as f:
+                    startup_commands = f.read()
+                tmp_file.write(startup_commands)
+                tmp_file.write("\n")
+
             tmp_file.write(" ".join(task.command) + "\n")
             tmp_file.write("OUT=$?\n")
             tmp_file.write("if [ $OUT -ne 0 ]; then\n")
@@ -185,6 +199,13 @@ class SgeTaskRunner(TaskRunner):
             tmp_file.write('else\n')
             tmp_file.write('    res="succeeded"\n')
             tmp_file.write("fi\n\n")
+
+            if self._cleanup_commands_file is not None:
+                with open(self._cleanup_commands_file) as f:
+                    cleanup_commands = f.read()
+                tmp_file.write(cleanup_commands)
+                tmp_file.write("\n")
+
             tmp_file.flush()
 
             command = [config.sge_qsub_path,
@@ -225,7 +246,10 @@ class SgeTaskRunner(TaskRunner):
 
 class SlurmTaskRunner(TaskRunner):
     def __init__(self, task_prefix=None,
-                 log_dir=None, trap_sigusr=True):
+                 log_dir=None, trap_sigusr=True,
+                 startup_commands_file=None,
+                 cleanup_commands_file=None,
+                 buffer_python_output=False):
         TaskRunner.__init__(self)
         if task_prefix is None:
             from fanc.tools.files import random_name
@@ -241,6 +265,9 @@ class SlurmTaskRunner(TaskRunner):
         self._trap_sigusr = trap_sigusr
 
         self._slurm_job_ids = dict()
+        self._startup_commands_file = startup_commands_file
+        self._cleanup_commands_file = cleanup_commands_file
+        self._buffer_python_output = buffer_python_output
 
     def _submit_batch_command(self, task, kill=True):
         job_name = self._task_prefix
@@ -272,7 +299,14 @@ class SlurmTaskRunner(TaskRunner):
 
             tmp_file.write("#SBATCH --export=ALL\n")
 
-            tmp_file.write("export PYTHONUNBUFFERED=1\n\n")
+            if not self._buffer_python_output:
+                tmp_file.write("export PYTHONUNBUFFERED=1\n\n")
+
+            if self._startup_commands_file is not None:
+                with open(self._startup_commands_file) as f:
+                    startup_commands = f.read()
+                tmp_file.write(startup_commands)
+                tmp_file.write("\n")
 
             if self._trap_sigusr:
                 tmp_file.write('function notify_handler() {\n  '
@@ -297,6 +331,13 @@ class SlurmTaskRunner(TaskRunner):
             tmp_file.write('else\n')
             tmp_file.write('    res="succeeded"\n')
             tmp_file.write("fi\n\n")
+
+            if self._cleanup_commands_file is not None:
+                with open(self._cleanup_commands_file) as f:
+                    cleanup_commands = f.read()
+                tmp_file.write(cleanup_commands)
+                tmp_file.write("\n")
+
             tmp_file.flush()
 
             with open(tmp_file.name, 'r') as f:
@@ -406,7 +447,7 @@ def auto_parser():
         type=int,
         default=3,
         help="Step size for iterative mapping. " 
-             "Default: 3"
+             "Default: %(default)d"
     )
 
     parser.add_argument(
@@ -427,6 +468,7 @@ def auto_parser():
         help="Maximum number of threads. "
              "The number provided here will not be exceeded " 
              "by analysis steps running alone or in parallel. "
+             "Default: %(default)d"
     )
 
     parser.add_argument(
@@ -435,7 +477,7 @@ def auto_parser():
         default=True,
         help='Use FAN-C parallelisation, which launches multiple mapper jobs. '
              'This may be faster in some cases than relying '
-             'on the internal paralellisation of the mapper, '
+             'on the internal parallelisation of the mapper, '
              'but has potentially high disk I/O and memory usage.'
     )
 
@@ -463,7 +505,8 @@ def auto_parser():
         '--ice', dest='ice',
         action='store_true',
         default=False,
-        help="Correct Hi-C matrices using ICE."
+        help="Correct Hi-C matrices using ICE instead of Knight-Ruiz "
+             "matrix balancing. Slower, but much more memory-friendly."
     )
 
     parser.add_argument(
@@ -475,7 +518,8 @@ def auto_parser():
              'on the AS tag instead of mapping quality (only BWA). '
              'The quality cutoff is then interpreted as the '
              'fraction of bases that have to be matched for any '
-             'given read. Only applies to SAM/BAM input!'
+             'given read. Only applies to SAM/BAM input!. '
+             'Default is not to filter on mapping quality.'
     )
 
     parser.add_argument(
@@ -566,7 +610,7 @@ def auto_parser():
         action='store_false',
         default=True,
         help="Do not filter read pairs. By default, the following "
-             "filters are applied: self-ligations, PDR duplicates,"
+             "filters are applied: self-ligations, PCR duplicates,"
              "restriction distance (>10kb)"
     )
 
@@ -595,6 +639,22 @@ def auto_parser():
         help="Job Prefix for SGE and Slurm. "
              "Works with '--run-with sge' and --run-with slurm. "
              "Default: 'fanc_<6 random letters>_'"
+    )
+
+    parser.add_argument(
+        '--grid-startup-commands', dest='grid_startup_commands',
+        help="Path to a file with BASH commands that are executed "
+             "before every FAN-C command that is run on a grid engine / cluster. "
+             "This could, for example, include environment-specific settings, "
+             "such as activation of a Python virtualenv."
+    )
+
+    parser.add_argument(
+        '--grid-cleanup-commands', dest='grid_cleanup_commands',
+        help="Path to a file with BASH commands that are executed "
+             "after every FAN-C command that is run on a grid engine / cluster. "
+             "Use this to clean the file system or environment set up with "
+             "--grid-startup-commands."
     )
 
     parser.add_argument(
@@ -686,6 +746,10 @@ def auto(argv, **kwargs):
     restore_coverage = args.restore_coverage
     run_with = args.run_with
     job_prefix = args.job_prefix
+    grid_startup_commands = os.path.expanduser(args.grid_startup_commands) \
+        if args.grid_startup_commands is not None else None
+    grid_cleanup_commands = os.path.expanduser(args.grid_cleanup_commands) \
+        if args.grid_cleanup_commands is not None else None
     force_overwrite = args.force_overwrite
     output_folder = os.path.expanduser(args.output_folder)
 
@@ -709,7 +773,9 @@ def auto(argv, **kwargs):
                          "'sge_qsub_path' parameter".format(config.sge_qsub_path))
         from fanc.tools.files import mkdir
         sge_log_dir = mkdir(output_folder, 'sge_logs')
-        runner = SgeTaskRunner(log_dir=sge_log_dir, task_prefix=job_prefix)
+        runner = SgeTaskRunner(log_dir=sge_log_dir, task_prefix=job_prefix,
+                               startup_commands_file=grid_startup_commands,
+                               cleanup_commands_file=grid_cleanup_commands)
     elif run_with == 'slurm':
         from fanc.config import config
         if which(config.slurm_sbatch_path) is None:
@@ -719,7 +785,9 @@ def auto(argv, **kwargs):
                          "'slurm_sbatch_path' parameter".format(config.slurm_sbatch_path))
         from fanc.tools.files import mkdir
         slurm_log_dir = mkdir(output_folder, 'slurm_logs')
-        runner = SlurmTaskRunner(log_dir=slurm_log_dir, task_prefix=job_prefix)
+        runner = SlurmTaskRunner(log_dir=slurm_log_dir, task_prefix=job_prefix,
+                               startup_commands_file=grid_startup_commands,
+                               cleanup_commands_file=grid_cleanup_commands)
     elif run_with == 'test':
         runner = ParallelTaskRunner(threads, test=True)
     else:
