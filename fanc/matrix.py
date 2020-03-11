@@ -688,6 +688,7 @@ class RegionPairsContainer(RegionBased):
                 inter_chromosomal = kwargs.pop("inter_chromosomal", True)
                 check_valid = kwargs.pop('check_valid', True)
                 oe = kwargs.pop('oe', False)
+                oe_per_chromosome = kwargs.pop('oe_per_chromosome', True)
 
                 start = datetime.datetime.now()
 
@@ -696,8 +697,11 @@ class RegionPairsContainer(RegionBased):
                 else:
                     bias = np.repeat(1., len(self._regions_pairs.regions))
 
-                if oe and hasattr(self._regions_pairs, 'expected_values'):
-                    expected_genome, expected_intra, expected_inter = self._regions_pairs.expected_values()
+                if oe:
+                    if not hasattr(self._regions_pairs, 'expected_values'):
+                        raise ValueError("Cannot perform O/E transformation because this object does not "
+                                         "support the expected_values function!")
+                    expected_genome, expected_intra, expected_inter = self._regions_pairs.expected_values(norm=norm)
                 else:
                     expected_genome, expected_intra, expected_inter = None, None, None
 
@@ -732,7 +736,7 @@ class RegionPairsContainer(RegionBased):
                             if not intra_chromosomal:
                                 continue
                             if oe:
-                                ex = expected_intra[row_chromosome]
+                                ex = expected_intra[row_chromosome] if oe_per_chromosome else expected_genome
                             else:
                                 ex = np.repeat(None, len(self._regions_pairs.regions))
                         else:
@@ -933,8 +937,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         self._default_value = 0.0
         self._default_score_field = 'weight'
 
-    def regions_and_matrix_entries(self, key=None, oe=False, oe_per_chromosome=True,
-                                   score_field=None, *args, **kwargs):
+    def regions_and_matrix_entries(self, key=None, score_field=None, *args, **kwargs):
         """
         Convenient access to non-zero matrix entries and associated regions.
 
@@ -977,26 +980,9 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                 if (i, j) != (k, l) and k >= 0 and l >= 0:
                     yield source, sink, k, l, weight
 
-        edges_iter = self.edges((row_regions, col_regions), *args, **kwargs)
-        if not oe:
-            entry_iter = ((i, j, weight)
-                          for _, _, i, j, weight in offset_iter(edges_iter))
-        else:
-            norm = kwargs.get("norm", True)
-            intra_expected, chromosome_intra_expected, inter_expected = self.expected_values(norm=norm)
-
-            if oe_per_chromosome:
-                entry_iter = ((i, j,
-                               weight / chromosome_intra_expected[row_regions[i].chromosome][abs(source - sink)]
-                               if row_regions[i].chromosome == col_regions[j].chromosome
-                               else weight / inter_expected)
-                              for source, sink, i, j, weight in offset_iter(edges_iter))
-            else:
-                entry_iter = ((i, j,
-                               weight / intra_expected[abs(source - sink)]
-                               if row_regions[i].chromosome == col_regions[j].chromosome
-                               else weight / inter_expected)
-                              for source, sink, i, j, weight in offset_iter(edges_iter))
+        #edges_iter = self.edges((row_regions, col_regions), *args, **kwargs)
+        entry_iter = ((i, j, weight)
+                      for _, _, i, j, weight in offset_iter(edges_iter))
 
         return row_regions, col_regions, entry_iter
 
