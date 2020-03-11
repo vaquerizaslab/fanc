@@ -21,6 +21,7 @@ from .general import Maskable, MaskedTable
 from .regions import LazyGenomicRegion, RegionsTable, RegionBasedWithBins
 from .tools.general import RareUpdateProgressBar, create_col_index, range_overlap, str_to_int
 from .tools.load import load
+import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -59,32 +60,36 @@ class Edge(object):
         :param kwargs: Other key, value pairs to be stored as
                        :class:`~Edge` attributes
         """
-        self._source = source
-        self._sink = sink
-        self._bias = 1.
-        self._weight_field = _weight_field
+        object.__setattr__(self, '_source', source)
+        object.__setattr__(self, '_sink', sink)
+        object.__setattr__(self, 'bias', 1.)
+        object.__setattr__(self, 'expected', None)
+        object.__setattr__(self, '_weight_field', _weight_field)
+        object.__setattr__(self, '_weight', None)
 
         for key, value in kwargs.items():
             setattr(self, key.decode() if isinstance(key, bytes) else key, value)
 
-    def __getattribute__(self, item):
+    def __getattr__(self, item):
         if item == '_weight_field' or item != self._weight_field:
             return object.__getattribute__(self, item)
-        return object.__getattribute__(self, item) * self._bias
+
+        if self.expected is None:
+            return object.__getattribute__(self, '_weight') * self.bias
+        else:
+            return (object.__getattribute__(self, '_weight') * self.bias) / self.expected
+
+    def __setattr__(self, key, value):
+        if key == object.__getattribute__(self, '_weight_field'):
+            object.__setattr__(self, '_weight', value)
+        else:
+            object.__setattr__(self, key, value)
 
     def __getitem__(self, item):
         try:
             return getattr(self, item)
         except AttributeError:
             raise KeyError("No such key: {}".format(item))
-
-    @property
-    def bias(self):
-        return self._bias
-
-    @bias.setter
-    def bias(self, b):
-        self._bias = b
 
     @property
     def source(self):
@@ -140,7 +145,7 @@ class Edge(object):
         return base_info
 
 
-class LazyEdge(Edge):
+class LazyEdge(object):
     """
     An :class:`~Edge` equivalent supporting lazy loading.
 
@@ -168,34 +173,22 @@ class LazyEdge(Edge):
     def __init__(self, row, regions_table=None, _weight_field='weight'):
         self._row = row
         self._regions_table = regions_table
-        self._bias = 1.
+        self.bias = 1.
+        self.expected = None
         self._weight_field = _weight_field
 
     def __getattr__(self, item):
-        if item != self._weight_field:
-            try:
-                return self._row[item]
-            except KeyError:
-                raise AttributeError("No such attribute: {}".format(item))
-        return self._row[item] * self.bias
-
-    def __setattr__(self, key, value):
-        if key == 'bias':
-            self._bias = value
-        elif not key.startswith('_'):
-            self._row[key] = value
-        else:
-            object.__setattr__(self, key, value)
-
-    def update(self):
-        """
-        Write changes to PyTables row to file.
-        """
-        self._row.update()
+        try:
+            return self._row[item]
+        except KeyError:
+            raise AttributeError("{} does not exist in edge".format(item))
 
     @property
-    def bias(self):
-        return self._bias
+    def weight(self):
+        if self.expected is None:
+            return self._row[self._weight_field] * self.bias
+        else:
+            return (self._row[self._weight_field] * self.bias) / self.expected
 
     @property
     def source_node(self):
@@ -213,8 +206,40 @@ class LazyEdge(Edge):
         sink_row = self._regions_table[self.sink]
         return LazyGenomicRegion(sink_row)
 
+    @property
+    def source_region(self):
+        return self.source_node
+
+    @property
+    def sink_region(self):
+        return self.sink_node
+
     def __repr__(self):
         return "<{}.{} for row {}>".format(self.__module__, self.__class__.__name__, self._row)
+
+
+class MutableLazyEdge(LazyEdge):
+    def __init__(self, row, regions_table=None, _weight_field='weight'):
+        self.__dict__['_row'] = row
+        self.__dict__['_regions_table'] = regions_table
+        self.__dict__['bias'] = 1.
+        self.__dict__['expected'] = None
+        self.__dict__['_weight_field'] = _weight_field
+
+    def __setattr__(self, key, value):
+        if not key.startswith('_'):
+            try:
+                self._row[key] = value
+                return
+            except KeyError:
+                pass
+        object.__setattr__(self, key, value)
+
+    def update(self):
+        """
+        Write changes to PyTables row to file.
+        """
+        self._row.update()
 
 
 def as_edge(edge):
@@ -661,53 +686,75 @@ class RegionPairsContainer(RegionBased):
                 norm = kwargs.pop("norm", True)
                 intra_chromosomal = kwargs.pop("intra_chromosomal", True)
                 inter_chromosomal = kwargs.pop("inter_chromosomal", True)
-                bias_field = kwargs.pop('bias_field', 'bias')
-                valid_field = kwargs.pop('valid_field', 'valid')
                 check_valid = kwargs.pop('check_valid', True)
+                oe = kwargs.pop('oe', False)
 
+                start = datetime.datetime.now()
+
+                if norm and hasattr(self._regions_pairs, 'bias_vector'):
+                    bias = self._regions_pairs.bias_vector()
+                else:
+                    bias = np.repeat(1., len(self._regions_pairs.regions))
+
+                if oe and hasattr(self._regions_pairs, 'expected_values'):
+                    expected_genome, expected_intra, expected_inter = self._regions_pairs.expected_values()
+                else:
+                    expected_genome, expected_intra, expected_inter = None, None, None
+
+                valid = [getattr(r, 'valid', True) for r in self._regions_pairs.regions(lazy=True)]
+
+                # getting regions
                 row_regions, col_regions = self._regions_pairs._key_to_regions(key)
                 if isinstance(row_regions, GenomicRegion):
                     row_regions = [row_regions]
-                else:
-                    row_regions = list(row_regions)
-
                 if isinstance(col_regions, GenomicRegion):
                     col_regions = [col_regions]
-                else:
-                    col_regions = list(col_regions)
 
-                regions = dict()
-                for rr in (row_regions, col_regions):
-                    for region in rr:
-                        regions[region.ix] = region
+                row_regions_by_chromosome = defaultdict(list)
+                for r in row_regions:
+                    row_regions_by_chromosome[r.chromosome].append(r)
 
-                if key is None:
-                    edge_iter = self._regions_pairs._edges_iter(*args, **kwargs)
-                else:
-                    edge_iter = self._regions_pairs._edges_subset(key, row_regions, col_regions,
-                                                                  *args, **kwargs)
+                col_regions_by_chromosome = defaultdict(list)
+                for r in col_regions:
+                    col_regions_by_chromosome[r.chromosome].append(r)
 
-                for edge in edge_iter:
-                    row_region, col_region = regions[edge.source], regions[edge.sink]
-                    is_intra_chromosomal = row_region.chromosome == col_region.chromosome
-                    if not intra_chromosomal and is_intra_chromosomal:
-                        continue
-                    if not inter_chromosomal and not is_intra_chromosomal:
-                        continue
-                    if check_valid and (not getattr(row_region, valid_field, True) or
-                                        not getattr(col_region, valid_field, True)):
-                        continue
+                d = datetime.datetime.now() - start
+                # print("Startup: {}".format(d.total_seconds()))
 
-                    if norm:
-                        try:
-                            row_bias = getattr(regions[edge.source], bias_field, 1.0)
-                            col_bias = getattr(regions[edge.sink], bias_field, 1.0)
-                            bias = row_bias * col_bias
-                            edge.bias = bias
-                        except (TypeError, AttributeError):
-                            pass
+                chromosome_pairs = set()
+                for row_chromosome, row_chromosome_regions in row_regions_by_chromosome.items():
+                    for col_chromosome, col_chromosome_regions in col_regions_by_chromosome.items():
+                        if (col_chromosome, row_chromosome) in chromosome_pairs:
+                            continue
+                        chromosome_pairs.add((row_chromosome, col_chromosome))
 
-                    yield edge
+                        if row_chromosome == col_chromosome:
+                            if not intra_chromosomal:
+                                continue
+                            if oe:
+                                ex = expected_intra[row_chromosome]
+                            else:
+                                ex = np.repeat(None, len(self._regions_pairs.regions))
+                        else:
+                            if not inter_chromosomal and row_chromosome != col_chromosome:
+                                continue
+                            ex = np.repeat(expected_inter, len(self._regions_pairs.regions))
+
+                        for edge in self._regions_pairs._edges_subset(
+                                (GenomicRegion(row_chromosome,
+                                               start=row_chromosome_regions[0].start,
+                                               end=row_chromosome_regions[-1].end),
+                                 GenomicRegion(col_chromosome,
+                                               start=col_chromosome_regions[0].start,
+                                               end=col_chromosome_regions[-1].end)),
+                                row_chromosome_regions, col_chromosome_regions,
+                                *args, **kwargs):
+                            source, sink = edge.source, edge.sink
+                            if check_valid and (not valid[source] or not valid[sink]):
+                                continue
+                            edge.bias = bias[source] * bias[sink]
+                            edge.expected = ex[abs(sink - source)]
+                            yield edge
 
             def __len__(self):
                 return self._regions_pairs._edges_length()
@@ -1900,9 +1947,13 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         return lazy_edge
 
     def _edges_subset(self, key=None, row_regions=None, col_regions=None,
-                      lazy=False, lazy_edge=None, weight_field='weight', *args, **kwargs):
+                      lazy=False, lazy_edge=None, weight_field='weight',
+                      writable=False, *args, **kwargs):
         if lazy and lazy_edge is None:
-            lazy_edge = LazyEdge(None, self._regions, _weight_field=weight_field)
+            if writable:
+                lazy_edge = MutableLazyEdge(None, self._regions, _weight_field=weight_field)
+            else:
+                lazy_edge = LazyEdge(None, self._regions, _weight_field=weight_field)
         else:
             lazy_edge = None
 
