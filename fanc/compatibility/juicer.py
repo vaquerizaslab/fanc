@@ -219,32 +219,29 @@ def _read_cstr(f):
             buf = buf + b
 
 
-class LazyJuicerEdge(Edge):
+class LazyJuicerEdge(object):
     def __init__(self, source, sink, matrix, **kwargs):
         self._matrix = matrix
         self._weight_field = 'weight'
-        self._bias = 1.
-        self._source = source
-        self._sink = sink
+        self.source = source
+        self.sink = sink
+        self.bias = 1.
+        self.expected = None
 
     def __getattribute__(self, item):
         if item == '_weight_field' or item != self._weight_field:
             return object.__getattribute__(self, item)
-        return object.__getattribute__(self, item) * self._bias
+
+        if self.expected is None:
+            return object.__getattribute__(self, item) * self.bias
+        else:
+            return (object.__getattribute__(self, item) * self.bias) / self.expected
 
     def __getitem__(self, item):
         try:
             return getattr(self, item)
         except AttributeError:
             raise KeyError("No such key: {}".format(item))
-
-    @property
-    def bias(self):
-        return self._bias
-
-    @bias.setter
-    def bias(self, b):
-        self._bias = b
 
     @property
     def source_node(self):
@@ -712,10 +709,16 @@ class JuicerHic(RegionMatrixContainer):
         return offset_ix + ix, start
 
     def _region_iter(self, *args, **kwargs):
-        current_region_index = 0
-        for chromosome, chromosome_length in self.chromosome_lengths.items():
+        chromosome_lengths = self.chromosome_lengths
+
+        chromosomes = self.chromosomes()
+        for chromosome in chromosomes:
+            print(chromosome)
+            chromosome_length = chromosome_lengths[chromosome]
             if chromosome.lower() == 'all':
                 continue
+
+            offset_ix = self._chromosome_ix_offset(chromosome)
 
             norm = self.normalisation_vector(chromosome)
             for i, start in enumerate(range(1, chromosome_length, self._resolution)):
@@ -735,8 +738,7 @@ class JuicerHic(RegionMatrixContainer):
                 end = min(start + self._resolution - 1, chromosome_length)
                 region = GenomicRegion(chromosome=chromosome, start=start,
                                        end=end, bias=bias, valid=valid,
-                                       ix=current_region_index)
-                current_region_index += 1
+                                       ix=int(offset_ix + i))
                 yield region
 
     def _region_subset(self, region, *args, **kwargs):
@@ -960,7 +962,7 @@ class JuicerHic(RegionMatrixContainer):
             for x, y, weight in self._read_matrix(row_span, col_span):
                 if x > y:
                     x, y = y, x
-                edge._source, edge._sink, edge.weight = x, y, weight
+                edge.source, edge.sink, edge.weight = x, y, weight
                 yield edge
 
     def _edges_iter(self, *args, **kwargs):
@@ -1016,3 +1018,6 @@ class JuicerHic(RegionMatrixContainer):
             return mappable
         else:
             return np.array([r.valid for r in self.regions(region, lazy=True)])
+
+    def bias_vector(self):
+        return np.array([r.bias for r in self.regions(lazy=True)])
