@@ -81,7 +81,7 @@ class PeakInfo(RegionMatrixTable):
         additional_fields = {
             'weight': t.Float32Col(pos=2),
             'uncorrected': t.Int32Col(pos=3),
-            'expected': t.Float32Col(pos=4),
+            'expected_local': t.Float32Col(pos=4),
             'oe': t.Float32Col(pos=5),
             'p_value': t.Float32Col(pos=6),
             'q_value_sum': t.Float32Col(pos=7),
@@ -274,11 +274,11 @@ class RaoPeakInfo(RegionMatrixTable):
 
         self.peak_table = self._edges
 
-    def peaks(self, lazy=False, auto_update=True):
-        return self.edges(lazy=lazy, auto_update=auto_update)
+    def peaks(self, lazy=False, auto_update=True, **kwargs):
+        return self.edges(lazy=lazy, auto_update=auto_update, **kwargs)
 
-    def peaks_sorted(self, sortby, lazy=False, auto_update=True):
-        return self.edges_sorted(sortby, lazy=lazy, auto_update=auto_update)
+    def peaks_sorted(self, sortby, lazy=False, auto_update=True, **kwargs):
+        return self.edges_sorted(sortby, lazy=lazy, auto_update=auto_update, **kwargs)
 
     def __iter__(self):
         return self.peaks()
@@ -410,7 +410,7 @@ class RaoPeakInfo(RegionMatrixTable):
             q_value_sum = hp.fdr_ll + hp.fdr_d + hp.fdr_h + hp.fdr_v
             oe = 1 if hp.e_d == 0 else hp.weight/hp.e_d
             merged_peak = Peak(source=hp.source, sink=hp.sink, weight=hp.weight,
-                               uncorrected=hp.uncorrected, expected=hp.e_d,
+                               uncorrected=hp.uncorrected, expected_local=hp.e_d,
                                p_value=hp.fdr_d, q_value_sum=q_value_sum, x=x, y=y,
                                radius=radius, oe=oe)
             merged_peaks.add_edge(merged_peak)
@@ -499,16 +499,14 @@ class Peak(Edge):
     Container for a Peak/enriched contact in a Hi-C matrix.
     """
     def __init__(self, source, sink, *args, **kwargs):
-        self.weight = None
-        self.e_ll = None
-        self.e_h = None
-        self.e_d = None
-        self.e_v = None
-        self.expected = None
+        object.__setattr__(self, 'e_ll', None)
+        object.__setattr__(self, 'e_h', None)
+        object.__setattr__(self, 'e_d', None)
+        object.__setattr__(self, 'e_v', None)
         super(Peak, self).__init__(source, sink, *args, **kwargs)
 
 
-class LazyPeak(LazyEdge, Peak):
+class LazyPeak(LazyEdge):
     """
     Container for a Peak/enriched contact in a Hi-C matrix.
 
@@ -1285,7 +1283,7 @@ class RaoPeakCaller(object):
 
         # regions_dict = peaks.regions_dict
         with RareUpdateProgressBar(max_value=len(peaks.edges), prefix='FDR') as pb:
-            for i, peak in enumerate(peaks.peaks(lazy=True)):
+            for i, peak in enumerate(peaks.peaks(lazy=True, writable=True)):
                 # region1 = regions_dict[peak.source]
                 # region2 = regions_dict[peak.sink]
                 # if region1.chromosome == region2.chromosome:
@@ -1488,7 +1486,7 @@ def overlap_peaks(peaks, max_distance=6000):
         (mean, "weight"),
         (mean, "oe"),
         (mean, "uncorrected"),
-        (mean, "expected"),
+        (mean, "expected_local"),
         (sum, "p_value"),
         (sum, "q_value_sum"),
     ]
@@ -1524,7 +1522,11 @@ def overlap_peaks(peaks, max_distance=6000):
                     cur_y = mean(_p.y for _s, _p in cur_p_list)
                     r = max(hypotenuse(cur_x - _p.x, cur_y - _p.y) for _s, _p in cur_p_list)
                     cluster_radius = max_distance + r
-            summed_attrs = {attr: sum_func(getattr(p, attr) for s, p in cur_p_list) for sum_func, attr in summarize_attrs}
+
+            summed_attrs = {}
+            for sum_func, attr in summarize_attrs:
+                summed_attrs[attr] = sum_func(getattr(p, attr) for s, p in cur_p_list)
+
             cons_p = Peak(
                 x=cur_x,
                 y=cur_y,
