@@ -162,17 +162,23 @@ def to_cooler(hic, path, balance=True, multires=True,
             os.remove(tmp_file)
 
 
-class LazyCoolerEdge(Edge):
+class LazyCoolerEdge(object):
     def __init__(self, series, c):
         self._series = series
         self._c = c
         self._weight_field = 'weight'
-        self._bias = 1.
+        self.bias = 1.
+        self.expected = None
 
     def __getattr__(self, item):
-        if item != self._weight_field:
-            return object.__getattribute__(self, item)
-        return object.__getattribute__(self, item) * self._bias
+        return self._row[item]
+
+    @property
+    def weight(self):
+        if self.expected is None:
+            return float(self._series['count']) * self.bias
+        else:
+            return (float(self._series['count']) * self.bias) / self.expected
 
     def __getitem__(self, item):
         try:
@@ -181,24 +187,12 @@ class LazyCoolerEdge(Edge):
             raise KeyError("No such key: {}".format(item))
 
     @property
-    def bias(self):
-        return self._bias
-
-    @bias.setter
-    def bias(self, b):
-        self._bias = b
-
-    @property
     def source(self):
         return int(self._series.bin1_id)
 
     @property
     def sink(self):
         return int(self._series.bin2_id)
-
-    @property
-    def weight(self):
-        return float(self._series['count'])
 
     @property
     def source_node(self):
@@ -435,3 +429,6 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
             mappable[edge.sink] = True
         self._mappability = mappable
         return mappable
+
+    def bias_vector(self):
+        return np.array([r.bias for r in self.regions(lazy=True)])
