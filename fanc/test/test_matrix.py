@@ -87,6 +87,7 @@ class RegionMatrixContainerTestFactory:
     def test_edges_iter(self):
         pass
 
+    @pytest.mark.longrunning
     @pytest.mark.parametrize("lazy", [True, False])
     def test_get_edges_uncorrected(self, lazy):
         edges_dict = {(e.source, e.sink): e.weight for e in _get_test_edges(norm=False)}
@@ -96,6 +97,7 @@ class RegionMatrixContainerTestFactory:
                               edges_dict[(edge.source, edge.sink)],
                               rtol=1e-03)
 
+    @pytest.mark.longrunning
     @pytest.mark.parametrize("lazy", [True, False])
     def test_get_edges(self, lazy):
         edges_dict = {(e.source, e.sink): e.weight for e in _get_test_edges(norm=True)}
@@ -251,7 +253,7 @@ class TestRegionPairs:
             assert edge.foo != 999
 
     def test_lazy_edges_set_attribute(self):
-        for edge in self.rmt.edges(lazy=True):
+        for edge in self.rmt.edges(lazy=True, writable=True):
             edge.foo = 999
             edge.update()
 
@@ -337,6 +339,7 @@ class TestRegionMatrixTable:
             for j in range(i, 10):
                 edge = Edge(source=i, sink=j, weight=i * j, foo=i, bar=j, baz='x' + str(i * j))
                 self.rmt.add_edge(edge)
+
         self.rmt.flush()
 
     def teardown_method(self, method):
