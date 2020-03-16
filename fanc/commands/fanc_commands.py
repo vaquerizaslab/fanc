@@ -2980,8 +2980,9 @@ def boundaries_parser():
 
     parser.add_argument(
         '-w', '--window-sizes', dest='window',
-        nargs='+',
-        help='Insulation index window size to calculate boundaries on'
+        help='Insulation index window size to calculate boundaries on. '
+             'Separate multiple window sizes with comma, e.g. '
+             '1mb,500kb,100kb'
     )
 
     parser.add_argument(
@@ -3051,14 +3052,15 @@ def boundaries(argv, **kwargs):
     from fanc.tools.general import human_format, str_to_int
     import genomic_regions as gr
     from fanc.architecture.domains import InsulationScores, InsulationScore, Boundaries
+    from fanc.architecture.comparisons import ComparisonScores
 
     insulation = fanc.load(input_file, mode='r')
 
-    if isinstance(insulation, InsulationScores):
+    if isinstance(insulation, InsulationScores) or isinstance(insulation, ComparisonScores):
         if windows is None:
             windows = insulation.window_sizes
         else:
-            windows = [str_to_int(window) for window in windows]
+            windows = [str_to_int(window) for window in windows.split(",")]
 
         if len(windows) > 1:
             for window in windows:
