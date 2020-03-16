@@ -423,7 +423,7 @@ class Hic(RegionMatrixTable):
         return stats
 
 
-class LegacyHic(RegionMatrixTable):
+class LegacyHic(Hic):
 
     _classid = 'ACCESSOPTIMISEDHIC'
 
