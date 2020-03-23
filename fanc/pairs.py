@@ -2556,8 +2556,8 @@ class OutwardPairsFilter(FragmentReadPairFilter):
 
 class ReDistanceFilter(FragmentReadPairFilter):
     """
-    Filters read pairs where one or both reads are more than
-    maximum_distance away from the nearest restriction site.
+    Filters read pairs where the sum of distances of each read to its nearest
+    restriction site is larger than a certain distance.
     """
 
     def __init__(self, maximum_distance=10000, mask=None):
@@ -2566,7 +2566,7 @@ class ReDistanceFilter(FragmentReadPairFilter):
 
     def valid_pair(self, pair):
         """
-        Check if any read is >maximum_distance away from RE site.
+        Check sum of restriction site distances < maximum_distance.
         """
         d1 = min(abs(pair.left.position - pair.left.fragment.start),
                  abs(pair.left.position - pair.left.fragment.end))
