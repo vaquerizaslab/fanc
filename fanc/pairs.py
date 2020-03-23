@@ -2581,8 +2581,8 @@ class ReDistanceFilter(FragmentReadPairFilter):
 
 class SelfLigationFilter(FragmentReadPairFilter):
     """
-    Filters read pairs where one or both reads are more than
-    maximum_distance away from the nearest restriction site.
+    Filters read pairs where one or both reads map to the
+    same restriction fragment.
     """
 
     def __init__(self, mask=None):
@@ -2590,7 +2590,7 @@ class SelfLigationFilter(FragmentReadPairFilter):
 
     def valid_pair(self, pair):
         """
-        Check if any read is >maximum_distance away from RE site.
+        Check if both reads are on the same fragment.
         """
         if pair.is_same_fragment():
             return False
