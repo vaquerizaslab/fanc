@@ -2251,6 +2251,30 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
         return new_pairs
 
+    def deepcopy(self, target_class=None, bias=True, **kwargs):
+        cls = self.__class__ if target_class is None else target_class
+
+        copy = cls(**kwargs)
+        copy.add_regions(self.regions(lazy=True))
+        from tqdm import tqdm
+
+        total = len(self.edges)
+        for i, edge in tqdm(enumerate(self.edges(lazy=True, norm=False, oe=False)),
+                            total=total, miniters=int(total/500)):
+            copy.add_edge_simple(edge.source, edge.sink, edge.weight)
+        copy.flush(update_mappability=False)
+
+        try:
+            if bias and hasattr(self, 'bias_vector') and hasattr(copy, 'bias_vector'):
+                copy.bias_vector(self.bias_vector())
+            copy.flush(update_mappability=False)
+        except IndexError:
+            warnings.warn("Could not copy index vector. Hic version may be too old. "
+                          "Please run matrix balancing again after deepcopy!")
+        copy._update_mappability()
+
+        return copy
+
 
 class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
     """

@@ -1260,6 +1260,13 @@ def hic_parser():
     )
 
     parser.add_argument(
+        '--deepcopy', dest='deepcopy',
+        action='store_true',
+        default=False,
+        help='Deep copy Hi-C file. Can be used '
+    )
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         default=False,
@@ -1296,6 +1303,7 @@ def hic(argv, **kwargs):
     marginals_plot_file = args.marginals_plot
     limit_chromosomes = args.chromosomes
     threads = args.threads
+    deepcopy = args.deepcopy
     tmp = args.tmp
 
     if kr and ice:
@@ -1360,8 +1368,16 @@ def hic(argv, **kwargs):
                 elif isinstance(o, fanc.ReadPairs):
                     pairs_files.append(input_file)
                 else:
-                    parser.error("File ({}) type {} not supported."
-                                 "Provide Pairs or Hic files!".format(original_input_file, type(o)))
+                    from fanc.compatibility.cooler import CoolerHic
+                    from fanc.compatibility.juicer import JuicerHic
+                    if isinstance(o, JuicerHic) or isinstance(o, CoolerHic):
+                        if deepcopy:
+                            hic_files.append(input_file)
+                        else:
+                            parser.error("Can only work on Juicer or Cooler files when --deepcopy is enabled!")
+                    else:
+                        parser.error("File ({}) type {} not supported."
+                                     "Provide Pairs or Hic files!".format(original_input_file, type(o)))
             finally:
                 if o is not None and hasattr(o, 'close'):
                     o.close()
@@ -1379,6 +1395,8 @@ def hic(argv, **kwargs):
                     hic_files.append(tmp_output_file.name)
 
         if len(hic_files) > 1:
+            if deepcopy:
+                parser.error("Deep copy can only be performed on a single input Hi-C file!")
             logger.info("Merging {} Hic files into {}".format(len(hic_files), original_output_file))
             hics = []
             try:
@@ -1394,7 +1412,15 @@ def hic(argv, **kwargs):
                 for hic in hics:
                     hic.close()
         else:
-            merged_hic_file = hic_files[0]
+            if deepcopy:
+                tmp_output_file = tempfile.NamedTemporaryFile(suffix='.hic', delete=False)
+                merged_hic_file = tmp_output_file.name
+                tmp_input_files.append(merged_hic_file)
+                hic = fanc.load(hic_files[0])
+                copy_hic = hic.deepcopy(target_class=fanc.Hic, file_name=merged_hic_file, mode='w')
+                copy_hic.close()
+            else:
+                merged_hic_file = hic_files[0]
 
         if bin_size is not None:
             merged_hic = fanc.load(merged_hic_file)
