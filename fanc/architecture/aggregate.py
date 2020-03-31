@@ -685,9 +685,9 @@ def tad_strength(hic, tad_regions=None, **kwargs):
         upper_third = slice(0, tl)
         middle_third = slice(tl, 2*tl)
         lower_third = slice(2*tl, m.shape[0])
-        tad_sum = m[middle_third, middle_third].sum() / np.logical_not(m.mask)[middle_third, middle_third].sum()
-        upper_sum = m[upper_third, middle_third].sum() / np.logical_not(m.mask)[upper_third, middle_third].sum()
-        lower_sum = m[lower_third, upper_third].sum() / np.logical_not(m.mask)[lower_third, upper_third].sum()
+        tad_sum = np.nansum(m[middle_third, middle_third]) / np.nansum(np.logical_not(m.mask)[middle_third, middle_third])
+        upper_sum = np.nansum(m[upper_third, middle_third]) / np.nansum(np.logical_not(m.mask)[upper_third, middle_third])
+        lower_sum = np.nansum(m[lower_third, upper_third]) / np.nansum(np.logical_not(m.mask)[lower_third, upper_third])
         try:
             ts = float(tad_sum / ((upper_sum + lower_sum) / 2))
         except ZeroDivisionError:
@@ -791,7 +791,7 @@ def loop_strength(hic, loop_regions, pixels=16, **kwargs):
     for i, (pair, m) in enumerate(_loop_matrix_iterator(hic, new_region_pairs, pixels=pixels,
                                                         keep_invalid=True, **kwargs)):
         if m is not None:
-            value = float(m.sum()/np.logical_not(m.mask).sum())
+            value = float(np.nansum(m)/np.nansum(np.logical_not(m.mask)))
         else:
             value = None
 
