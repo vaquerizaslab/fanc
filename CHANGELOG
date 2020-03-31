@@ -1,3 +1,11 @@
+0.8.26
+
+- Faster edge iterators with speedups up to 10-15x
+- Option to deep-copy a Hi-C (or related) matrix in fanc hic
+- O/E transformation of individual edges is now possible, not just whole matrices
+- Startup and cleanup commands for fanc auto --run-with sge
+- TAD, loop, and compartment strength functions
+
 0.8.25
 
 - Improved subsetting that maintains uncorrected matrix version
