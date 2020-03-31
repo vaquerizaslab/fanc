@@ -125,7 +125,7 @@ def scores(parameters):
         data_selection = []
         for i, y in enumerate(array._parameters):
             if args.range[0] <= y <= args.range[1]:
-                data_selection.append(i)
+                data_selection.append(y)
     elif args.parameters is not None:
         data_selection = args.parameters
     else:
