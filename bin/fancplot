@@ -88,7 +88,7 @@ class FancPlot(object):
                     plot.aspect = plot_args.aspect_ratio
 
                 plot.fix_chromosome = plot_args.fix_chromosome
-                plot._draw_x_axis = not plot_args.hide_x
+                #plot._draw_x_axis = not plot_args.hide_x
 
                 # set plot title
                 plot.title = plot_args.title
@@ -149,6 +149,8 @@ class FancPlot(object):
                                                  major=not plot_args.show_major_ticks)
                         if not plot_args.show_tick_legend:
                             plot.remove_tick_legend()
+                        if plot_args.hide_x:
+                            plot.remove_genome_labels()
                 except Exception as error:
                     tb = traceback.format_exc()
                     warnings.warn("There was an error with plot {}, region {}:{}-{} ({})".format(i, region.chromosome,
