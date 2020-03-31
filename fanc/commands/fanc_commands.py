@@ -2743,7 +2743,7 @@ def loops(argv, **kwargs):
 
     matrix = None
     try:
-        matrix = fanc.load(input_file, mode='a', tmpdir=tmp)
+        matrix = fanc.load(input_file, mode='r', tmpdir=tmp)
         is_rh_peaks = isinstance(matrix, fanc.peaks.RaoPeakInfo)
         is_merged_peaks = isinstance(matrix, fanc.peaks.PeakInfo)
         is_matrix = isinstance(matrix, fanc.matrix.RegionMatrixContainer)
@@ -3774,6 +3774,11 @@ def compartments_parser():
     )
 
     parser.add_argument(
+        '--compartment-strength', dest='compartment_strength_file',
+        help='File for saving the compartment strength.'
+    )
+
+    parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
         action='store_true',
         default=False,
@@ -3811,6 +3816,7 @@ def compartments(argv, **kwargs):
     domains_file = os.path.expanduser(args.domains) if args.domains is not None else None
     genome_file = os.path.expanduser(args.genome) if args.genome is not None else None
     eigenvector_file = os.path.expanduser(args.eigenvector) if args.eigenvector is not None else None
+    compartment_strength_file = os.path.expanduser(args.compartment_strength_file) if args.compartment_strength_file is not None else None
     ev_index = args.eigenvector_index - 1
     region_subset = args.region
     whole_genome = args.whole_genome
@@ -3908,6 +3914,26 @@ def compartments(argv, **kwargs):
             domains = ab_matrix.domains(sub_region=region_subset, genome=genome_file,
                                         eigenvector=ev_index, force=recalculate)
             write_bed(domains_file, domains)
+
+        if compartment_strength_file is not None:
+            import numpy as np
+            m, cutoffs = ab_matrix.enrichment_profile(matrix,
+                                                      percentiles=[0, 20, 40, 60, 80, 100],
+                                                      per_chromosome=not whole_genome,
+                                                      only_gc=only_gc,
+                                                      symmetric_at=symmetric_at,
+                                                      exclude_chromosomes=exclude,
+                                                      eigenvector=ev,
+                                                      genome=genome_file)
+            aa = 2**m[0, 0]
+            bb = 2**m[4, 4]
+            ab = 2**m[0, 4]
+            s = np.log((aa * bb) / ab ** 2)
+            with open(compartment_strength_file, 'w') as o:
+                o.write("AB-strength\t{}\n".format(s))
+                o.write("AA\t{}\n".format(aa))
+                o.write("BB\t{}\n".format(bb))
+                o.write("AB\t{}\n".format(ab))
 
         # Calculate enrichment profile
         if matrix_file is not None or enrichment_file is not None:
@@ -4239,6 +4265,17 @@ def aggregate_parser():
     )
 
     parser.add_argument(
+        '--loop-strength', dest='loop_strength_file',
+        help='Calculate loop strengths and save to file. Only works when providing BEDPE file, '
+             'and Hi-C matrix.'
+    )
+
+    parser.add_argument(
+        '--tad-strength', dest='tad_strength_file',
+        help='Calculate tad strengths and save to file. Only works with --tads preset'
+    )
+
+    parser.add_argument(
         '-w', '--window', dest='window',
         help='Width of the region window used for aggregation. '
              'If set, will only use the center position from '
@@ -4397,6 +4434,8 @@ def aggregate(argv, **kwargs):
     output_file = os.path.expanduser(args.output) if args.output is not None else None
     matrix_file = os.path.expanduser(args.matrix_file) if args.matrix_file is not None else None
     plot_file = os.path.expanduser(args.plot_file) if args.plot_file is not None else None
+    loop_strength_file = os.path.expanduser(args.loop_strength_file) if args.loop_strength_file is not None else None
+    tad_strength_file = os.path.expanduser(args.tad_strength_file) if args.tad_strength_file is not None else None
     tads_preset = args.tads_preset
     tads_imakaev_preset = args.tads_imakaev_preset
     loops_preset = args.loops_preset
@@ -4467,7 +4506,7 @@ def aggregate(argv, **kwargs):
     import numpy as np
     import genomic_regions as gr
     import warnings
-    from fanc.architecture.aggregate import AggregateMatrix
+    from fanc.architecture.aggregate import AggregateMatrix, loop_strength, tad_strength
     from fanc.tools.general import human_format, str_to_int
 
     if window is not None:
@@ -4507,6 +4546,16 @@ def aggregate(argv, **kwargs):
                         labels = ['-{}b'.format(human_format(left * b)), '',
                                   '+{}b'.format(human_format(right * b))]
 
+                    if loop_strength_file is not None:
+                        loop_strengths = loop_strength(matrix, region_pairs)
+                        with open(loop_strength_file, 'w') as o:
+                            for s, (r1, r2) in zip(loop_strengths, region_pairs):
+                                o.write("{}\t{}\t{}\t{}\t{}\t{}\t.\t{}\n".format(
+                                    r1.chromosome, r1.start, r1.end,
+                                    r2.chromosome, r2.start, r2.end,
+                                    s
+                                ))
+
                 elif isinstance(regions, gr.RegionBased):
                     if window is not None:
                         aggregate_matrix = AggregateMatrix.from_center(matrix, regions.regions,
@@ -4539,6 +4588,18 @@ def aggregate(argv, **kwargs):
                                                                         oe=oe, log=log,
                                                                         orient_strand=orient_strand,
                                                                         cache=cache)
+
+                        if tad_strength_file is not None:
+                            if tads_preset:
+                                tad_strengths = tad_strength(aggregate_matrix)
+                            else:
+                                tad_strengths = tad_strength(matrix, regions.regions)
+                            with open(tad_strength_file, 'w') as o:
+                                for s, r in zip(tad_strengths, regions.regions):
+                                    o.write("{}\t{}\t{}\t.\t{}\n".format(
+                                        r.chromosome, r.start, r.end,
+                                        s
+                                    ))
             else:
                 aggregate_matrix = matrix
 
