@@ -54,7 +54,7 @@ setup(
         'future',
         'gridmap>=0.14.0',
         'intervaltree',
-        'genomic_regions>=0.0.5',
+        'genomic_regions>=0.0.7',
         'scikit-image>=0.15.0',
         'cooler>=0.8.0',
         'h5py'
