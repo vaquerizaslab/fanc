@@ -192,7 +192,6 @@ def map_parser():
         '-k', '--max-alignments', dest='max_alignments',
         type=int,
         help='Maximum number of alignments per read to be reported.'
-             'Default: %(default)d'
     )
 
     parser.add_argument(
