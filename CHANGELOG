@@ -1,3 +1,8 @@
+0.8.27
+
+- Fix an issue where cooler files could not be generated for highly sparse matrices
+- Fix help text display for fanc map
+
 0.8.26
 
 - Faster edge iterators with speedups up to 10-15x
