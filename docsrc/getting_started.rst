@@ -141,12 +141,12 @@ For this example, we are going to use the command ``fanc auto`` (see :ref:`fanc-
 construct a Hi-C map from a subset of a previously published adrenal tissue data set
 (`SRR4271982 of GSM2322539 <https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM2322539>`_).
 
-You can download the files from `our lab homepage <http://www.vaquerizaslab.org/datasets/fanc-examples.zip>`_:
+You can download the files from `our Keeper library <https://keeper.mpdl.mpg.de/d/147906745b634c779ed3/>`_:
 
 .. code:: bash
 
-   wget http://www.vaquerizaslab.org/datasets/fanc-examples.zip
-   unzip fanc-examples.zip
+   wget -O examples.zip "https://keeper.mpdl.mpg.de/d/147906745b634c779ed3/files/?p=/examples.zip&dl=1"
+   unzip examples.zip
    cd examples
 
 or clone the FAN-C repository from our `GitHub page <http://www.github.com/vaquerizaslab/fanc>`_:
