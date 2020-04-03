@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Hic module &mdash; FAN-C 0.8.25-beta documentation</title>
+  <title>Hic module &mdash; FAN-C 0.8.27-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.25
+                0.8.27
               </div>
             
           
@@ -1232,7 +1232,7 @@ len() on the object returned by this method.</p>
 
 <dl class="method">
 <dt id="fanc.hic.Hic.regions_and_matrix_entries">
-<code class="sig-name descname">regions_and_matrix_entries</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">oe=False</em>, <em class="sig-param">oe_per_chromosome=True</em>, <em class="sig-param">score_field=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.Hic.regions_and_matrix_entries" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">regions_and_matrix_entries</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">score_field=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.Hic.regions_and_matrix_entries" title="Permalink to this definition">¶</a></dt>
 <dd><p>Convenient access to non-zero matrix entries and associated regions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1456,7 +1456,7 @@ basis.</p>
 <dl class="class">
 <dt id="fanc.hic.LegacyHic">
 <em class="property">class </em><code class="sig-prename descclassname">fanc.hic.</code><code class="sig-name descname">LegacyHic</code><span class="sig-paren">(</span><em class="sig-param">file_name=None</em>, <em class="sig-param">mode='a'</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">partition_strategy='chromosome'</em>, <em class="sig-param">additional_region_fields=None</em>, <em class="sig-param">additional_edge_fields=None</em>, <em class="sig-param">_table_name_regions='nodes'</em>, <em class="sig-param">_table_name_edges='edges'</em>, <em class="sig-param">_edge_buffer_size='3G'</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.LegacyHic" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="matrix.html#fanc.matrix.RegionMatrixTable" title="fanc.matrix.RegionMatrixTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.matrix.RegionMatrixTable</span></code></a></p>
+<dd><p>Bases: <a class="reference internal" href="#fanc.hic.Hic" title="fanc.hic.Hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.hic.Hic</span></code></a></p>
 <dl class="class">
 <dt id="fanc.hic.LegacyHic.ChromosomeDescription">
 <em class="property">class </em><code class="sig-name descname">ChromosomeDescription</code><a class="headerlink" href="#fanc.hic.LegacyHic.ChromosomeDescription" title="Permalink to this definition">¶</a></dt>
@@ -1637,6 +1637,39 @@ start, end).</p>
 <dd class="field-odd"><p><strong>regions</strong> – List (or any iterator) with objects that
 describe a genomic region. See
 <code class="xref py py-class docutils literal notranslate"><span class="pre">add_region</span></code> for options.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.hic.LegacyHic.bias_vector">
+<code class="sig-name descname">bias_vector</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.LegacyHic.bias_vector" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get or set the vector of region biases in this object.</p>
+<p>This internally sets the “bias” attribute of each region in the
+object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>vector</strong> – a numpy array with bias values</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a numpy array with bias values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.hic.LegacyHic.bin">
+<code class="sig-name descname">bin</code><span class="sig-paren">(</span><em class="sig-param">bin_size</em>, <em class="sig-param">threads=1</em>, <em class="sig-param">chromosomes=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.LegacyHic.bin" title="Permalink to this definition">¶</a></dt>
+<dd><p>Map edges in this object to equidistant bins.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bin_size</strong> – Bin size in base pairs</p></li>
+<li><p><strong>threads</strong> – Number of threads used for binning</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><a class="reference internal" href="#fanc.hic.Hic" title="fanc.hic.Hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code></a> object</p>
 </dd>
 </dl>
 </dd></dl>
@@ -2080,6 +2113,49 @@ will be continuously reported.</p></li>
 </dd></dl>
 
 <dl class="method">
+<dt id="fanc.hic.LegacyHic.filter_diagonal">
+<code class="sig-name descname">filter_diagonal</code><span class="sig-paren">(</span><em class="sig-param">distance=0</em>, <em class="sig-param">queue=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.LegacyHic.filter_diagonal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convenience function that applies a <a class="reference internal" href="#fanc.hic.DiagonalFilter" title="fanc.hic.DiagonalFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">DiagonalFilter</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>distance</strong> – Distance from the diagonal up to which matrix entries
+will be filtered/removed. The default, 0, filters only the
+diagonal itself.</p></li>
+<li><p><strong>queue</strong> – If True, filter will be queued and can be executed
+along with other queued filters using
+run_queued_filters</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.hic.LegacyHic.filter_low_coverage_regions">
+<code class="sig-name descname">filter_low_coverage_regions</code><span class="sig-paren">(</span><em class="sig-param">rel_cutoff=None</em>, <em class="sig-param">cutoff=None</em>, <em class="sig-param">queue=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.LegacyHic.filter_low_coverage_regions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convenience function that applies a <a class="reference internal" href="#fanc.hic.LowCoverageFilter" title="fanc.hic.LowCoverageFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">LowCoverageFilter</span></code></a>.</p>
+<p>The cutoff can be provided in two ways:
+1. As an absolute threshold. Regions with contact count below this
+absolute threshold are filtered
+2. As a fraction relative to the median contact count of all regions.</p>
+<p>If both is supplied, whichever threshold is lower will be selected.</p>
+<p>If no parameter is supplied, rel_cutoff will be chosen as 0.1.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rel_cutoff</strong> – A cutoff as a fraction (0-1) of the median contact count of all
+regions.</p></li>
+<li><p><strong>cutoff</strong> – A cutoff in absolute contact counts (can be float) below
+which regions are considered “low coverage”</p></li>
+<li><p><strong>queue</strong> – If True, filter will be queued and can be executed
+along with other queued filters using
+run_queued_filters</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
 <dt id="fanc.hic.LegacyHic.find_region">
 <code class="sig-name descname">find_region</code><span class="sig-paren">(</span><em class="sig-param">query_regions</em>, <em class="sig-param">_regions_dict=None</em>, <em class="sig-param">_region_ends=None</em>, <em class="sig-param">_chromosomes=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.LegacyHic.find_region" title="Permalink to this definition">¶</a></dt>
 <dd><p>Find the region that is at the center of a region.</p>
@@ -2151,6 +2227,35 @@ is not necessarily itself a power of 2.</p>
 <dt id="fanc.hic.LegacyHic.intervals">
 <code class="sig-name descname">intervals</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.LegacyHic.intervals" title="Permalink to this definition">¶</a></dt>
 <dd><p>Alias for region_intervals.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.hic.LegacyHic.load_from_hic">
+<code class="sig-name descname">load_from_hic</code><span class="sig-paren">(</span><em class="sig-param">hic</em>, <em class="sig-param">threads=1</em>, <em class="sig-param">chromosomes=None</em>, <em class="sig-param">_edges_by_overlap_method=&lt;function _edge_overlap_split_rao&gt;</em>, <em class="sig-param">_regions_soft_max=50000</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.LegacyHic.load_from_hic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load data from another <a class="reference internal" href="#fanc.hic.Hic" title="fanc.hic.Hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code></a> object.</p>
+<p>If this object has no associated regions, the regions and
+contacts of the provided object will simply be copied.</p>
+<p>If regions are already present, the contacts of the provided
+matrix will be binned into the regions of this object using the
+overlap method provided.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hic</strong> – Another <a class="reference internal" href="#fanc.hic.Hic" title="fanc.hic.Hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code></a> object</p></li>
+<li><p><strong>threads</strong> – Number of parallel processing threads. More threads also
+means higher memory usage.</p></li>
+<li><p><strong>_edges_by_overlap_method</strong> – A function that maps reads from
+one genomic region to others using
+a supplied overlap map. By default
+it uses the Rao et al. (2014) method.
+See <code class="xref py py-func docutils literal notranslate"><span class="pre">_edge_overlap_split_rao()</span></code></p></li>
+<li><p><strong>_regions_soft_max</strong> – Maximum dimension of each processed submatrix
+per thread. This is a soft maximum, which may be
+increased as required for very large chromosomes or
+small bin sizes</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">
@@ -2357,7 +2462,7 @@ len() on the object returned by this method.</p>
 
 <dl class="method">
 <dt id="fanc.hic.LegacyHic.regions_and_matrix_entries">
-<code class="sig-name descname">regions_and_matrix_entries</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">oe=False</em>, <em class="sig-param">oe_per_chromosome=True</em>, <em class="sig-param">score_field=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.LegacyHic.regions_and_matrix_entries" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">regions_and_matrix_entries</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">score_field=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.LegacyHic.regions_and_matrix_entries" title="Permalink to this definition">¶</a></dt>
 <dd><p>Convenient access to non-zero matrix entries and associated regions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>

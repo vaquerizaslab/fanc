@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Individual pipeline steps &mdash; FAN-C 0.8.25-beta documentation</title>
+  <title>Individual pipeline steps &mdash; FAN-C 0.8.27-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.25
+                0.8.27
               </div>
             
           
@@ -236,7 +236,7 @@ the following command would use Bowtie2 as a mapper:</p>
 <dd><p>Trim reads from front instead of back.</p>
 </dd>
 <dt><kbd>-t, --threads</kbd></dt>
-<dd><p>Number of threads used for mapping</p>
+<dd><p>Number of threads used for mapping. Default: 1</p>
 </dd>
 <dt><kbd>-q, --quality</kbd></dt>
 <dd><p>Mapping quality cutoff. Alignments with a quality score lower than this will be sent to another mapping iteration. Default: 3 (BWA), 30 (Bowtie2)</p>
@@ -245,13 +245,13 @@ the following command would use Bowtie2 as a mapper:</p>
 <dd><p>Name (case sensitive) of restriction enzyme used in Hi-C experiment. Will be used to split reads by predicted ligation junction before mapping. You can omit this if you do not want to split your reads by ligation junction. Restriction names can be any supported by Biopython, which obtains data from REBASE (<a class="reference external" href="http://rebase.neb.com/rebase/rebase.html">http://rebase.neb.com/rebase/rebase.html</a>). For restriction enzyme cocktails, separate enzyme names with “,”</p>
 </dd>
 <dt><kbd>-k, --max-alignments</kbd></dt>
-<dd><p>Maximum number of alignments per read to be reported.Default: 1</p>
+<dd><p>Maximum number of alignments per read to be reported.</p>
 </dd>
 <dt><kbd>-a, --all-alignments</kbd></dt>
 <dd><p>Report all valid alignments of a read Warning: very slow!.</p>
 </dd>
 <dt><kbd>-b, --batch-size</kbd></dt>
-<dd><p>Number of reads processed (mapped and merged) in one go per worker. The default (100000) works well for large indexes (e.g. human, mouse). Smaller indexes (e.g. yeast) will finish individual bowtie2 processes very quickly - set this number higher to spawn new processes less frequently.</p>
+<dd><p>Number of reads processed (mapped and merged) in one go per worker. The default 100000 works well for large indexes (e.g. human, mouse). Smaller indexes (e.g. yeast) will finish individual bowtie2 processes very quickly - set this number higher to spawn new processes less frequently.</p>
 </dd>
 <dt><kbd>--fanc-parallel</kbd></dt>
 <dd><p>Use FAN-C parallelisation, which launches multiple mapper jobs. This may be faster in some cases than relying on the internal paralellisation of the mapper, but has potentially high disk I/O and memory usage.</p>
@@ -400,28 +400,28 @@ need to remove those endings before import.</p>
 <dd><p>Strictly filter reads that map multiple times. Only applies to SAM/BAM input!</p>
 </dd>
 <dt><kbd>-q, --filter-quality</kbd></dt>
-<dd><p>Cutoff for the minimum mapping quality of a read. For numbers larger than 1, will filter on MAPQ. If a number between 0 and 1 is provided, will filter on the AS tag instead of mapping quality (only BWA). The quality cutoff is then interpreted as the fraction of bases that have to be matched for any given read. Only applies to SAM/BAM input!</p>
+<dd><p>Cutoff for the minimum mapping quality of a read. For numbers larger than 1, will filter on MAPQ. If a number between 0 and 1 is provided, will filter on the AS tag instead of mapping quality (only BWA). The quality cutoff is then interpreted as the fraction of bases that have to be matched for any given read. Only applies to SAM/BAM input! Default: no mapping quality filter.</p>
 </dd>
 <dt><kbd>-c, --filter-contaminant</kbd></dt>
-<dd><p>Filter contaminating reads from other organism. Path to mapped SAM/BAM file. Will filter out reads with the same name. Only applies to SAM/BAM input!</p>
+<dd><p>Filter contaminating reads from other organism. Path to mapped SAM/BAM file. Will filter out reads with the same name. Only applies to SAM/BAM input! Default: no contaminant filter</p>
 </dd>
 <dt><kbd>-i, --filter-inward</kbd></dt>
-<dd><p>Minimum distance for inward-facing read pairs</p>
+<dd><p>Minimum distance for inward-facing read pairs. Default: no inward ligation error filter</p>
 </dd>
 <dt><kbd>-o, --filter-outward</kbd></dt>
-<dd><p>Minimum distance for outward-facing read pairs</p>
+<dd><p>Minimum distance for outward-facing read pairs. Default: no outward ligation error filter</p>
 </dd>
 <dt><kbd>--filter-ligation-auto</kbd></dt>
-<dd><p>Auto-guess settings for inward/outward read pair filters. Overrides –filter-outward and –filter-inward if set.</p>
+<dd><p>Auto-guess settings for inward/outward read pair filters. Overrides –filter-outward and –filter-inward if set. This is highly experimental and known to overshoot in some cases. It is generally recommended to specify cutoffs manually.</p>
 </dd>
 <dt><kbd>-d, --filter-re-distance</kbd></dt>
-<dd><p>Maximum distance for a read to the nearest restriction site</p>
+<dd><p>Maximum distance for a read to the nearest restriction site. Default: no RE distance filter</p>
 </dd>
 <dt><kbd>-l, --filter-self-ligations</kbd></dt>
-<dd><p>Remove read pairs representing self-ligated fragments</p>
+<dd><p>Remove read pairs representing self-ligated fragments.Default: no self-ligation filter.</p>
 </dd>
 <dt><kbd>-p, --filter-pcr-duplicates</kbd></dt>
-<dd><p>If specified, filter read pairs for PCR duplicates. Parameter determines distance between alignment starts below which they are considered starting at same position. Sensible values are between 1 and 5.</p>
+<dd><p>If specified, filter read pairs for PCR duplicates. Parameter determines distance between alignment starts below which they are considered starting at same position. Sensible values are between 1 and 5. Default: no PCR duplicates filter</p>
 </dd>
 <dt><kbd>-s, --statistics</kbd></dt>
 <dd><p>Path for saving filter statistics</p>
@@ -439,10 +439,10 @@ need to remove those endings before import.</p>
 <dd><p>Plot the relative orientation of read pairs mapped to the reference genome as a fraction of reads oriented in the same direction. Allows the identification of ligation errors as a function of genomic distance.</p>
 </dd>
 <dt><kbd>-t, --threads</kbd></dt>
-<dd><p>Number of threads to use for extracting fragment information</p>
+<dd><p>Number of threads to use for extracting fragment information. Default: 1</p>
 </dd>
 <dt><kbd>-b, --batch-size</kbd></dt>
-<dd><p>Batch size for read pairs to be submitted to individual processes.</p>
+<dd><p>Batch size for read pairs to be submitted to individual processes. Default: 1000000</p>
 </dd>
 <dt><kbd>-S, --no-check-sorted</kbd></dt>
 <dd><p>Assume SAM files are sorted and do not check if that is actually the case</p>
@@ -551,7 +551,7 @@ overview of all parameters:</p>
                 <span class="p">[</span><span class="o">--</span><span class="n">downsample</span> <span class="n">DOWNSAMPLE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">subset</span> <span class="n">SUBSET</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">k</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span><span class="p">]</span>
                 <span class="p">[</span><span class="o">-</span><span class="n">c</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">only</span><span class="o">-</span><span class="n">inter</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STATS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">statistics</span><span class="o">-</span><span class="n">plot</span> <span class="n">STATS_PLOT</span><span class="p">]</span>
                 <span class="p">[</span><span class="o">--</span><span class="n">chromosomes</span> <span class="n">CHROMOSOMES</span> <span class="p">[</span><span class="n">CHROMOSOMES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">deepcopy</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
                 <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span>
 </pre></div>
 </div>
@@ -622,6 +622,9 @@ overview of all parameters:</p>
 </dd>
 <dt><kbd>-t, --threads</kbd></dt>
 <dd><p>Number of threads (currently used for binning only)</p>
+</dd>
+<dt><kbd>--deepcopy</kbd></dt>
+<dd><p>Deep copy Hi-C file. Can be used</p>
 </dd>
 <dt><kbd>-tmp, --work-in-tmp</kbd></dt>
 <dd><p>Work in temporary directory</p>

@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>AB compartment analysis &mdash; FAN-C 0.8.25-beta documentation</title>
+  <title>AB compartment analysis &mdash; FAN-C 0.8.27-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.25
+                0.8.27
               </div>
             
           
@@ -189,8 +189,9 @@ compartment, also called ‘A’ and ‘B’ compartments, respectively.</p>
                          <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">PERCENTILES</span> <span class="p">[</span><span class="n">PERCENTILES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">COLORMAP</span><span class="p">]</span>
                          <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">SYMMETRIC_AT</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">enrichment</span><span class="o">-</span><span class="nb">min</span> <span class="n">VMIN</span><span class="p">]</span>
                          <span class="p">[</span><span class="o">--</span><span class="n">enrichment</span><span class="o">-</span><span class="nb">max</span> <span class="n">VMAX</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">G</span><span class="p">]</span>
-                         <span class="p">[</span><span class="o">-</span><span class="n">x</span> <span class="n">EXCLUDE</span> <span class="p">[</span><span class="n">EXCLUDE</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
-                         <span class="p">[</span><span class="o">--</span><span class="n">recalculate</span><span class="p">]</span>
+                         <span class="p">[</span><span class="o">-</span><span class="n">x</span> <span class="n">EXCLUDE</span> <span class="p">[</span><span class="n">EXCLUDE</span> <span class="o">...</span><span class="p">]]</span>
+                         <span class="p">[</span><span class="o">--</span><span class="n">compartment</span><span class="o">-</span><span class="n">strength</span> <span class="n">COMPARTMENT_STRENGTH_FILE</span><span class="p">]</span>
+                         <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">recalculate</span><span class="p">]</span>
                          <span class="n">matrix</span> <span class="p">[</span><span class="n">ab_compartments</span><span class="p">]</span>
 </pre></div>
 </div>
@@ -252,6 +253,9 @@ compartment, also called ‘A’ and ‘B’ compartments, respectively.</p>
 </dd>
 <dt><kbd>-x, --enrichment-exclude</kbd></dt>
 <dd><p>Chromosome names to exclude from enrichment profile calculation</p>
+</dd>
+<dt><kbd>--compartment-strength</kbd></dt>
+<dd><p>File for saving the compartment strength.</p>
 </dd>
 <dt><kbd>-tmp, --work-in-tmp</kbd></dt>
 <dd><p>Work in temporary directory</p>

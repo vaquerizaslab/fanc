@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Pairs module &mdash; FAN-C 0.8.25-beta documentation</title>
+  <title>Pairs module &mdash; FAN-C 0.8.27-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.25
+                0.8.27
               </div>
             
           
@@ -1009,8 +1009,8 @@ filtered. This function returns a <code class="xref py py-class docutils literal
 <dt id="fanc.pairs.ReDistanceFilter">
 <em class="property">class </em><code class="sig-prename descclassname">fanc.pairs.</code><code class="sig-name descname">ReDistanceFilter</code><span class="sig-paren">(</span><em class="sig-param">maximum_distance=10000</em>, <em class="sig-param">mask=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.pairs.ReDistanceFilter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#fanc.pairs.FragmentReadPairFilter" title="fanc.pairs.FragmentReadPairFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.pairs.FragmentReadPairFilter</span></code></a></p>
-<p>Filters read pairs where one or both reads are more than
-maximum_distance away from the nearest restriction site.</p>
+<p>Filters read pairs where the sum of distances of each read to its nearest
+restriction site is larger than a certain distance.</p>
 <dl class="method">
 <dt id="fanc.pairs.ReDistanceFilter.valid">
 <code class="sig-name descname">valid</code><span class="sig-paren">(</span><em class="sig-param">row</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.pairs.ReDistanceFilter.valid" title="Permalink to this definition">¶</a></dt>
@@ -1020,7 +1020,7 @@ maximum_distance away from the nearest restriction site.</p>
 <dl class="method">
 <dt id="fanc.pairs.ReDistanceFilter.valid_pair">
 <code class="sig-name descname">valid_pair</code><span class="sig-paren">(</span><em class="sig-param">pair</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.pairs.ReDistanceFilter.valid_pair" title="Permalink to this definition">¶</a></dt>
-<dd><p>Check if any read is &gt;maximum_distance away from RE site.</p>
+<dd><p>Check sum of restriction site distances &lt; maximum_distance.</p>
 </dd></dl>
 
 </dd></dl>
@@ -2335,8 +2335,8 @@ filtered. This function returns a <code class="xref py py-class docutils literal
 <dt id="fanc.pairs.SelfLigationFilter">
 <em class="property">class </em><code class="sig-prename descclassname">fanc.pairs.</code><code class="sig-name descname">SelfLigationFilter</code><span class="sig-paren">(</span><em class="sig-param">mask=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.pairs.SelfLigationFilter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#fanc.pairs.FragmentReadPairFilter" title="fanc.pairs.FragmentReadPairFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.pairs.FragmentReadPairFilter</span></code></a></p>
-<p>Filters read pairs where one or both reads are more than
-maximum_distance away from the nearest restriction site.</p>
+<p>Filters read pairs where one or both reads map to the
+same restriction fragment.</p>
 <dl class="method">
 <dt id="fanc.pairs.SelfLigationFilter.valid">
 <code class="sig-name descname">valid</code><span class="sig-paren">(</span><em class="sig-param">row</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.pairs.SelfLigationFilter.valid" title="Permalink to this definition">¶</a></dt>
@@ -2346,7 +2346,7 @@ maximum_distance away from the nearest restriction site.</p>
 <dl class="method">
 <dt id="fanc.pairs.SelfLigationFilter.valid_pair">
 <code class="sig-name descname">valid_pair</code><span class="sig-paren">(</span><em class="sig-param">pair</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.pairs.SelfLigationFilter.valid_pair" title="Permalink to this definition">¶</a></dt>
-<dd><p>Check if any read is &gt;maximum_distance away from RE site.</p>
+<dd><p>Check if both reads are on the same fragment.</p>
 </dd></dl>
 
 </dd></dl>

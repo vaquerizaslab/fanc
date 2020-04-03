@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Peaks module &mdash; FAN-C 0.8.25-beta documentation</title>
+  <title>Peaks module &mdash; FAN-C 0.8.27-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.25
+                0.8.27
               </div>
             
           
@@ -325,16 +325,10 @@ basis.</p>
 <dl class="class">
 <dt id="fanc.peaks.LazyPeak">
 <em class="property">class </em><code class="sig-prename descclassname">fanc.peaks.</code><code class="sig-name descname">LazyPeak</code><span class="sig-paren">(</span><em class="sig-param">row</em>, <em class="sig-param">nodes_table</em>, <em class="sig-param">bin_size=1</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.peaks.LazyPeak" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="matrix.html#fanc.matrix.LazyEdge" title="fanc.matrix.LazyEdge"><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.matrix.LazyEdge</span></code></a>, <a class="reference internal" href="#fanc.peaks.Peak" title="fanc.peaks.Peak"><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.peaks.Peak</span></code></a></p>
+<dd><p>Bases: <a class="reference internal" href="matrix.html#fanc.matrix.LazyEdge" title="fanc.matrix.LazyEdge"><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.matrix.LazyEdge</span></code></a></p>
 <p>Container for a Peak/enriched contact in a Hi-C matrix.</p>
 <p>This class implements <a class="reference internal" href="#fanc.peaks.LazyPeak" title="fanc.peaks.LazyPeak"><code class="xref py py-class docutils literal notranslate"><span class="pre">LazyPeak</span></code></a>, which provides lazy
 loading of attributes from a PyTables table row.</p>
-<dl class="method">
-<dt id="fanc.peaks.LazyPeak.update">
-<code class="sig-name descname">update</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.peaks.LazyPeak.update" title="Permalink to this definition">¶</a></dt>
-<dd><p>Write changes to PyTables row to file.</p>
-</dd></dl>
-
 </dd></dl>
 
 <dl class="class">
@@ -1380,7 +1374,7 @@ len() on the object returned by this method.</p>
 
 <dl class="method">
 <dt id="fanc.peaks.PeakInfo.regions_and_matrix_entries">
-<code class="sig-name descname">regions_and_matrix_entries</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">oe=False</em>, <em class="sig-param">oe_per_chromosome=True</em>, <em class="sig-param">score_field=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.peaks.PeakInfo.regions_and_matrix_entries" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">regions_and_matrix_entries</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">score_field=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.peaks.PeakInfo.regions_and_matrix_entries" title="Permalink to this definition">¶</a></dt>
 <dd><p>Convenient access to non-zero matrix entries and associated regions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -2752,7 +2746,7 @@ len() on the object returned by this method.</p>
 
 <dl class="method">
 <dt id="fanc.peaks.RaoPeakInfo.regions_and_matrix_entries">
-<code class="sig-name descname">regions_and_matrix_entries</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">oe=False</em>, <em class="sig-param">oe_per_chromosome=True</em>, <em class="sig-param">score_field=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.peaks.RaoPeakInfo.regions_and_matrix_entries" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">regions_and_matrix_entries</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">score_field=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.peaks.RaoPeakInfo.regions_and_matrix_entries" title="Permalink to this definition">¶</a></dt>
 <dd><p>Convenient access to non-zero matrix entries and associated regions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>

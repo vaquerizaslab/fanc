@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Hi-C aggregate analysis &mdash; FAN-C 0.8.25-beta documentation</title>
+  <title>Hi-C aggregate analysis &mdash; FAN-C 0.8.27-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.25
+                0.8.27
               </div>
             
           
@@ -190,11 +190,14 @@ vicinity.</p>
 <img alt="../../_images/aggregate_examples_biorxiv.png" src="../../_images/aggregate_examples_biorxiv.png" />
 <p>You can easily create your own aggregate plots using <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">aggregate</span></code>.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">aggregate</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span> <span class="n">MATRIX_FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">PLOT_FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">tads</span><span class="p">]</span>
-                      <span class="p">[</span><span class="o">--</span><span class="n">tads</span><span class="o">-</span><span class="n">imakaev</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">loops</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">pixels</span> <span class="n">PIXELS</span><span class="p">]</span>
-                      <span class="p">[</span><span class="o">-</span><span class="n">v</span> <span class="n">REGION_VIEWPOINT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BOUNDARY_MODE</span><span class="p">]</span>
-                      <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">INTERPOLATION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RELATIVE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">a</span> <span class="n">ABSOLUTE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">e</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span>
-                      <span class="p">[</span><span class="o">--</span><span class="n">rescale</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">colormap</span> <span class="n">COLORMAP</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">vmin</span> <span class="n">VMIN</span><span class="p">]</span>
-                      <span class="p">[</span><span class="o">--</span><span class="n">vmax</span> <span class="n">VMAX</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">C</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">keep</span><span class="o">-</span><span class="n">submatrices</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">--</span><span class="n">tads</span><span class="o">-</span><span class="n">imakaev</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">loops</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">--</span><span class="n">loop</span><span class="o">-</span><span class="n">strength</span> <span class="n">LOOP_STRENGTH_FILE</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">--</span><span class="n">tad</span><span class="o">-</span><span class="n">strength</span> <span class="n">TAD_STRENGTH_FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">--</span><span class="n">pixels</span> <span class="n">PIXELS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">v</span> <span class="n">REGION_VIEWPOINT</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BOUNDARY_MODE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">INTERPOLATION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RELATIVE</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">-</span><span class="n">a</span> <span class="n">ABSOLUTE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">e</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">rescale</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">--</span><span class="n">colormap</span> <span class="n">COLORMAP</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">vmin</span> <span class="n">VMIN</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">vmax</span> <span class="n">VMAX</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">-</span><span class="n">C</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">keep</span><span class="o">-</span><span class="n">submatrices</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span>
                       <span class="p">[</span><span class="o">--</span><span class="n">labels</span> <span class="n">LABELS</span> <span class="n">LABELS</span> <span class="n">LABELS</span><span class="p">]</span>
                       <span class="nb">input</span> <span class="p">[</span><span class="n">regions</span><span class="p">]</span> <span class="p">[</span><span class="n">output</span><span class="p">]</span>
 </pre></div>
@@ -230,6 +233,12 @@ vicinity.</p>
 </dd>
 <dt><kbd>--loops</kbd></dt>
 <dd><p>Use presets for aggregate loops: –pixels 16 -l</p>
+</dd>
+<dt><kbd>--loop-strength</kbd></dt>
+<dd><p>Calculate loop strengths and save to file. Only works when providing BEDPE file, and Hi-C matrix.</p>
+</dd>
+<dt><kbd>--tad-strength</kbd></dt>
+<dd><p>Calculate tad strengths and save to file. Only works with –tads preset</p>
 </dd>
 <dt><kbd>-w, --window</kbd></dt>
 <dd><p>Width of the region window used for aggregation. If set, will only use the center position from the input regions and extract a submatrix of width -w around this region.</p>

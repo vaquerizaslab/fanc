@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.8.25-beta documentation</title>
+  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.8.27-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.25
+                0.8.27
               </div>
             
           
@@ -204,7 +204,9 @@ the processing and filtering of objects in the pipeline.</p>
                  <span class="p">[</span><span class="o">--</span><span class="n">le</span><span class="o">-</span><span class="n">outward</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">OUTWARD_CUTOFF</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">auto</span><span class="o">-</span><span class="n">le</span><span class="o">-</span><span class="n">cutoff</span><span class="p">]</span>
                  <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">iterative</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">sam</span><span class="o">-</span><span class="n">sort</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">restore</span><span class="o">-</span><span class="n">coverage</span><span class="p">]</span>
                  <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">ligation</span><span class="o">-</span><span class="n">junction</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="nb">filter</span><span class="o">-</span><span class="n">pairs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">hic</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="n">run</span><span class="o">-</span><span class="k">with</span> <span class="n">RUN_WITH</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">job</span><span class="o">-</span><span class="n">prefix</span> <span class="n">JOB_PREFIX</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">run</span><span class="o">-</span><span class="k">with</span> <span class="n">RUN_WITH</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">job</span><span class="o">-</span><span class="n">prefix</span> <span class="n">JOB_PREFIX</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">grid</span><span class="o">-</span><span class="n">startup</span><span class="o">-</span><span class="n">commands</span> <span class="n">GRID_STARTUP_COMMANDS</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">grid</span><span class="o">-</span><span class="n">cleanup</span><span class="o">-</span><span class="n">commands</span> <span class="n">GRID_CLEANUP_COMMANDS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
                  <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span> <span class="n">output_folder</span>
 </pre></div>
 </div>
@@ -241,10 +243,10 @@ the processing and filtering of objects in the pipeline.</p>
 <dd><p>Bin sizes for Hi-C matrix generation. Default: 5mb, 2mb, 1mb, 500kb, 250kb, 100kb, 50kb, 25kb, 10kb, 5kb.</p>
 </dd>
 <dt><kbd>-t, --threads</kbd></dt>
-<dd><p>Maximum number of threads. The number provided here will not be exceeded by analysis steps running alone or in parallel.</p>
+<dd><p>Maximum number of threads. The number provided here will not be exceeded by analysis steps running alone or in parallel. Default: 1</p>
 </dd>
 <dt><kbd>--fanc-parallel</kbd></dt>
-<dd><p>Use FAN-C parallelisation, which launches multiple mapper jobs. This may be faster in some cases than relying on the internal paralellisation of the mapper, but has potentially high disk I/O and memory usage.</p>
+<dd><p>Use FAN-C parallelisation, which launches multiple mapper jobs. This may be faster in some cases than relying on the internal parallelisation of the mapper, but has potentially high disk I/O and memory usage.</p>
 </dd>
 <dt><kbd>--split-fastq</kbd></dt>
 <dd><p>Split fastq files into chunks of 10M reads. Reads will be merged again on the SAM level. Splitting and merging bypasses the -tmp flag. This option reduces disk usage in tmp, in case the system has a small tmp partition.</p>
@@ -253,10 +255,10 @@ the processing and filtering of objects in the pipeline.</p>
 <dd><p>Map Bowtie2 index to memory. Recommended if running on medium-memory systems and using many parallel threads).</p>
 </dd>
 <dt><kbd>--ice</kbd></dt>
-<dd><p>Correct Hi-C matrices using ICE.</p>
+<dd><p>Correct Hi-C matrices using ICE instead of Knight-Ruiz matrix balancing. Slower, but much more memory-friendly.</p>
 </dd>
 <dt><kbd>-q, --quality-cutoff</kbd></dt>
-<dd><p>Cutoff for the minimum mapping quality of a read. For numbers larger than 1, will filter on MAPQ. If a number between 0 and 1 is provided, will filter on the AS tag instead of mapping quality (only BWA). The quality cutoff is then interpreted as the fraction of bases that have to be matched for any given read. Only applies to SAM/BAM input!</p>
+<dd><p>Cutoff for the minimum mapping quality of a read. For numbers larger than 1, will filter on MAPQ. If a number between 0 and 1 is provided, will filter on the AS tag instead of mapping quality (only BWA). The quality cutoff is then interpreted as the fraction of bases that have to be matched for any given read. Only applies to SAM/BAM input!. Default is not to filter on mapping quality.</p>
 </dd>
 <dt><kbd>--iterative-quality-cutoff</kbd></dt>
 <dd><p>MAPQ cutoff for mapped reads. Only applies when iterative mapping is enabled: if a mapped read has MAPQ below this cutoff,it will be sent to another iteration in an attempt to find a higher quality alignment. Default is 3 for BWA and 30 for Bowtie2.</p>
@@ -286,7 +288,7 @@ the processing and filtering of objects in the pipeline.</p>
 <dd><p>Split reads at predicted ligation junction before mapping. Requires the -r argument.</p>
 </dd>
 <dt><kbd>--no-filter-pairs</kbd></dt>
-<dd><p>Do not filter read pairs. By default, the following filters are applied: self-ligations, PDR duplicates,restriction distance (&gt;10kb)</p>
+<dd><p>Do not filter read pairs. By default, the following filters are applied: self-ligations, PCR duplicates,restriction distance (&gt;10kb)</p>
 </dd>
 <dt><kbd>--no-hic</kbd></dt>
 <dd><p>Do not process pairs into Hi-C maps (stop after read pairing step).</p>
@@ -296,6 +298,12 @@ the processing and filtering of objects in the pipeline.</p>
 </dd>
 <dt><kbd>--job-prefix</kbd></dt>
 <dd><p>Job Prefix for SGE and Slurm. Works with ‘–run-with sge’ and –run-with slurm. Default: ‘fanc_&lt;6 random letters&gt;_’</p>
+</dd>
+<dt><kbd>--grid-startup-commands</kbd></dt>
+<dd><p>Path to a file with BASH commands that are executed before every FAN-C command that is run on a grid engine / cluster. This could, for example, include environment-specific settings, such as activation of a Python virtualenv.</p>
+</dd>
+<dt><kbd>--grid-cleanup-commands</kbd></dt>
+<dd><p>Path to a file with BASH commands that are executed after every FAN-C command that is run on a grid engine / cluster. Use this to clean the file system or environment set up with –grid-startup-commands.</p>
 </dd>
 <dt><kbd>-f, --force-overwrite</kbd></dt>
 <dd><p>Force overwriting of existing files. Otherwise you will be prompted before files are overwritten.</p>
