@@ -121,7 +121,8 @@ def to_cooler(hic, path, balance=True, multires=True,
                                                 ("bin2_id", np.int_),
                                                 ("count", np.float_)])
                     pixels = np.sort(pixels, order=("bin1_id", "bin2_id"))
-                    yield pandas.DataFrame(pixels)
+                    if len(pixels) > 0:
+                        yield pandas.DataFrame(pixels)
 
         logger.info("Writing cooler")
         cooler.create_cooler(cool_uri=single_path, bins=region_df, pixels=pixel_iter(), ordered=False)
