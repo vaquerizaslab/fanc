@@ -43,7 +43,6 @@ setup(
         'pytest',
         'msgpack',
         'msgpack-numpy>=0.4.4.3',
-        'gridmap',
         'scikit-learn',
         'progressbar2',
         'pybedtools',
