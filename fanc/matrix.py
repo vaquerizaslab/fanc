@@ -1999,7 +1999,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 except KeyError:
                     weight = default_value
 
-                if weight != 0:
+                if weight != default_value:
                     mappable[edge['source']] = True
                     mappable[edge['sink']] = True
                 pb.update(i)
