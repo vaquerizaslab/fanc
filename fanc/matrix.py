@@ -2260,12 +2260,12 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
         copy = cls(**kwargs)
         copy.add_regions(self.regions(lazy=True))
-        from tqdm import tqdm
 
         total = len(self.edges)
-        for i, edge in tqdm(enumerate(self.edges(lazy=True, norm=False, oe=False)),
-                            total=total, miniters=int(total/500)):
-            copy.add_edge_simple(edge.source, edge.sink, edge.weight)
+        with RareUpdateProgressBar(max_value=total) as pb:
+            for i, edge in enumerate(self.edges(lazy=True, norm=False, oe=False)):
+                copy.add_edge_simple(edge.source, edge.sink, edge.weight)
+                pb.update(i)
         copy.flush(update_mappability=False)
 
         try:
