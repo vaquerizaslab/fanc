@@ -1170,10 +1170,11 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         # get the sums of edges at any given distance
         marginals = [0.0] * len(self.regions)
+        valid = [False] * len(self.regions)
         inter_sums = 0.0
         intra_sums = [0.0] * max_distance
         with RareUpdateProgressBar(max_value=len(self.edges), prefix='Expected') as pb:
-            for i, edge in enumerate(self.edges(lazy=True, norm=norm)):
+            for i, edge in enumerate(self.edges(lazy=True, norm=norm, check_valid=False)):
                 source, sink = edge.source, edge.sink
                 try:
                     weight = getattr(edge, weight_field)
@@ -1185,6 +1186,9 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
                 marginals[source] += weight
                 marginals[sink] += weight
+                if weight != self._default_value:
+                    valid[source] = True
+                    valid[sink] = True
 
                 if sink_chromosome != source_chromosome:
                     inter_sums += weight
@@ -1221,7 +1225,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         if selected_chromosome is not None:
             return chromosome_intra_expected[selected_chromosome], marginals
 
-        return intra_expected, chromosome_intra_expected, inter_expected, marginals
+        return intra_expected, chromosome_intra_expected, inter_expected, marginals, valid
 
     def expected_values(self, selected_chromosome=None, norm=True, *args, **kwargs):
         """
@@ -1252,7 +1256,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         """
         result = self.expected_values_and_marginals(selected_chromosome=selected_chromosome,
                                                     norm=norm, *args, **kwargs)
-        return result[:-1]
+        return result[:-2]
 
     def marginals(self, masked=True, *args, **kwargs):
         """
@@ -1320,7 +1324,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                 m2_sum += v2
 
         scaling_factor = m1_sum / m2_sum
-        logger.debug("Scaling factor: {}".format(scaling_factor))
+        logger.debug("Scaling factor: {}/{} = {}".format(m1_sum, m2_sum, scaling_factor))
         return scaling_factor
 
 
@@ -1995,7 +1999,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                 except KeyError:
                     weight = default_value
 
-                if weight > 0:
+                if weight != 0:
                     mappable[edge['source']] = True
                     mappable[edge['sink']] = True
                 pb.update(i)
@@ -2378,16 +2382,16 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                             if node.name.startswith('_'):
                                 chromosome = node.name[1:]
                                 chromosome_intra_expected[chromosome] = node[:]
-
+                    valid = self.region_data('valid')
                     if intra_expected is not None and inter_expected is not None and marginals is not None \
                             and len(chromosome_intra_expected) > 0:
-                        return intra_expected, chromosome_intra_expected, inter_expected, marginals
+                        return intra_expected, chromosome_intra_expected, inter_expected, marginals, valid
             except tables.NoSuchNodeError:
                 pass
 
         (intra_expected, chromosome_intra_expected,
-         inter_expected, marginals) = RegionMatrixContainer.expected_values_and_marginals(self, norm=norm, *args,
-                                                                                          **kwargs)
+         inter_expected, marginals, valid) = RegionMatrixContainer.expected_values_and_marginals(self, norm=norm, *args,
+                                                                                                 **kwargs)
 
         # try saving to object
         if hasattr(self, '_expected_value_group') and self._expected_value_group is not None:
@@ -2420,14 +2424,15 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                               "do this, but it will speed things up in the future.")
 
         try:
-            self.region_data('valid', np.array(marginals) > 0)
+            print(valid)
+            self.region_data('valid', valid)
         except (OSError, KeyError):  # ignore older Hic versions and read-only files
             pass
 
         if selected_chromosome is not None:
             return chromosome_intra_expected[selected_chromosome], marginals
 
-        return intra_expected, chromosome_intra_expected, inter_expected, marginals
+        return intra_expected, chromosome_intra_expected, inter_expected, marginals, valid
 
     def _update_mappability(self):
         _ = self.expected_values_and_marginals(force=True)
