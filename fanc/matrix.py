@@ -2004,7 +2004,6 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                     mappable[edge['sink']] = True
                 pb.update(i)
 
-        print(mappable)
         self.region_data('valid', mappable)
 
     def filter(self, edge_filter, queue=False, log_progress=not config.hide_progressbars):
