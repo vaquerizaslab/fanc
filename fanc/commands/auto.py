@@ -904,6 +904,7 @@ def auto(argv, **kwargs):
             continue
         fastq_files.append(i)
 
+    sam_created = [False] * len(file_names)
     mapping_tasks = []
     if len(fastq_files) > 0:
         if genome_index.endswith('.'):
@@ -915,6 +916,7 @@ def auto(argv, **kwargs):
             if not force_overwrite and os.path.exists(bam_file):
                 parser.error("File exists ({}), use -f to force overwriting it.".format(bam_file))
             bam_files.append(bam_file)
+
             mapping_command = fanc_base_command + ['map', '-m', '25',
                                                    '-s', str(step_size),
                                                    '-t', str(threads)]
@@ -944,6 +946,7 @@ def auto(argv, **kwargs):
         for ix, i in enumerate(fastq_files):
             file_names[i] = bam_files[ix]
             file_types[i] = 'sam'
+            sam_created[i] = True
 
     if sam_sort:
         sort_threads = min(4, threads)
@@ -951,24 +954,30 @@ def auto(argv, **kwargs):
         sam_sort_tasks = []
         # sort SAM files
         sam_files = []
+        in_place = []
         for i in range(len(file_names)):
             if file_types[i] != 'sam':
                 continue
             sam_files.append(i)
+            in_place.append(sam_created[i])
 
         if len(sam_files) > 0:
             sorted_sam_files = []
-            for ix in sam_files:
-                sam_path, sam_extension = os.path.splitext(file_names[ix])
-                sam_basename = os.path.basename(sam_path)
-                sorted_sam_file = os.path.join(output_folder, 'sam', sam_basename + '_sort' + sam_extension)
-                if not force_overwrite and os.path.exists(sorted_sam_file):
-                    parser.error("File exists ({}), use -f to force overwriting it.".format(sorted_sam_file))
-
-                sorted_sam_files.append(sorted_sam_file)
-
+            for i, ix in enumerate(sam_files):
                 sort_command = fanc_base_command + ['sort_sam', '-t', str(sort_threads),
-                                                    file_names[ix], sorted_sam_file]
+                                                    file_names[ix]]
+                if in_place[i]:
+                    sorted_sam_files.append(file_names[ix])
+                else:
+                    sam_path, sam_extension = os.path.splitext(file_names[ix])
+                    sam_basename = os.path.basename(sam_path)
+                    sorted_sam_file = os.path.join(output_folder, 'sam', sam_basename + '_sort' + sam_extension)
+                    if not force_overwrite and os.path.exists(sorted_sam_file):
+                        parser.error("File exists ({}), use -f to force overwriting it.".format(sorted_sam_file))
+
+                    sorted_sam_files.append(sorted_sam_file)
+                    sort_command.append(sorted_sam_file)
+
                 if tmp:
                     sort_command.append('-tmp')
 
