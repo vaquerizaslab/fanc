@@ -1,3 +1,8 @@
+0.8.29
+
+- ensure juicer tools can be found when running to-juicer
+- Fix a bug when manually specifying juicer resolutions
+
 0.8.28
 
 - Remove unsorted BAM files produced by auto
