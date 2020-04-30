@@ -124,6 +124,17 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
         if juicer_tools_jar_path is None:
             raise ValueError("Just must provide the juicer tools jar path or set it in fanc.conf!")
 
+        # check that juicer tools can be executed
+        if not os.path.exists(juicer_tools_jar_path):
+            raise ValueError("{} does not exist or is unreadable".format(juicer_tools_jar_path))
+
+        help_command = ['java', '-jar', juicer_tools_jar_path, '-h']
+        logger.debug("Testing juicer: {}".format(" ".join(help_command)))
+        res = subprocess.call(help_command)
+        if res != 0:
+            raise RuntimeError("juicer had nonzero exit status ({})! "
+                               "It looks like your .jar path is either wrong ".format(res))
+
         if isinstance(pairs, ReadPairs):
             pairs = [pairs]
 
