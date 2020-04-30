@@ -196,7 +196,7 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
                     if fragment_map:
                         pre_command += ['-f', re_file.name]
                     if resolutions is not None:
-                        pre_command += ['-r', ",".join(resolutions)]
+                        pre_command += ['-r', ",".join([str(r) for r in resolutions])]
                     if tmp:
                         pre_command += ['-t', tmpdir]
                     if verbose:
