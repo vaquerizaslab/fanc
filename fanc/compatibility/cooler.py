@@ -424,7 +424,7 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
         if self._mappability is not None:
             return self._mappability
 
-        mappable = [False] * len(self.regions(region))
+        mappable = [False] * len(list(self.regions(region)))
         for edge in self.edges(region, lazy=True):
             mappable[edge.source] = True
             mappable[edge.sink] = True
