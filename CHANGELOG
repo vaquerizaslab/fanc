@@ -1,3 +1,7 @@
+0.8.30
+
+- Fix a bug in Cooler file expected value calculation
+
 0.8.29
 
 - ensure juicer tools can be found when running to-juicer
