@@ -2425,7 +2425,6 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                               "do this, but it will speed things up in the future.")
 
         try:
-            print(valid)
             self.region_data('valid', valid)
         except (OSError, KeyError):  # ignore older Hic versions and read-only files
             pass
