@@ -4592,10 +4592,8 @@ def aggregate(argv, **kwargs):
                                                                         cache=cache)
 
                         if tad_strength_file is not None:
-                            if tads_preset:
-                                tad_strengths = tad_strength(aggregate_matrix)
-                            else:
-                                tad_strengths = tad_strength(matrix, regions.regions)
+                            logger.info("Calculating TAD strength")
+                            tad_strengths = tad_strength(matrix, regions.regions)
                             with open(tad_strength_file, 'w') as o:
                                 for s, r in zip(tad_strengths, regions.regions):
                                     o.write("{}\t{}\t{}\t.\t{}\n".format(
