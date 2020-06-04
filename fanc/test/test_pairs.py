@@ -203,8 +203,8 @@ class TestFragmentRead:
     def setup_method(self, method):
         fragment1 = GenomicRegion(start=1, end=1000, chromosome='chr1', strand=1, ix=0)
         fragment2 = GenomicRegion(start=1001, end=2000, chromosome='chr2', strand=-1, ix=1)
-        self.read1 = FragmentRead(fragment1, position=500, strand=1, qname_ix=1)
-        self.read2 = FragmentRead(fragment2, position=1200, strand=1, qname_ix=2)
+        self.read1 = FragmentRead(fragment1, position=500, strand=1)
+        self.read2 = FragmentRead(fragment2, position=1200, strand=1)
 
         class DummyPairs(object):
             def __init__(self):
@@ -215,14 +215,12 @@ class TestFragmentRead:
 
         row = dict()
         row['ix'] = 0
-        row['left_read_qname_ix'] = 1
         row['left_read_position'] = 500
         row['left_read_strand'] = 1
         row['left_fragment'] = 0
         row['left_fragment_start'] = 1
         row['left_fragment_end'] = 1000
         row['left_fragment_chromosome'] = 0
-        row['right_read_qname_ix'] = 2
         row['right_read_position'] = 1200
         row['right_read_strand'] = -1
         row['right_fragment'] = 1
@@ -241,7 +239,6 @@ class TestFragmentRead:
         assert self.read1.fragment.strand == 1
         assert self.read1.position == 500
         assert self.read1.strand == 1
-        assert self.read1.qname_ix == 1
 
     def test_lazy_attributes(self):
         assert isinstance(self.lazy_read1.fragment, GenomicRegion)
@@ -251,7 +248,6 @@ class TestFragmentRead:
         assert self.lazy_read1.fragment.strand == 1
         assert self.lazy_read1.position == 500
         assert self.lazy_read1.strand == 1
-        assert self.lazy_read1.qname_ix == 1
 
         assert isinstance(self.lazy_read2.fragment, GenomicRegion)
         assert self.lazy_read2.fragment.chromosome == 'chr2'
@@ -260,7 +256,6 @@ class TestFragmentRead:
         assert self.lazy_read2.fragment.strand == 1
         assert self.lazy_read2.position == 1200
         assert self.lazy_read2.strand == -1
-        assert self.lazy_read2.qname_ix == 2
 
 
 class TestFragmentReadPair:

@@ -974,13 +974,9 @@ class FragmentRead(object):
 
         The strand this read maps to (-1 or +1).
 
-    .. attribute:: qname_ix
-
-        Index of the read name, so we don't have to store the
-        exact name on disk
     """
 
-    def __init__(self, fragment=None, position=None, strand=0, qname_ix=None):
+    def __init__(self, fragment=None, position=None, strand=0):
         """
         Initialize this :class:`~FragmentRead` object.
 
@@ -993,7 +989,6 @@ class FragmentRead(object):
         self.fragment = fragment
         self.position = position
         self.strand = strand
-        self.qname_ix = qname_ix
 
     def re_distance(self):
         """
@@ -1029,10 +1024,6 @@ class LazyFragmentRead(FragmentRead):
 
         The strand this read maps to (-1 or +1).
 
-    .. attribute:: qname_ix
-
-        Index of the read name, so we don't have to store the
-        exact name on disk
     """
     def __init__(self, row, pairs, side="left"):
         self._row = row
@@ -1046,10 +1037,6 @@ class LazyFragmentRead(FragmentRead):
     @property
     def strand(self):
         return self._row[self._side + "_read_strand"]
-
-    @property
-    def qname_ix(self):
-        return self._row[self._side + "_read_qname_ix"]
 
     @property
     def fragment(self):
