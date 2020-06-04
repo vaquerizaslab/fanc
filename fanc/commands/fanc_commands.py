@@ -2876,6 +2876,7 @@ def loops(argv, **kwargs):
                 matrix.run_queued_filters()
 
         if is_merged_peaks and bedpe_file is not None:
+            logger.info("Exporting to BEDPE")
             matrix.to_bedpe(bedpe_file)
 
     finally:
@@ -4557,6 +4558,7 @@ def aggregate(argv, **kwargs):
 
                 elif isinstance(regions, gr.RegionBased):
                     if window is not None:
+                        logger.info("Creating aggregate matrix with fixed window size of {}".format(window))
                         aggregate_matrix = AggregateMatrix.from_center(matrix, regions.regions,
                                                                        window=window, rescale=rescale,
                                                                        keep_components=keep_submatrices,
@@ -4575,6 +4577,7 @@ def aggregate(argv, **kwargs):
                         if pixels % 2 == 0:
                             pixels += 1
                     else:
+                        logger.info("Creating aggregate matrix from differently-sized regions")
                         aggregate_matrix = AggregateMatrix.from_regions(matrix, regions.regions,
                                                                         pixels=pixels, rescale=rescale,
                                                                         interpolation=interpolation,
