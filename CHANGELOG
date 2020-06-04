@@ -1,3 +1,8 @@
+0.8.31
+
+- Remove qname_ix references left over from legacy code
+- Force recalculation of aggregate matrices in tad strength
+
 0.8.30
 
 - Fix a bug in Cooler file expected value calculation
