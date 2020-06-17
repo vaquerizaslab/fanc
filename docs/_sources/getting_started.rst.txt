@@ -108,12 +108,12 @@ or as a Python 3.6+ module (``import fanc``).
 .. warning::
 
     On some systems the installation of FAN-C using the above method will fail with a Cython
-    dependency error. In this case, installing Cython prior to FAN-C might solve the issue:
+    dependency error. In this case, installing Cython and pysam prior to FAN-C might solve the issue:
 
     .. code:: bash
 
         pip uninstall fanc
-        pip uninstall pysam  # may cause issues
+        pip uninstall pysam
         pip install Cython
         pip install pysam
         pip install fanc

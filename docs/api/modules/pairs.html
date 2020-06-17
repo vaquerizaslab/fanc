@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Pairs module &mdash; FAN-C 0.8.27-beta documentation</title>
+  <title>Pairs module &mdash; FAN-C 0.8.31-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.27
+                0.8.31
               </div>
             
           
@@ -274,7 +274,7 @@ filtered. This function returns a <code class="xref py py-class docutils literal
 
 <dl class="class">
 <dt id="fanc.pairs.FragmentRead">
-<em class="property">class </em><code class="sig-prename descclassname">fanc.pairs.</code><code class="sig-name descname">FragmentRead</code><span class="sig-paren">(</span><em class="sig-param">fragment=None</em>, <em class="sig-param">position=None</em>, <em class="sig-param">strand=0</em>, <em class="sig-param">qname_ix=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.pairs.FragmentRead" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">fanc.pairs.</code><code class="sig-name descname">FragmentRead</code><span class="sig-paren">(</span><em class="sig-param">fragment=None</em>, <em class="sig-param">position=None</em>, <em class="sig-param">strand=0</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.pairs.FragmentRead" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class representing a fragment-mapped read.</p>
 <dl class="attribute">
@@ -295,13 +295,6 @@ start of the chromosome it maps to.</p>
 <dt id="fanc.pairs.FragmentRead.strand">
 <code class="sig-name descname">strand</code><a class="headerlink" href="#fanc.pairs.FragmentRead.strand" title="Permalink to this definition">¶</a></dt>
 <dd><p>The strand this read maps to (-1 or +1).</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="fanc.pairs.FragmentRead.qname_ix">
-<code class="sig-name descname">qname_ix</code><a class="headerlink" href="#fanc.pairs.FragmentRead.qname_ix" title="Permalink to this definition">¶</a></dt>
-<dd><p>Index of the read name, so we don’t have to store the
-exact name on disk</p>
 </dd></dl>
 
 <dl class="method">
@@ -821,13 +814,6 @@ start of the chromosome it maps to.</p>
 <dt id="fanc.pairs.LazyFragmentRead.strand">
 <code class="sig-name descname">strand</code><a class="headerlink" href="#fanc.pairs.LazyFragmentRead.strand" title="Permalink to this definition">¶</a></dt>
 <dd><p>The strand this read maps to (-1 or +1).</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="fanc.pairs.LazyFragmentRead.qname_ix">
-<code class="sig-name descname">qname_ix</code><a class="headerlink" href="#fanc.pairs.LazyFragmentRead.qname_ix" title="Permalink to this definition">¶</a></dt>
-<dd><p>Index of the read name, so we don’t have to store the
-exact name on disk</p>
 </dd></dl>
 
 <dl class="method">

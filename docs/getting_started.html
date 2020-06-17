@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Getting started &mdash; FAN-C 0.8.27-beta documentation</title>
+  <title>Getting started &mdash; FAN-C 0.8.31-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.27
+                0.8.31
               </div>
             
           
@@ -257,6 +257,20 @@ pip install .
 </div>
 <p>FAN-C can now be accessed via command line (<code class="docutils literal notranslate"><span class="pre">fanc</span></code> for analysis, <code class="docutils literal notranslate"><span class="pre">fancplot</span></code> for plotting)
 or as a Python 3.6+ module (<code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">fanc</span></code>).</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>On some systems the installation of FAN-C using the above method will fail with a Cython
+dependency error. In this case, installing Cython and pysam prior to FAN-C might solve the issue:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip uninstall fanc
+pip uninstall pysam
+pip install Cython
+pip install pysam
+pip install fanc
+</pre></div>
+</div>
+<p>If you are still experiencing problems during the installation, please raise an
+<a class="reference external" href="https://github.com/vaquerizaslab/fanc/issues">issue on GitHub</a>.</p>
+</div>
 </div>
 </div>
 </div>
