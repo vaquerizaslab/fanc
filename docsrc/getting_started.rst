@@ -105,6 +105,23 @@ FAN-C can now be accessed via command line (``fanc`` for analysis, ``fancplot`` 
 or as a Python 3.6+ module (``import fanc``).
 
 
+.. warning::
+
+    On some systems the installation of FAN-C using the above method will fail with a Cython
+    dependency error. In this case, installing Cython and pysam prior to FAN-C might solve the issue:
+
+    .. code:: bash
+
+        pip uninstall fanc
+        pip uninstall pysam
+        pip install Cython
+        pip install pysam
+        pip install fanc
+
+    If you are still experiencing problems during the installation, please raise an
+    `issue on GitHub <https://github.com/vaquerizaslab/fanc/issues>`_.
+
+
 ***************************
 Building this documentation
 ***************************
