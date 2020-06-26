@@ -638,26 +638,31 @@ class FourDNucleomePairGenerator(TxtReadPairGenerator):
 
         columns = dict()
         with open_file(pairs_file, 'rt') as f:
+            columns_line = None
             for line_ix, line in enumerate(f):
                 if line_ix == 0 and not line.startswith("## pairs format"):
                     raise ValueError("Not a 4D nucleome pairs format file."
                                      "Missing '## pairs format X.X' header line.")
 
-                line = line.rstrip()
-                if not line.startswith('#'):
-                    raise ValueError("Pairs file does not contain a "
-                                     "'#columns' entry in the header")
-
                 if line.startswith('#columns:'):
-                    _, columns_field = line.split(':')
-                    for i, name in columns_field.split():
-                        columns[name] = i
+                    columns_line = line
+
+            if columns_line is None:
+                raise ValueError("Pairs file does not contain a "
+                                 "'#columns' entry in the header")
+
+            _, columns_field = columns_line.split(':')
+            for i, name in enumerate(columns_field.split()):
+                columns[name] = i
+
+        chromosome1_field_id = 'chr1' if 'chr1' in columns else 'chrom1'
+        chromosome2_field_id = 'chr2' if 'chr2' in columns else 'chrom2'
 
         TxtReadPairGenerator.__init__(self, pairs_file, sep=None,
-                                      chr1_field=columns['chr1'],
+                                      chr1_field=columns[chromosome1_field_id],
                                       pos1_field=columns['pos1'],
                                       strand1_field=columns['strand1'] if 'strand1' in columns else None,
-                                      chr2_field=columns['chr2'],
+                                      chr2_field=columns[chromosome2_field_id],
                                       pos2_field=columns['pos2'],
                                       strand2_field=columns['strand2'] if 'strand2' in columns else None,
                                       )
