@@ -1,3 +1,8 @@
+0.8.32
+
+- Fix for 4D nucleome pairs format import
+- Error when subsetting on files other than FAN-C
+
 0.8.31
 
 - Remove qname_ix references left over from legacy code
