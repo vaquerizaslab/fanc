@@ -4191,12 +4191,16 @@ def subset(argv, **kwargs):
 
     import os.path
     import fanc
+    from fanc.compatibility.juicer import JuicerHic
+    from fanc.compatibility.cooler import CoolerHic
 
     input_file = os.path.expanduser(args.input)
     output_file = os.path.expanduser(args.output)
     regions = args.regions
 
     old_hic = fanc.load(input_file, mode='r')
+    if isinstance(old_hic, JuicerHic) or isinstance(old_hic, CoolerHic):
+        parser.error("Cannot use subset on Juicer or Cooler files. Use FAN-C format if you want to subset.")
     new_hic = old_hic.subset(*regions, file_name=output_file)
     new_hic.close()
 
