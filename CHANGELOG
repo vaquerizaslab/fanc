@@ -1,3 +1,7 @@
+0.8.33
+
+- Do not raise exception when when no contacts between specific chromosomes are found in Juicer file
+
 0.8.32
 
 - Fix for 4D nucleome pairs format import
