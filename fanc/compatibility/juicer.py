@@ -869,7 +869,10 @@ class JuicerHic(RegionMatrixContainer):
         region1_chromosome_offset = self._chromosome_ix_offset(region1.chromosome)
         region2_chromosome_offset = self._chromosome_ix_offset(region2.chromosome)
 
-        matrix_file_position = self._matrix_positions()[(str(chromosome1_ix), str(chromosome2_ix))]
+        try:
+            matrix_file_position = self._matrix_positions()[(str(chromosome1_ix), str(chromosome2_ix))]
+        except KeyError:
+            return
 
         with open(self._hic_file, 'rb') as req:
             req.seek(matrix_file_position)
