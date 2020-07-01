@@ -70,7 +70,7 @@ from Bio import SeqIO, Restriction, Seq
 from genomic_regions import RegionBased, GenomicRegion, load as gr_load
 from .general import FileGroup
 from .tools.files import is_fasta_file
-from .tools.general import create_col_index
+from .tools.general import create_col_index, str_to_int
 
 try:
     from itertools import izip as zip
@@ -1114,9 +1114,16 @@ class Genome(FileGroup):
             split_locations = []
             for split in splits:
 
-                if isinstance(split, string_types):
+                try:
+                    getattr(Restriction, split)
+                    is_re = True
+                except AttributeError:
+                    is_re = False
+
+                if is_re:
                     split_locations += chromosome.get_restriction_sites(split)
-                elif isinstance(split, int):
+                elif isinstance(split, int) or isinstance(split, string_types):
+                    split = str_to_int(split)
                     for i in range(split, len(chromosome) - 1, split):
                         split_locations.append(i)
                 else:
