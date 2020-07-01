@@ -2199,7 +2199,7 @@ def pca_parser():
         '-r', '--region', dest='region',
         help='Region to do PCA on. You could put a specific '
              'chromosome here, for example. By default, the whole '
-             'genome is considered.'
+             'genome is considered. Comma-separate multiple regions.'
     )
 
     parser.add_argument(
@@ -2315,7 +2315,7 @@ def pca(argv, **kwargs):
     argument_sample_names = args.names
     sample_size = args.sample_size
     inter_chromosomal = args.inter
-    sub_region = args.region
+    sub_region = args.region.split(",") if args.region is not None else None
     expected_filter = args.expected_filter
     background_filter = args.background_filter
     min_distance = args.min_distance
