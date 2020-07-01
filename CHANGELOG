@@ -1,3 +1,7 @@
+0.8.35
+
+- Fix genome partitioning for integer input
+
 0.8.34
 
 - Fix fanc fragments bug where it would not work with bin sizes
