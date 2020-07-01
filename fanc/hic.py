@@ -499,7 +499,11 @@ class LegacyHic(Hic):
         return self.marginals() > 0
 
     def bias_vector(self):
-        return [row['bias'] for row in self.file.get_node('/', 'node_annot').iterrows()]
+        bias = [row['bias'] for row in self.file.get_node('/', 'node_annot').iterrows()]
+        if len(bias) == len(self.regions):
+            return np.array(bias)
+        else:
+            return np.repeat(1., len(self.regions))
 
 
 class HicEdgeFilter(with_metaclass(ABCMeta, MaskFilter)):
