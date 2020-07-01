@@ -4,6 +4,8 @@ import tables
 import logging
 import operator
 from collections import defaultdict
+from genomic_regions import GenomicRegion, as_region
+from future.utils import string_types
 
 from ..tools.general import RareUpdateProgressBar
 from ..regions import RegionsTable
@@ -27,6 +29,8 @@ def _edge_collection(*hics, region=None, scale=True,
                   number of valid pairs
     :return: dict of lists
     """
+    inter_chromosomal = kwargs.pop("inter_chromosomal", False)
+
     if len(hics) == 1:
         hics = hics[0]
 
@@ -45,23 +49,44 @@ def _edge_collection(*hics, region=None, scale=True,
 
     total_edges = sum(len(hic.edges) for hic in hics)
 
+    if isinstance(region, GenomicRegion) or isinstance(region, string_types):
+        regions = [region]
+    else:
+        regions = region
+
+    region_pairs = []
+    for i in range(len(regions)):
+        region1 = as_region(regions[i])
+        if region1 is None:
+            region_pairs.append(None)
+            continue
+
+        for j in range(i, len(regions)):
+            region2 = as_region(regions[j])
+            if not inter_chromosomal and region1.chromosome != region2.chromosome:
+                continue
+            region_pairs.append((region1, region2))
+
     edges = defaultdict(list)
     j = 0
     with RareUpdateProgressBar(max_value=total_edges, prefix='Edge collection') as pb:
         for i, hic in enumerate(hics):
             logger.debug("Adding Hic {} ({}) to edge collection".format(i, region))
 
-            for edge in hic.edges(region, lazy=True, **kwargs):
-                weight = edge.weight * scaling_factors[i]
-                source, sink = edge.source, edge.sink
+            for region_pair in region_pairs:
+                for edge in hic.edges(region_pair, lazy=True, **kwargs):
+                    weight = edge.weight * scaling_factors[i]
+                    source, sink = edge.source, edge.sink
 
-                weight_list = edges[(source, sink)]
-                while len(weight_list) < i:
-                    weight_list.append(0)
-                weight_list.append(weight)
+                    weight_list = edges[(source, sink)]
+                    while len(weight_list) < i:
+                        weight_list.append(0)
 
-                pb.update(j)
-                j += 1
+                    if len(weight_list) <= i:
+                        weight_list.append(weight)
+
+                    pb.update(j)
+                    j += 1
 
     total = len(hics)
     for _, weights in edges.items():
