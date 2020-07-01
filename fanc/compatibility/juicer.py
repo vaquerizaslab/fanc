@@ -724,16 +724,23 @@ class JuicerHic(RegionMatrixContainer):
 
         chromosomes = self.chromosomes()
         for chromosome in chromosomes:
-            print(chromosome)
             chromosome_length = chromosome_lengths[chromosome]
             if chromosome.lower() == 'all':
                 continue
 
             offset_ix = self._chromosome_ix_offset(chromosome)
 
-            norm = self.normalisation_vector(chromosome)
+            try:
+                norm = self.normalisation_vector(chromosome)
+            except ValueError:
+                warnings.warn("Cannot find bias vector ({}, {} resolution) for chromosome {}."
+                              "Continuing by masking the corresponding regions. If this is unexpected, "
+                              "try choosing another normalisation method!".format(self._normalisation,
+                                                                                  self._resolution, chromosome))
+                norm = None
+
             for i, start in enumerate(range(1, chromosome_length, self._resolution)):
-                if np.isnan([i]):
+                if norm is None or np.isnan(norm[i]):
                     valid = False
                     bias = 1.0
                 else:
