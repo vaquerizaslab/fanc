@@ -1113,14 +1113,7 @@ class Genome(FileGroup):
                 continue
             split_locations = []
             for split in splits:
-
-                try:
-                    getattr(Restriction, split)
-                    is_re = True
-                except AttributeError:
-                    is_re = False
-
-                if is_re:
+                if isinstance(split, string_types) and hasattr(Restriction, split):
                     split_locations += chromosome.get_restriction_sites(split)
                 elif isinstance(split, int) or isinstance(split, string_types):
                     split = str_to_int(split)
