@@ -747,7 +747,11 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
             current_iteration += 1
             logger.debug("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
 
-    hic.region_data('bias', 1/bias_vector)
+    with np.errstate(divide='ignore'):
+        bias_vector = 1/bias_vector
+    bias_vector[~np.isfinite(bias_vector)] = 0
+
+    hic.region_data('bias', bias_vector)
     return bias_vector
 
 
