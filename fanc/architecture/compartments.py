@@ -151,6 +151,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
                 per_chromosome == self.meta.per_chromosome and
                 eigenvector == self.meta.eigenvector and
                 (genome is not None) == self.meta.gc):
+            logger.info("Returning pre-calculated eigenvector!")
             ev = np.array([region.score for region in self.regions])
         else:
             ev = np.zeros(len(self.regions))
@@ -187,7 +188,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
                 for chromosome_sub in self.chromosomes():
                     if chromosome_sub in exclude_chromosomes:
                         continue
-                    logger.info("{}".format(chromosome_sub))
+                    logger.debug("{}".format(chromosome_sub))
                     chromosome_sequence = genome[chromosome_sub].sequence
                     for region in self.regions(chromosome_sub):
                         s = chromosome_sequence[region.start - 1:region.end]
@@ -207,7 +208,12 @@ class ABCompartmentMatrix(RegionMatrixTable):
                     gc_a = np.nanmean(gc_sub[a_ixs])
                     gc_b = np.nanmean(gc_sub[b_ixs])
 
+                    logger.debug("Chromosome {} GC content A: {}, B: {}".format(
+                        chromosome_sub, gc_a, gc_b
+                    ))
+
                     if gc_a < gc_b:  # AB compartments are reversed!
+                        logger.debug("Reversing EV for chromosome {}".format(chromosome_sub))
                         ev[start:end] = -1 * ev_sub
 
             try:
