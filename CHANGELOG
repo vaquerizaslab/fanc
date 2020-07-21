@@ -1,3 +1,9 @@
+0.8.36
+
+- Fix crash due to multiprocessing / threading incompatibility
+- Fix ICE balancing bias vector
+- Fix axis label for Hi-C stats plot
+
 0.8.35
 
 - Fix genome partitioning for integer input
