@@ -27,8 +27,14 @@ logger = logging.getLogger(__name__)
 
 def is_juicer(file_name):
     try:
-        if "@" in file_name:
-            hic_file, _ = file_name.split("@")
+        if "@" in file_name and not os.path.exists(file_name):
+            fields = file_name.split("@")
+            if len(fields) == 2:
+                hic_file, _ = fields
+            elif len(fields) == 3:
+                hic_file, _, _ = fields
+            else:
+                raise ValueError("Too many fields for Juicer '@' notation!")
             file_name = hic_file
         with open(file_name, 'rb') as req:
             try:
@@ -271,7 +277,14 @@ class JuicerHic(RegionMatrixContainer):
     def __init__(self, hic_file, resolution=None, mode='r', tmpdir=None, norm='KR'):
         RegionMatrixContainer.__init__(self)
         if '@' in hic_file:
-            hic_file, at_resolution = hic_file.split("@")
+            fields = hic_file.split("@")
+            if len(fields) == 2:
+                hic_file, at_resolution = fields
+            elif len(fields) == 3:
+                hic_file, at_resolution, norm = fields
+            else:
+                raise ValueError("Too many fields for Juicer '@' notation!")
+
             if resolution is not None and str_to_int(at_resolution) != resolution:
                 raise ValueError("Conflicting resolution specifications: "
                                  "{} and {}".format(at_resolution, resolution))
@@ -740,7 +753,7 @@ class JuicerHic(RegionMatrixContainer):
                 norm = None
 
             for i, start in enumerate(range(1, chromosome_length, self._resolution)):
-                if norm is None or np.isnan(norm[i]):
+                if norm is None or np.isnan(norm[i]) or norm[i] == 0:
                     valid = False
                     bias = 1.0
                 else:
@@ -768,7 +781,7 @@ class JuicerHic(RegionMatrixContainer):
             end = min(start + self._resolution - 1, cl, region.end)
             bias_ix = int(start / self._resolution)
 
-            if np.isnan([i]):
+            if np.isnan([i]) or norm[i] == 0:
                 valid = False
                 bias = 1.0
             else:

@@ -22,7 +22,10 @@ logger = logging.getLogger(__name__)
 def is_cooler(file_name):
     try:
         if "@" in file_name:
-            hic_file, at_resolution = file_name.split("@")
+            fields = file_name.split("@")
+            if len(fields) != 2:
+                return False
+            hic_file, at_resolution = fields
             file_name = hic_file + '::resolutions/{}'.format(at_resolution)
         cooler.Cooler(file_name)
         return True
