@@ -702,7 +702,6 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
                         m[sink] += edges[i][2]
 
                 bias_vector *= np.sqrt(m)
-                logger.debug("ME")
                 marginal_error = _marginal_error(m)
                 for i in range(len(edges)):
                     source = region_converter[edges[i][0]]
