@@ -271,7 +271,8 @@ class ABCompartmentMatrix(RegionMatrixTable):
                            only_gc=False, symmetric_at=None,
                            exclude_chromosomes=(),
                            intra_chromosomal=True, inter_chromosomal=False,
-                           eigenvector=None, *args, **kwargs):
+                           eigenvector=None, collapse_identical_breakpoints=False,
+                           *args, **kwargs):
 
         if eigenvector is not None:
             ev = np.array(eigenvector)
@@ -310,4 +311,5 @@ class ABCompartmentMatrix(RegionMatrixTable):
                                          percentiles=percentiles, symmetric_at=symmetric_at,
                                          exclude_chromosomes=exclude_chromosomes,
                                          intra_chromosomal=intra_chromosomal,
-                                         inter_chromosomal=inter_chromosomal)
+                                         inter_chromosomal=inter_chromosomal,
+                                         collapse_identical_breakpoints=collapse_identical_breakpoints)

@@ -9,7 +9,8 @@ from future.utils import string_types
 def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True,
                               percentiles=(20.0, 40.0, 60.0, 80.0, 100.0),
                               symmetric_at=None, exclude_chromosomes=(),
-                              intra_chromosomal=True, inter_chromosomal=False):
+                              intra_chromosomal=True, inter_chromosomal=False,
+                              collapse_identical_breakpoints=False):
     if len(exclude_chromosomes) > 0:
         chromosome_bins = matrix.chromosome_bins
         exclude_vector = []
@@ -31,6 +32,13 @@ def vector_enrichment_profile(matrix, vector, mappable=None, per_chromosome=True
         bin_cutoffs = np.concatenate((lv_cutoffs, gv_cutoffs))
     else:
         bin_cutoffs = np.nanpercentile(exclude_vector, percentiles)
+
+    if collapse_identical_breakpoints:
+        new_bin_cutoffs = []
+        for i in range(1, len(bin_cutoffs)):
+            if not np.isclose(bin_cutoffs[i], bin_cutoffs[i-1]):
+                new_bin_cutoffs.append(bin_cutoffs[i])
+        bin_cutoffs = new_bin_cutoffs
 
     if isinstance(intra_chromosomal, bool):
         if intra_chromosomal:
