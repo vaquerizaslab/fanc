@@ -17,6 +17,7 @@ from Bio.Seq import reverse_complement
 from future.utils import string_types
 import pysam
 import threading
+import multiprocessing as mp
 import warnings
 
 random.seed(0)
@@ -488,9 +489,12 @@ def pairwise(iterable):
 
 
 class WorkerMonitor(object):
-    def __init__(self, value=0):
-        self.counter_lock = threading.Lock()
-        self.worker_lock = threading.Lock()
+    def __init__(self, value=0, manager=None):
+        if manager is None:
+            manager = mp.Manager()
+
+        self.counter_lock = manager.Lock()
+        self.worker_lock = manager.Lock()
 
         with self.counter_lock:
             self.val = value

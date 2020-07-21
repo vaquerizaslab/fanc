@@ -75,10 +75,11 @@ class Monitor(WorkerMonitor):
 
         Counter used to track worker progress.
     """
-    def __init__(self, value=0):
-        WorkerMonitor.__init__(self, value=value)
-        self.resubmitting_lock = threading.Lock()
-        self.submitting_lock = threading.Lock()
+    def __init__(self, value=0, manager=None):
+        WorkerMonitor.__init__(self, value=value, manager=manager)
+
+        self.resubmitting_lock = manager.Lock()
+        self.submitting_lock = manager.Lock()
 
         with self.resubmitting_lock:
             self.resubmitting = False
@@ -918,11 +919,12 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
     logger.debug('Tmp folder: {}'.format(tmp_folder))
 
     try:
-        input_queue = mp.Queue(maxsize=threads)
-        resubmission_queue = mp.Queue()
-        output_queue = mp.Queue()
-        exception_queue = mp.Queue()
-        monitor = Monitor()
+        mp_manager = mp.Manager()
+        input_queue = mp_manager.Queue(maxsize=threads)
+        resubmission_queue = mp_manager.Queue()
+        output_queue = mp_manager.Queue()
+        exception_queue = mp_manager.Queue()
+        monitor = Monitor(manager=mp_manager)
 
         monitor.set_submitting(True)
 

@@ -132,9 +132,9 @@ class Monitor(WorkerMonitor):
     """
     Class to monitor fragment info worker threads.
     """
-    def __init__(self, value=0):
-        WorkerMonitor.__init__(self, value=value)
-        self.generating_pairs_lock = threading.Lock()
+    def __init__(self, value=0, manager=None):
+        WorkerMonitor.__init__(self, value=value, manager=manager)
+        self.generating_pairs_lock = manager.Lock()
 
         with self.generating_pairs_lock:
             self.generating_pairs = True
@@ -1397,7 +1397,7 @@ class ReadPairs(RegionPairsTable):
             input_file_queue = queue_manager.Queue(maxsize=threads * 3)
             output_file_queue = queue_manager.Queue(maxsize=threads * 3)
 
-            monitor = Monitor()
+            monitor = Monitor(manager=queue_manager)
             monitor.set_generating_pairs(True)
             t_split = threading.Thread(target=_split_sam_worker, args=(sam_file1, sam_file2,
                                                                        input_file_queue,
