@@ -1518,7 +1518,8 @@ def hic(argv, **kwargs):
                     from fanc.plotting.statistics import summary_statistics_plot
                     statistics_plot_file = os.path.expanduser(statistics_plot_file)
                     fig, ax = plt.subplots()
-                    summary_statistics_plot(statistics)
+                    summary_statistics_plot(statistics, ax=ax)
+                    ax.set_ylabel("Non-zero pixels / Positive contacts between region pairs")
                     fig.savefig(statistics_plot_file)
                     plt.close(fig)
 
