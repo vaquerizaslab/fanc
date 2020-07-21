@@ -133,7 +133,7 @@ prerequisites by running
 
    pip install sphinx sphinx_rtd_theme sphinx-argparse
 
-Then navigate to the :code:`docsrc` folder (assuming your in the :code:`fanc` base folder):
+Then navigate to the :code:`docsrc` folder (assuming you are in the :code:`fanc` base folder):
 
 .. code:: bash
 
