@@ -5,6 +5,7 @@ import os.path
 import textwrap
 import shutil
 import tempfile
+import warnings
 
 # configure logging
 logger = logging.getLogger(__name__)
@@ -1191,14 +1192,32 @@ def hic_parser():
         '-i', '--ice-correct', dest='ice',
         action='store_true',
         default=False,
-        help='Use ICE iterative correction on the binned Hic matrix'
+        help='DEPRECATED. Use ICE iterative correction on the binned Hic matrix'
     )
 
     parser.add_argument(
         '-k', '--kr-correct', dest='kr',
         action='store_true',
         default=False,
-        help='Use Knight-Ruiz matrix balancing to correct the binned Hic matrix'
+        help='DEPRECATED. Use Knight-Ruiz matrix balancing to correct '
+             'the binned Hic matrix'
+    )
+
+    parser.add_argument(
+        '-n', '--normalise', dest='normalise',
+        action='store_true',
+        default=False,
+        help='Normalise Hi-C matrix according to --norm-method'
+    )
+
+    parser.add_argument(
+        '-m', '--norm-method', dest='norm_method',
+        default='kr',
+        help='Normalisation method used for -n. Options are: '
+             'KR (default) = Knight-Ruiz matrix balancing '
+             '(Fast, accurate, but memory-intensive normalisation); '
+             'ICE = ICE matrix balancing (less accurate, but more memory-efficient); '
+             'VC = vanilla coverage (a single round of ICE balancing)'
     )
 
     parser.add_argument(
@@ -1213,18 +1232,17 @@ def hic_parser():
         action='store_true',
         default=False,
         help='Restore coverage to the original total number of reads. '
-             'Otherwise matrix entries will be contact probabilities. '
-             'Only available for KR matrix balancing.'
+             'Otherwise matrix entries will be contact probabilities.'
     )
 
     parser.add_argument(
         '--only-inter', dest='only_inter',
         action='store_true',
+        default=False,
         help="Calculate bias vector only on inter-chromosomal contacts. "
              "Ignores all intra-chromosomal contacts. "
              "Always uses whole-matrix balancing, i.e. implicitly sets -w"
     )
-    parser.set_defaults(only_inter=False)
 
     parser.add_argument(
         '-s', '--statistics', dest='stats',
@@ -1290,8 +1308,12 @@ def hic(argv, **kwargs):
     filter_diagonal = args.filter_diagonal
     downsample = args.downsample
     subset = args.subset
+
+    do_norm = args.normalise
+    norm_method = args.norm_method
     ice = args.ice
     kr = args.kr
+
     whole_matrix = args.whole_matrix
     restore_coverage = args.restore_coverage
     only_interchromosomal = args.only_inter
@@ -1305,8 +1327,26 @@ def hic(argv, **kwargs):
     deepcopy = args.deepcopy
     tmp = args.tmp
 
+    if kr or ice:
+        warnings.warn("-k and -i have been deprecated in favor of -n and --norm-method. "
+                      "-k and -i will be removed in a future version. "
+                      "Please change your scripts accordingly!")
+
     if kr and ice:
         parser.error("The arguments --ice and --kr are mutually exclusive")
+
+    if (kr or ice) and do_norm:
+        parser.error("-n and -k (or -i) are incompatible. "
+                     "Please use -n in combination with "
+                     "--norm-method!")
+
+    if kr:
+        do_norm = True
+        norm_method = 'kr'
+
+    if ice:
+        do_norm = True
+        norm_method = 'ice'
 
     coverage_args = 0
     if filter_low_coverage_auto:
@@ -1318,9 +1358,6 @@ def hic(argv, **kwargs):
 
     if coverage_args > 1:
         parser.error("The arguments -l, -r, and -a are mutually exclusive")
-
-    if ice and restore_coverage:
-        parser.error("--restore-coverage not supported for ICE matrix balancing!")
 
     if only_interchromosomal:
         whole_matrix = True
@@ -1541,17 +1578,12 @@ def hic(argv, **kwargs):
                 fig.savefig(marginals_plot_file)
                 plt.close(fig)
 
-        if ice or kr:
-            logger.info("Correcting binned Hic file")
-            from fanc.hic import ice_balancing, kr_balancing
+        if do_norm:
+            logger.info("Normalising binned Hic file")
 
-            if ice:
-                ice_balancing(binned_hic, whole_matrix=whole_matrix,
-                              intra_chromosomal=not only_interchromosomal)
-            elif kr:
-                kr_balancing(binned_hic, whole_matrix=whole_matrix,
-                             restore_coverage=restore_coverage,
-                             intra_chromosomal=not only_interchromosomal)
+            binned_hic.normalise(norm_method, whole_matrix=whole_matrix,
+                                 intra_chromosomal=not only_interchromosomal,
+                                 restore_coverage=restore_coverage)
 
         binned_hic.close()
     finally:

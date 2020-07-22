@@ -412,15 +412,26 @@ class Hic(RegionMatrixTable):
         mask = self.add_mask_description('low_coverage',
                                          'Mask low coverage regions in the Hic matrix '
                                          '(absolute cutoff {:.4}, relative '
-                                         'cutoff {:.1%}'.format(float(cutoff) if cutoff else 0., float(rel_cutoff) if rel_cutoff else 0.))
+                                         'cutoff {:.1%}'.format(float(cutoff) if cutoff else 0.,
+                                                                float(rel_cutoff) if rel_cutoff else 0.))
 
         low_coverage_filter = LowCoverageFilter(self, rel_cutoff=rel_cutoff, cutoff=cutoff, mask=mask)
         self.filter(low_coverage_filter, queue)
 
     def filter_statistics(self):
         stats = self.mask_statistics(self._edges)
-
         return stats
+
+    def normalise(self, method='KR', **kwargs):
+        if method.lower() == 'kr':
+            bias_vector = kr_balancing(self, **kwargs)
+        elif method.lower() == 'ice':
+            bias_vector = ice_balancing(self, **kwargs)
+        elif method.lower() == 'vc' or method.lower() == 'vanilla':
+            bias_vector = vanilla_coverage_norm(self, **kwargs)
+        else:
+            raise ValueError("Unknown normalisation method: {}".format(method))
+        return bias_vector
 
 
 class LegacyHic(Hic):
@@ -672,7 +683,25 @@ class LowCoverageFilter(HicEdgeFilter):
 
 
 def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
-                  inter_chromosomal=True, intra_chromosomal=True):
+                  inter_chromosomal=True, intra_chromosomal=True, restore_coverage=False):
+    """
+    Apply ICE balancing to Hi-C matrices.
+
+    Iteratively calculates and divides by the matrix margins.
+
+    :param hic: Hi-C object
+    :param tolerance: Error tolerance (marginal error)
+    :param max_iterations: Maximum number of iterations to perform
+                           to achieve error tolerance
+    :param whole_matrix: Correct the whole matrix at once.
+                         Default is to correct each chromosome individually.
+    :param inter_chromosomal: Include inter-chromosomal contacts in balancing (only whole matrix)
+    :param intra_chromosomal: Include intra-chromosomal contacts in balancing (only whole matrix)
+    :param restore_coverage: Restore the matrix to its original coverage after balancing,
+                             i.e. the sum of contacts in the matrix after balancing remains
+                             (roughly) the same
+    :return: bias vector
+    """
     logger.info("Starting ICE matrix balancing")
 
     if not whole_matrix:
@@ -680,19 +709,28 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
         for chromosome in hic.chromosomes():
             region_converter = dict()
             bias_vector = []
+            n_regions = 0
             for i, region in enumerate(hic.regions(chromosome)):
                 region_converter[region.ix] = i
                 bias_vector.append(1)
+                if region.valid:
+                    n_regions += 1
             bias_vector = np.array(bias_vector, dtype='float64')
 
             marginal_error = tolerance + 1
             current_iteration = 0
 
-            edges = [[e['source'], e['sink'], e['weight']]
-                     for e in hic.edges_dict((chromosome, chromosome), lazy=True, norm=False)]
+            total_weight = 0
+            edges = []
+            for e in hic.edges_dict((chromosome, chromosome), lazy=True, norm=False):
+                source, sink, weight = e['source'], e['sink'], e['weight']
+                edges.append([source, sink, weight])
+                total_weight += weight
+                if source != sink:
+                    total_weight += weight
 
             while (marginal_error > tolerance and
-                   current_iteration <= max_iterations):
+                   current_iteration < max_iterations):
                 m = np.zeros(len(bias_vector), dtype='float64')
                 for i in range(len(edges)):
                     source = region_converter[edges[i][0]]
@@ -710,6 +748,10 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
 
                 current_iteration += 1
                 logger.debug("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
+
+            if restore_coverage:
+                bias_vector = bias_vector / np.sqrt(total_weight / n_regions)
+
             bias_vectors.append(bias_vector)
         logger.info("Done.")
         logger.info("Adding bias vector...")
@@ -721,13 +763,21 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
         marginal_error = tolerance + 1
         current_iteration = 0
         logger.info("Collecting edges")
-        edges = [[e.source, e.sink, e.weight] for e in hic.edges(norm=False,
-                                                                 intra_chromosomal=intra_chromosomal,
-                                                                 inter_chromosomal=inter_chromosomal)]
+
+        total_weight = 0
+        edges = []
+        for e in hic.edges(norm=False, lazy=True,
+                           intra_chromosomal=intra_chromosomal,
+                           inter_chromosomal=inter_chromosomal):
+            source, sink, weight = e.source, e.sink, e.weight
+            edges.append([source, sink, weight])
+            total_weight += weight
+            if source != sink:
+                total_weight += weight
+
         logger.info("Starting iterations")
         while (marginal_error > tolerance and
-               current_iteration <= max_iterations):
-
+               current_iteration < max_iterations):
             m = np.zeros(len(bias_vector), dtype='float64')
             for i in range(len(edges)):
                 source = edges[i][0]
@@ -738,7 +788,6 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
 
             bias_vector *= np.sqrt(m)
             marginal_error = _marginal_error(m)
-
             for i in range(len(edges)):
                 source = edges[i][0]
                 sink = edges[i][1]
@@ -746,6 +795,9 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
 
             current_iteration += 1
             logger.debug("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
+
+        if restore_coverage:
+            bias_vector = bias_vector / np.sqrt(total_weight / len(hic.regions))
 
     with np.errstate(divide='ignore'):
         bias_vector = 1/bias_vector
@@ -759,6 +811,20 @@ def _marginal_error(marginals, percentile=99.9):
     marginals = marginals[marginals != 0]
     error = np.percentile(np.abs(marginals - marginals.mean()), percentile)
     return error / marginals.mean()
+
+
+def vanilla_coverage_norm(*args, **kwargs):
+    """
+    Apply vanilla coverage normalisation to Hi-C matrices.
+
+    Identical to ice_balancing with max_iterations set to 1.
+
+    :param args: see ice_balancing
+    :param kwargs: ice_balancing
+    :return: bias vector (numpy)
+    """
+    kwargs['max_iterations'] = 1
+    return ice_balancing(*args, **kwargs)
 
 
 def kr_balancing(hic, whole_matrix=True, intra_chromosomal=True, inter_chromosomal=True,
