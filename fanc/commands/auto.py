@@ -515,9 +515,10 @@ def auto_parser():
         default='kr',
         help='Normalisation method. Options are: '
              'KR (default) = Knight-Ruiz matrix balancing '
-             '(Fast, accurate, but memory-intensive normalisation); '
-             'ICE = ICE matrix balancing (less accurate, but more memory-efficient); '
-             'VC = vanilla coverage (a single round of ICE balancing)'
+             '(Fast, accurate, but memory-intensive); '
+             'ICE = ICE matrix balancing (more CPU-intensive, but also more memory-efficient); '
+             'VC = vanilla coverage (a single round of ICE balancing); '
+             'VC-SQRT = vanilla coverage square root (reduces overcorrection compared to VC)'
     )
 
     parser.add_argument(

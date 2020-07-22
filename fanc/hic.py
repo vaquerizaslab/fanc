@@ -429,6 +429,9 @@ class Hic(RegionMatrixTable):
             bias_vector = ice_balancing(self, **kwargs)
         elif method.lower() == 'vc' or method.lower() == 'vanilla':
             bias_vector = vanilla_coverage_norm(self, **kwargs)
+        elif method.lower() in {'sqrt_vc', 'sqrt-vc', 'sqrt_vanilla', 'sqrt-vanilla',
+                                'vc_sqrt', 'vc-sqrt', 'vanilla-sqrt', 'vanilla_sqrt'}:
+            bias_vector = sqrt_vanilla_coverage_norm(self, **kwargs)
         else:
             raise ValueError("Unknown normalisation method: {}".format(method))
         return bias_vector
@@ -683,7 +686,8 @@ class LowCoverageFilter(HicEdgeFilter):
 
 
 def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
-                  inter_chromosomal=True, intra_chromosomal=True, restore_coverage=False):
+                  inter_chromosomal=True, intra_chromosomal=True, restore_coverage=False,
+                  sqrt=True):
     """
     Apply ICE balancing to Hi-C matrices.
 
@@ -732,19 +736,29 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
             while (marginal_error > tolerance and
                    current_iteration < max_iterations):
                 m = np.zeros(len(bias_vector), dtype='float64')
-                for i in range(len(edges)):
-                    source = region_converter[edges[i][0]]
-                    sink = region_converter[edges[i][1]]
-                    m[source] += edges[i][2]
+                for source, sink, weight in edges:
+                    source_sub = region_converter[source]
+                    sink_sub = region_converter[sink]
+                    m[source_sub] += weight
                     if source != sink:
-                        m[sink] += edges[i][2]
+                        m[sink_sub] += weight
 
-                bias_vector *= np.sqrt(m)
                 marginal_error = _marginal_error(m)
+
+                if sqrt:
+                    m = np.sqrt(m)
+                else:
+                    # multiply with constant factor so marginals are 1
+                    bias_mean = np.mean(m[m != 0])
+                    marginal_mean = np.sqrt(np.sum(m) / n_regions)
+                    m = m * marginal_mean / bias_mean
+
+                bias_vector *= m
+
                 for i in range(len(edges)):
                     source = region_converter[edges[i][0]]
                     sink = region_converter[edges[i][1]]
-                    edges[i][2] = 0 if m[sink] == 0 else edges[i][2] / np.sqrt(m[source]) / np.sqrt(m[sink])
+                    edges[i][2] = 0 if m[sink] == 0 else edges[i][2] / m[source] / m[sink]
 
                 current_iteration += 1
                 logger.debug("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
@@ -816,6 +830,21 @@ def _marginal_error(marginals, percentile=99.9):
 def vanilla_coverage_norm(*args, **kwargs):
     """
     Apply vanilla coverage normalisation to Hi-C matrices.
+
+    Identical to ice_balancing with max_iterations set to 1 and sqrt to False.
+
+    :param args: see ice_balancing
+    :param kwargs: ice_balancing
+    :return: bias vector (numpy)
+    """
+    kwargs['max_iterations'] = 1
+    kwargs['sqrt'] = False
+    return ice_balancing(*args, **kwargs)
+
+
+def sqrt_vanilla_coverage_norm(*args, **kwargs):
+    """
+    Apply vanilla coverage normalisation to Hi-C matrices with sqrt bias vectors.
 
     Identical to ice_balancing with max_iterations set to 1.
 

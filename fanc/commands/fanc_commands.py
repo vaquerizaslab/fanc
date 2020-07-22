@@ -1217,7 +1217,8 @@ def hic_parser():
              'KR (default) = Knight-Ruiz matrix balancing '
              '(Fast, accurate, but memory-intensive normalisation); '
              'ICE = ICE matrix balancing (less accurate, but more memory-efficient); '
-             'VC = vanilla coverage (a single round of ICE balancing)'
+             'VC = vanilla coverage (a single round of ICE balancing);'
+             'VC-SQRT = vanilla coverage square root (reduces overcorrection compared to VC)'
     )
 
     parser.add_argument(
