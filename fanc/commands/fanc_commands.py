@@ -4451,8 +4451,17 @@ def aggregate_parser():
 
     parser.add_argument(
         '--labels', dest='labels',
-        nargs=3,
-        help='Labels for the left, center, and right edge of the matrix.'
+        help='Labels for the left, center, and right edge of the '
+             'matrix (comma-separated).'
+    )
+
+    parser.add_argument(
+        '--label-locations', dest='label_locations',
+        default="0,0.5,1",
+        help='Relative location of ticks on bottom and left of aggregate plot '
+             '(comma-separated). '
+             'Ranges from 0 (left/bottom) to 1.0 (right/top). '
+             'Default: 0,0.5,1.0'
     )
 
     return parser
@@ -4490,12 +4499,19 @@ def aggregate(argv, **kwargs):
     keep_submatrices = args.keep_submatrices
     region_viewpoint = args.region_viewpoint
     orient_strand = args.orient_strand
-    labels = args.labels
+    labels = args.labels if args.labels is None else args.labels.split(",")
+    label_locations = [float(loc) for loc in args.label_locations.split(",")]
     tmp = args.tmp
 
     presets = sum([tads_preset, tads_imakaev_preset, loops_preset])
     if presets > 1:
         parser.error("--tads, --tads-imakaev, and --loops are mutually exclusive!")
+
+    if labels is not None:
+        if len(labels) != len(label_locations):
+            parser.error("Number of labels ({}) must be the same as the number of ticks ({})".format(
+                len(labels), len(label_locations)
+            ))
 
     if tads_preset:
         if relative is None:
@@ -4575,6 +4591,7 @@ def aggregate(argv, **kwargs):
                                                                          orient_strand=orient_strand,
                                                                          cache=cache,
                                                                          region_viewpoint=region_viewpoint)
+
                     if labels is None:
                         left = int(pixels / 2)
                         right = left if pixels % 2 == 1 else left - 1
@@ -4645,30 +4662,12 @@ def aggregate(argv, **kwargs):
                 import matplotlib
                 matplotlib.use('agg')
                 import matplotlib.pyplot as plt
-                import fanc.plotting
-
-                m = aggregate_matrix.matrix()
-
-                if labels is None:
-                    labels = ['', '', '']
+                from fanc.plotting.statistics import aggregate_plot
 
                 fig, ax = plt.subplots()
-                if vmin is None:
-                    vmin = np.nanmin(m)
-                if vmax is None:
-                    vmax = np.nanmax(m)
-
-                if oe and log:
-                    abs_max = max(abs(vmin), abs(vmax))
-                    vmin, vmax = -1*abs_max, abs_max
-
-                im = ax.imshow(m, cmap=colormap, vmin=vmin, vmax=vmax, interpolation='nearest')
-                plt.colorbar(im)
-                ax.set_xticks([0, pixels/2, pixels - 1])
-                ax.set_xticklabels(labels)
-                ax.set_yticks([0, pixels/2, pixels - 1])
-                ax.set_yticklabels(labels)
-                ax.set_ylim(ax.get_xlim())
+                aggregate_plot(aggregate_matrix, labels=labels, vmin=vmin, vmax=vmax,
+                               oe=oe, log=log, colormap=colormap, ax=ax,
+                               relative_label_locations=label_locations)
                 fig.savefig(plot_file)
                 plt.close(fig)
     finally:

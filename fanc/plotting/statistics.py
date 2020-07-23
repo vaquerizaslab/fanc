@@ -291,3 +291,37 @@ def pca_plot(pca_res, variance=None, eigenvectors=(0, 1),
 
     return ax.figure, ax
 
+
+def aggregate_plot(aggregate_matrix, labels=None, vmin=None, vmax=None,
+                   oe=False, log=False, colormap='bwr', ax=None,
+                   relative_label_locations=(0, 0.5, 1)):
+    if ax is None:
+        ax = plt.gca()
+
+    m = aggregate_matrix.matrix()
+
+    if labels is None:
+        labels = ['', '', '']
+
+    if vmin is None:
+        vmin = np.nanmin(m)
+    if vmax is None:
+        vmax = np.nanmax(m)
+
+    if oe and log:
+        abs_max = max(abs(vmin), abs(vmax))
+        vmin, vmax = -1 * abs_max, abs_max
+
+    im = ax.imshow(m, cmap=colormap, vmin=vmin, vmax=vmax, interpolation='nearest')
+    plt.colorbar(im)
+
+    pixels = m.shape[0]
+    ticks = [loc * pixels if loc != 1 else pixels - 1 for loc in relative_label_locations]
+
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(labels)
+    ax.set_yticks(ticks)
+    ax.set_yticklabels(labels)
+    ax.set_ylim(ax.get_xlim())
+
+    return ax
