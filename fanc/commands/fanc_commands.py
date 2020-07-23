@@ -4173,20 +4173,17 @@ def expected(argv, **kwargs):
         import matplotlib
         matplotlib.use("agg")
         import matplotlib.pyplot as plt
+        from fanc.plotting.statistics import distance_decay_plot
+
+        hics = [fanc.load(file_name) for file_name in input_files]
 
         fig, ax = plt.subplots(figsize=(4, 3), dpi=300)
-        for label in labels:
-            distance = distances[label]
-            expected = expected_values[label]
-            ax.plot(distance, expected, label=label)
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.set_xlabel("Distance")
-        ax.set_ylabel("Average contacts")
-        ax.legend()
-        fig.tight_layout()
+        distance_decay_plot(*hics, ax=ax, labels=labels)
         fig.savefig(plot_file)
         plt.close(fig)
+
+        for hic in hics:
+            hic.close()
 
 
 def subset_parser():

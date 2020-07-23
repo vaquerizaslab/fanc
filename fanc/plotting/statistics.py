@@ -216,11 +216,17 @@ def marginals_plot(matrix, chromosome, ax=None, lower=None, rel_cutoff=0.1, colo
     return ax
 
 
-def distance_decay_plot(*matrices, ax=None, chromosome=None, **kwargs):
+def distance_decay_plot(*matrices, ax=None, chromosome=None, labels=None, **kwargs):
+    if labels is None:
+        labels = ['Matrix {}'.format(i) for i in range(len(matrices))]
+    elif len(labels) != len(matrices):
+        raise ValueError("Number of matrices ({}) must be equal "
+                         "to number of labels ({})".format(len(matrices), len(labels)))
+
     if ax is None:
         ax = plt.gca()
 
-    for matrix in matrices:
+    for i, matrix in enumerate(matrices):
         ex, ex_chromosome, ex_inter = matrix.expected_values()
 
         if chromosome is not None:
@@ -228,13 +234,17 @@ def distance_decay_plot(*matrices, ax=None, chromosome=None, **kwargs):
 
         bin_size = matrix.bin_size
         distances = np.arange(0, bin_size * len(ex), bin_size)
-        ax.plot(distances, ex, **kwargs)
+
+        ax.plot(distances, ex, label=labels[i], **kwargs)
 
     ax.set_xscale('log')
     ax.set_yscale('log')
 
-    ax.set_ylabel('Expected value')
-    ax.set_xlabel('Genomic separation')
+    if len(matrices) > 1:
+        ax.legend()
+
+    ax.set_ylabel('Expected contact strength')
+    ax.set_xlabel('Genomic distance')
     ax.xaxis.set_major_formatter(GenomeCoordFormatter(chromosome if chromosome is not None else "All",
                                                       minor_div=5,
                                                       display_chromosome=False,
