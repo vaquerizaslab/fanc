@@ -3989,41 +3989,11 @@ def compartments(argv, **kwargs):
                 matplotlib.use('agg')
                 import matplotlib.pyplot as plt
                 import matplotlib.gridspec as grd
-                import numpy as np
+                from fanc.plotting.statistics import saddle_plot
 
                 fig = plt.figure(figsize=(5, 5), dpi=300)
-                gs = grd.GridSpec(3, 3,
-                                  height_ratios=[5, 1, 1],
-                                  width_ratios=[5, 1, 1])
-                heatmap_ax = plt.subplot(gs[0, 0])
-                im = heatmap_ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax,
-                                       interpolation='nearest', aspect='auto')
-                cax = plt.subplot(gs[0, 2])
-                cb = plt.colorbar(im, cax=cax)
-                cb.set_ticks([vmin, 0, vmax])
-                cb.set_label("log O/E")
-                heatmap_ax.set_xticks([0, m.shape[1] - 1])
-                heatmap_ax.set_xticklabels(['active', 'inactive'])
-                heatmap_ax.set_yticks([0, m.shape[1] - 1])
-                heatmap_ax.set_yticklabels(['active', 'inactive'])
-                heatmap_ax.set_ylim(heatmap_ax.get_xlim())
-
-                pos = np.arange(m.shape[1])
-                barplot_ax = plt.subplot(gs[2, 0])
-                barplot_ax.bar(pos, cutoffs, color='grey', width=1)
-                if not only_gc:
-                    extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
-                    barplot_ax.set_yticks([-1 * extent, 0, extent])
-                else:
-                    barplot_ax.set_yticks([cutoffs[0], cutoffs[int(len(cutoffs) / 2)], cutoffs[1]])
-                barplot_ax.set_xlim(heatmap_ax.get_xlim())
-                barplot_ax.get_xaxis().set_visible(False)
-                barplot_ax.spines['right'].set_visible(False)
-                barplot_ax.spines['top'].set_visible(False)
-                barplot_ax.spines['bottom'].set_visible(False)
-                barplot_ax.yaxis.set_ticks_position('left')
-                barplot_ax.xaxis.set_ticks_position('none')
-                barplot_ax.set_title("EV percentile cutoffs")
+                fig, axes = saddle_plot(m, cutoffs, colormap=cmap, vmin=vmin, vmax=vmax, only_gc=only_gc,
+                                        fig=fig)
                 fig.savefig(enrichment_file)
                 plt.close(fig)
     finally:

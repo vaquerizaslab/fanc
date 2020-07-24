@@ -1,6 +1,7 @@
 from ..pairs import ReadPairs
 from .base_plotter import GenomeCoordFormatter
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as grd
 import seaborn as sns
 import numpy as np
 import itertools
@@ -216,7 +217,7 @@ def marginals_plot(matrix, chromosome, ax=None, lower=None, rel_cutoff=0.1, colo
     return ax
 
 
-def distance_decay_plot(*matrices, ax=None, chromosome=None, labels=None, **kwargs):
+def distance_decay_plot(*matrices, ax=None, chromosome=None, labels=None, tight=True, **kwargs):
     if labels is None:
         labels = ['Matrix {}'.format(i) for i in range(len(matrices))]
     elif len(labels) != len(matrices):
@@ -249,7 +250,8 @@ def distance_decay_plot(*matrices, ax=None, chromosome=None, labels=None, **kwar
                                                       minor_div=5,
                                                       display_chromosome=False,
                                                       display_scale=False))
-    ax.figure.tight_layout()
+    if tight:
+        ax.figure.tight_layout()
     return ax
 
 
@@ -293,8 +295,8 @@ def pca_plot(pca_res, variance=None, eigenvectors=(0, 1),
 
 
 def aggregate_plot(aggregate_matrix, labels=None, vmin=None, vmax=None,
-                   oe=False, log=False, colormap='bwr', ax=None,
-                   relative_label_locations=(0, 0.5, 1)):
+                   oe=False, log=False, colormap='bwr', ax=None, cax=None,
+                   relative_label_locations=(0, 0.5, 1), plot_colorbar=True):
     if ax is None:
         ax = plt.gca()
 
@@ -313,7 +315,8 @@ def aggregate_plot(aggregate_matrix, labels=None, vmin=None, vmax=None,
         vmin, vmax = -1 * abs_max, abs_max
 
     im = ax.imshow(m, cmap=colormap, vmin=vmin, vmax=vmax, interpolation='nearest')
-    plt.colorbar(im)
+    if plot_colorbar:
+        plt.colorbar(im, cax=cax)
 
     pixels = m.shape[0]
     ticks = [loc * pixels if loc != 1 else pixels - 1 for loc in relative_label_locations]
@@ -325,3 +328,59 @@ def aggregate_plot(aggregate_matrix, labels=None, vmin=None, vmax=None,
     ax.set_ylim(ax.get_xlim())
 
     return ax
+
+
+def saddle_plot(ab_enrichment_matrix, cutoffs, colormap='RdBu_r',
+                vmin=-0.75, vmax=0.75, only_gc=False, fig=None,
+                axes=None):
+
+    if fig is None and axes is None:
+        fig = plt.figure(figsize=(5, 5), dpi=300)
+
+    if axes is None:
+        gs = grd.GridSpec(3, 3,
+                          height_ratios=[5, 1, 1],
+                          width_ratios=[5, 1, 1])
+        heatmap_ax = plt.subplot(gs[0, 0])
+        barplot_ax = plt.subplot(gs[2, 0])
+        cax = plt.subplot(gs[0, 2])
+    else:
+        heatmap_ax, barplot_ax, cax = axes
+
+    im = heatmap_ax.imshow(ab_enrichment_matrix, cmap=colormap, vmin=vmin, vmax=vmax,
+                           interpolation='nearest', aspect='auto')
+
+    cb = plt.colorbar(im, cax=cax)
+    cb.set_ticks([vmin, 0, vmax])
+    cb.set_label("log O/E")
+    heatmap_ax.set_xticks([0, ab_enrichment_matrix.shape[1] - 1])
+    heatmap_ax.set_xticklabels(['active', 'inactive'])
+    xlabels = heatmap_ax.get_xticklabels()
+    xlabels[0].set_horizontalalignment('left')
+    xlabels[1].set_horizontalalignment('right')
+
+    heatmap_ax.set_yticks([0, ab_enrichment_matrix.shape[1] - 1])
+    heatmap_ax.set_yticklabels(['active', 'inactive'], rotation=90)
+    ylabels = heatmap_ax.get_yticklabels()
+    ylabels[0].set_verticalalignment('bottom')
+    ylabels[1].set_verticalalignment('top')
+
+    heatmap_ax.set_ylim(heatmap_ax.get_xlim())
+    pos = np.arange(ab_enrichment_matrix.shape[1])
+
+    barplot_ax.bar(pos, cutoffs, color='grey', width=1)
+    if not only_gc:
+        extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
+        barplot_ax.set_yticks([-1 * extent, 0, extent])
+    else:
+        barplot_ax.set_yticks([cutoffs[0], cutoffs[int(len(cutoffs) / 2)], cutoffs[1]])
+    barplot_ax.set_xlim(heatmap_ax.get_xlim())
+    barplot_ax.get_xaxis().set_visible(False)
+    barplot_ax.spines['right'].set_visible(False)
+    barplot_ax.spines['top'].set_visible(False)
+    barplot_ax.spines['bottom'].set_visible(False)
+    barplot_ax.yaxis.set_ticks_position('left')
+    barplot_ax.xaxis.set_ticks_position('none')
+    barplot_ax.set_ylabel("EV percentile\ncutoffs")
+
+    return fig, [heatmap_ax, barplot_ax, cax]
