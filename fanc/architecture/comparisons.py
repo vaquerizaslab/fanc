@@ -49,20 +49,20 @@ def _edge_collection(*hics, region=None, scale=True,
 
     total_edges = sum(len(hic.edges) for hic in hics)
 
-    if isinstance(region, GenomicRegion) or isinstance(region, string_types):
+    if isinstance(region, GenomicRegion) or isinstance(region, string_types) or region is None:
         regions = [region]
     else:
         regions = region
 
     region_pairs = []
     for i in range(len(regions)):
-        region1 = as_region(regions[i])
+        region1 = as_region(regions[i]) if regions[i] is not None else None
         if region1 is None:
             region_pairs.append(None)
             continue
 
         for j in range(i, len(regions)):
-            region2 = as_region(regions[j])
+            region2 = as_region(regions[j]) if regions[j] is not None else None
             if not inter_chromosomal and region1.chromosome != region2.chromosome:
                 continue
             region_pairs.append((region1, region2))
@@ -74,7 +74,8 @@ def _edge_collection(*hics, region=None, scale=True,
             logger.debug("Adding Hic {} ({}) to edge collection".format(i, region))
 
             for region_pair in region_pairs:
-                for edge in hic.edges(region_pair, lazy=True, **kwargs):
+                for edge in hic.edges(region_pair, lazy=True,
+                                      inter_chromosomal=inter_chromosomal, **kwargs):
                     weight = edge.weight * scaling_factors[i]
                     source, sink = edge.source, edge.sink
 
