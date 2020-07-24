@@ -429,13 +429,13 @@ def map(argv, **kwargs):
                                          '-m', str(min_size), '-s', str(step_size), '-t', str(threads),
                                          '-q', str(args.quality), '-b', str(batch_size)]
                         if not iterative:
-                            split_command += ['--simple']
+                            split_command += ['--no-iterative']
                         if tmp:
                             split_command += ['-tmp']
                         if not mapper_parallel:
                             split_command += ['--fanc-parallel']
-                        if not memory_map:
-                            split_command += ['--no-memory-map']
+                        if memory_map:
+                            split_command += ['--memory-map']
                         if trim_front:
                             split_command += ['--trim-front']
                         if restriction_enzyme is not None:
