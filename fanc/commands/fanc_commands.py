@@ -446,7 +446,7 @@ def map(argv, **kwargs):
 
                     for rt in split_fastq_results:
                         if rt != 0:
-                            raise RuntimeError("Bowtie mapping had non-zero exit status")
+                            raise RuntimeError("Mapping had non-zero exit status")
 
                     logger.info("Merging BAM files into {}".format(output_file))
                     merge_sam(split_bam_files, output_file, tmp=args.copy)
