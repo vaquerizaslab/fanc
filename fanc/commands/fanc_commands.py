@@ -449,7 +449,7 @@ def map(argv, **kwargs):
                             raise RuntimeError("Mapping had non-zero exit status")
 
                     logger.info("Merging BAM files into {}".format(output_file))
-                    merge_sam(split_bam_files, output_file, tmp=args.copy)
+                    merge_sam(split_bam_files, output_file, tmp=tmp)
                 finally:
                     shutil.rmtree(split_tmpdir, ignore_errors=True)
     finally:
