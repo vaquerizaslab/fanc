@@ -353,55 +353,59 @@ def aggregate_plot(aggregate_matrix, labels=None, vmin=None, vmax=None,
 
 def saddle_plot(ab_enrichment_matrix, cutoffs, colormap='RdBu_r',
                 vmin=-0.75, vmax=0.75, only_gc=False, fig=None,
-                axes=None):
+                axes=None, margin=1):
 
     if fig is None and axes is None:
         fig = plt.figure(figsize=(5, 5), dpi=300)
 
     if axes is None:
-        gs = grd.GridSpec(3, 3,
-                          height_ratios=[5, 1, 1],
-                          width_ratios=[5, 1, 1])
-        heatmap_ax = plt.subplot(gs[0, 0])
-        barplot_ax = plt.subplot(gs[2, 0])
-        cax = plt.subplot(gs[0, 2])
+        gs = grd.GridSpec(5, 5,
+                          height_ratios=[margin, 5, 1, 1, margin],
+                          width_ratios=[margin, 5, 1, 1, margin])
+        heatmap_ax = plt.subplot(gs[1, 1])
+        barplot_ax = plt.subplot(gs[3, 1])
+        cax = plt.subplot(gs[1, 3])
     else:
         heatmap_ax, barplot_ax, cax = axes
 
-    im = heatmap_ax.imshow(ab_enrichment_matrix, cmap=colormap, vmin=vmin, vmax=vmax,
-                           interpolation='nearest', aspect='auto')
+    im = None
+    if heatmap_ax is not None:
+        im = heatmap_ax.imshow(ab_enrichment_matrix, cmap=colormap, vmin=vmin, vmax=vmax,
+                               interpolation='nearest', aspect='auto')
+        heatmap_ax.set_xticks([0, ab_enrichment_matrix.shape[1] - 1])
+        heatmap_ax.set_xticklabels(['active', 'inactive'])
+        xlabels = heatmap_ax.get_xticklabels()
+        xlabels[0].set_horizontalalignment('left')
+        xlabels[1].set_horizontalalignment('right')
 
-    cb = plt.colorbar(im, cax=cax)
-    cb.set_ticks([vmin, 0, vmax])
-    cb.set_label("log O/E")
-    heatmap_ax.set_xticks([0, ab_enrichment_matrix.shape[1] - 1])
-    heatmap_ax.set_xticklabels(['active', 'inactive'])
-    xlabels = heatmap_ax.get_xticklabels()
-    xlabels[0].set_horizontalalignment('left')
-    xlabels[1].set_horizontalalignment('right')
+        heatmap_ax.set_yticks([0, ab_enrichment_matrix.shape[1] - 1])
+        heatmap_ax.set_yticklabels(['active', 'inactive'], rotation=90)
+        ylabels = heatmap_ax.get_yticklabels()
+        ylabels[0].set_verticalalignment('bottom')
+        ylabels[1].set_verticalalignment('top')
 
-    heatmap_ax.set_yticks([0, ab_enrichment_matrix.shape[1] - 1])
-    heatmap_ax.set_yticklabels(['active', 'inactive'], rotation=90)
-    ylabels = heatmap_ax.get_yticklabels()
-    ylabels[0].set_verticalalignment('bottom')
-    ylabels[1].set_verticalalignment('top')
+        heatmap_ax.set_ylim(heatmap_ax.get_xlim())
 
-    heatmap_ax.set_ylim(heatmap_ax.get_xlim())
-    pos = np.arange(ab_enrichment_matrix.shape[1])
+    if cax is not None and im is not None:
+        cb = plt.colorbar(im, cax=cax)
+        cb.set_ticks([vmin, 0, vmax])
+        cb.set_label("log O/E")
 
-    barplot_ax.bar(pos, cutoffs, color='grey', width=1)
-    if not only_gc:
-        extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
-        barplot_ax.set_yticks([-1 * extent, 0, extent])
-    else:
-        barplot_ax.set_yticks([cutoffs[0], cutoffs[int(len(cutoffs) / 2)], cutoffs[1]])
-    barplot_ax.set_xlim(heatmap_ax.get_xlim())
-    barplot_ax.get_xaxis().set_visible(False)
-    barplot_ax.spines['right'].set_visible(False)
-    barplot_ax.spines['top'].set_visible(False)
-    barplot_ax.spines['bottom'].set_visible(False)
-    barplot_ax.yaxis.set_ticks_position('left')
-    barplot_ax.xaxis.set_ticks_position('none')
-    barplot_ax.set_ylabel("EV percentile\ncutoffs")
+    if barplot_ax is not None:
+        pos = np.arange(ab_enrichment_matrix.shape[1])
+        barplot_ax.bar(pos, cutoffs, color='grey', width=1)
+        if not only_gc:
+            extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
+            barplot_ax.set_yticks([-1 * extent, 0, extent])
+        else:
+            barplot_ax.set_yticks([cutoffs[0], cutoffs[int(len(cutoffs) / 2)], cutoffs[1]])
+        barplot_ax.set_xlim(heatmap_ax.get_xlim())
+        barplot_ax.get_xaxis().set_visible(False)
+        barplot_ax.spines['right'].set_visible(False)
+        barplot_ax.spines['top'].set_visible(False)
+        barplot_ax.spines['bottom'].set_visible(False)
+        barplot_ax.yaxis.set_ticks_position('left')
+        barplot_ax.xaxis.set_ticks_position('none')
+        barplot_ax.set_ylabel("EV percentile\ncutoffs")
 
     return fig, [heatmap_ax, barplot_ax, cax]
