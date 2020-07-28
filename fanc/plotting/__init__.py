@@ -207,6 +207,7 @@ from fanc.plotting.plotter import VerticalSplitPlot, GenomicVectorArrayPlot, Gen
     BarPlot, Virtual4CPlot, MirrorMatrixPlot
 from fanc.plotting.helpers import append_axes, absolute_wspace_hspace, SymmetricNorm, \
                                   style_ticks_whitegrid, LimitGroup
+from fanc.plotting.statistics import *
 
 from fanc.plotting.colormaps import *
 import seaborn as sns

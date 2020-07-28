@@ -7,6 +7,11 @@ import numpy as np
 import itertools
 
 
+__all__ = ['summary_statistics_plot', 'ligation_bias_plot', 'restriction_site_distance_plot',
+           'marginals_plot', 'distance_decay_plot', 'aggregate_plot', 'saddle_plot',
+           'pca_plot']
+
+
 def summary_statistics_plot(stats, ax=None, **kwargs):
     """
     Barplot with filter statistics for FAN-C objects.
@@ -217,7 +222,23 @@ def marginals_plot(matrix, chromosome, ax=None, lower=None, rel_cutoff=0.1, colo
     return ax
 
 
-def distance_decay_plot(*matrices, ax=None, chromosome=None, labels=None, tight=True, **kwargs):
+def distance_decay_plot(*matrices, ax=None, chromosome=None, labels=None, tight=True,
+                        norm=True, **kwargs):
+    """
+    An distance decay (expected values) plot.
+
+    :param matrices: Hi-C objects to be plotted
+    :param ax: Optional matplotlib ax object for the plot.
+               If not specified, will use ``plt.gca()``
+    :param chromosome: Optional, but recommended for the default
+                       chromosome-normalised matrices. The name of a chromosome to plot
+    :param labels: Optional labels when providing multiple objects.
+                   Will replace default labels in the legend. Must be the
+                   same number as matrix objects
+    :param tight: If True, uses tight figure layout. Disable for grid-based plotting.
+    :param kwargs: Parameters passed on to ``ax.plot``
+    :return: ax
+    """
     if labels is None:
         labels = ['Matrix {}'.format(i) for i in range(len(matrices))]
     elif len(labels) != len(matrices):
@@ -228,7 +249,7 @@ def distance_decay_plot(*matrices, ax=None, chromosome=None, labels=None, tight=
         ax = plt.gca()
 
     for i, matrix in enumerate(matrices):
-        ex, ex_chromosome, ex_inter = matrix.expected_values()
+        ex, ex_chromosome, ex_inter = matrix.expected_values(norm=norm)
 
         if chromosome is not None:
             ex = ex_chromosome[chromosome]
