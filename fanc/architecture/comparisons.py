@@ -596,6 +596,47 @@ def hic_pca(*hics, sample_size=None, region=None, strategy='variance', scale=Tru
             ignore_zeros=False, oe_enrichment=None, min_distance=None, max_distance=None,
             background_ligation=False, min_libraries_above_background=1,
             **kwargs):
+    """
+    Run a PCA analysis on a set of Hi-C matrices.
+
+    Note: this is not a compartment analysis. Use :class:`~ABCompartmentMatrix` for
+    that purpose.
+
+    :param hics: Two or more Hi-C objects
+    :param sample_size: Optional. Set an upper limit on the number of edges sampled
+                        for this analysis. If not specified, will use all applicable
+                        edges. Used in conjunction with ``strategy`` to determine
+                        which edges to prioritise
+    :param region: Optionally specify a region string to limit the PCA to that region.
+    :param strategy: Sort order of edges. Used in conjunction with ``sample_size``.
+                     One of "variance" (default), "fold-change", or "passthrough".
+                     variance: edges sorted by variance of contact strength
+                     across samples; fold-change: edges sorted by size of fold-change
+                     of contact strength across samples; passthrough: unsorted, edges
+                     appear in order they are stored in the object
+    :param scale: If ``True`` (default), the matrix values are scaled to their sequencing
+                  depth before running PCA. If you are using the default normalisation,
+                  matrix entries correspond to contact probabilities and the margins are
+                  equal to 1 and there is not Need for scaling, so you can set this to
+                  ``False`` in order to save computational time.
+    :param log: Log-transform contact strength prior to PCA
+    :param ignore_zeros: Only use contacts that are non-zero in all samples
+    :param oe_enrichment: Used for "fold-change" ``strategy``, at least on edge must
+                          have an O/E of this value or larger.
+    :param min_distance: regions must be at least this far apart (in base pairs) to be
+                         used for PCA
+    :param max_distance: regions must be at least this close together (in base pairs) to be
+                         used for PCA
+    :param background_ligation: Use the average inter-chromosomal contact strength as
+                                background ligation signal and only use pixels where at
+                                least ``min_libraries_above_background`` samples have
+                                an O/E signal above background
+    :param min_libraries_above_background: Minimum number of libraries/samples that
+                                           must have an O/E above background ligation
+                                           signal for each pixel.
+    :param kwargs: Keyword arguments passed to :func:`~fanc.matrix.RegionMatrixTable.edges`
+    :return: sklearn PCA object, PCA result
+    """
 
     strategies = {
         'variance': LargestVarianceSelector(),

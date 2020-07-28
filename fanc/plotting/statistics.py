@@ -278,6 +278,24 @@ def distance_decay_plot(*matrices, ax=None, chromosome=None, labels=None, tight=
 
 def pca_plot(pca_res, variance=None, eigenvectors=(0, 1),
              markers=None, colors=None, names=None, ax=None):
+    """
+    Plot the results of a Hi-C PCA analysis from :func:`~fanc.architecture.comparisons.hic_pca`.
+
+    :param pca_res: The PCA result from :func:`~fanc.architecture.comparisons.hic_pca`
+    :param variance: A vector specifying the explained variance of each EV in the PCA or
+                     the PCA object from :func:`~fanc.architecture.comparisons.hic_pca`.
+                     Optional, used to display the explained variance along the axes.
+    :param eigenvectors: Tuple of length two specifying which eigenvectors (EVs) to plot.
+                         0-based, (0, 1) by default for the first to EVs.
+    :param markers: List of marker definitions from matplotlib (e.g. ["o", "*", "s"]).
+                    Must be same length as number of samples in PCA.
+    :param colors: List of colour definitions from matplotlib.
+                   Must be same length as number of samples in PCA.
+    :param names: Sample names for plot legend. Must be same length as number of
+                  samples in PCA.
+    :param ax: Optional matplotlib axes object to plot into. Otherwise uses ``plt.gca()``
+    :return: figure, ax
+    """
     if markers is None:
         markers = ('^', 'o', '*', 's', 'D', 'v', 'd', 'H', 'p', '>')
     if colors is None:
