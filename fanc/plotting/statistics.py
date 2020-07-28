@@ -305,8 +305,8 @@ def pca_plot(pca_res, variance=None, eigenvectors=(0, 1),
     markers = itertools.cycle(markers)
     colors = itertools.cycle(colors)
 
-    xlabel = 'PC1'
-    ylabel = 'PC2'
+    xlabel = 'PC{}'.format(eigenvectors[0] + 1)
+    ylabel = 'PC{}'.format(eigenvectors[1] + 1)
     if variance is not None:
         if isinstance(variance, PCA):
             variance = variance.explained_variance_ratio_
