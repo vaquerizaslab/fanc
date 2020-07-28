@@ -18,7 +18,7 @@ function to calculate expected values from existing matrix data called
 intra-chromosomal, intra-chromosomal per chromosome, and inter-chromosomal expected values.
 
 .. literalinclude:: code/oe_example_code.py
-    :language: bash
+    :language: python
     :start-after: start snippet oe basic
     :end-before: end snippet oe basic
 
@@ -37,9 +37,30 @@ The expected values are typically plotted on a log-log scale, as illustrated her
 
 .. image:: images/oe_500kb.png
 
+FAN-C also has a built-in function for plotting the expected values,
+:func:`~fanc.plotting.distance_decay_plot`. Additional named arguments
+are passed on to ``ax.plot``, for example to change the line color.
+The function returns a ``matplotlib`` axes object, which can then be further customised:
+
+.. literalinclude:: code/oe_example_code.py
+    :language: python
+    :start-after: start snippet oe ddbuiltin
+    :end-before: end snippet oe ddbuiltin
+
+.. image:: images/oe_500kb_builtin.png
+
+To compare the expected values of multiple samples, just provide multiple Hic objects:
+
+.. literalinclude:: code/oe_example_code.py
+    :language: python
+    :start-after: start snippet oe multi
+    :end-before: end snippet oe multi
+
+.. image:: images/oe_500kb_multi.png
+
 Note: as Hi-C matrices are normalised on a per-chromosome basis in FAN-C by default, it would be misleading
 to plot the overall normalised intra-chromosomal expected values, or to use them for downstream analysis.
-We can, however, also calculate the unnormalised expected values easily enough:
+We can, however, also calculate the unnormalised expected values easily enough.
 
 .. literalinclude:: code/oe_example_code.py
     :language: python
@@ -47,6 +68,15 @@ We can, however, also calculate the unnormalised expected values easily enough:
     :end-before: end snippet oe nonorm
 
 .. image:: images/oe_500kb_nonorm.png
+
+If you are simply interested in plotting the unnormalised values, you can use
+
+.. literalinclude:: code/oe_example_code.py
+    :language: python
+    :start-after: start snippet oe builtinnonorm
+    :end-before: end snippet oe builtinnonorm
+
+.. image:: images/oe_500kb_builtinnonorm.png
 
 Expected values rarely need to be calculated explicitly in FAN-C analysis functions, but will be calculated
 (or retrieved) on demand whenever necessary. To obtain observed/expected matrices, for example, please

@@ -1,6 +1,7 @@
 # start snippet oe setup
 import fanc
 import matplotlib.pyplot as plt
+import fanc.plotting as fancplot
 
 hic_500kb = fanc.load("output/hic/binned/fanc_example_500kb.hic")
 # end snippet oe setup
@@ -29,7 +30,24 @@ ax.set_xlabel("Distance")
 ax.set_ylabel("Average contacts")
 plt.show()
 # end snippet oe ddplot
-fig.savefig('../fanc-doc/api/analyse/images/oe_500kb.png')
+fig.savefig('../docsrc/api/analyse/images/oe_500kb.png')
+plt.close(fig)
+
+# start snippet oe ddbuiltin
+ax = fancplot.distance_decay_plot(hic_500kb, chromosome='chr18', color='mediumturquoise')
+# end snippet oe ddbuiltin
+ax.figure.savefig("../docsrc/api/analyse/images/oe_500kb_builtin.png")
+plt.close(ax.figure)
+
+
+# start snippet oe multi
+lowc_hindiii = fanc.load("architecture/other-hic-update/lowc_hindiii_100k_1mb.hic")
+lowc_mboi = fanc.load("architecture/other-hic-update/lowc_mboi_100k_1mb.hic")
+ax = fancplot.distance_decay_plot(lowc_hindiii, lowc_mboi, chromosome='chr1',
+                                  labels=['HindIII', 'MboI'])
+# end snippet oe multi
+ax.figure.savefig("../docsrc/api/analyse/images/oe_500kb_multi.png")
+plt.close(ax.figure)
 
 
 # start snippet oe nonorm
@@ -48,4 +66,12 @@ ax.set_xlabel("Distance")
 ax.set_ylabel("Average contacts (not normalised)")
 plt.show()
 # end snippet oe nonorm
-fig.savefig('../fanc-doc/api/analyse/images/oe_500kb_nonorm.png')
+fig.savefig('../docsrc/api/analyse/images/oe_500kb_nonorm.png')
+plt.close(fig)
+
+
+# start snippet oe builtinnonorm
+ax = fancplot.distance_decay_plot(hic_500kb, norm=False)
+# end snippet oe builtinnonorm
+ax.figure.savefig("../docsrc/api/analyse/images/oe_500kb_builtinnonorm.png")
+plt.close(fig)
