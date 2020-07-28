@@ -40,9 +40,9 @@ And to visualise the matrix:
 .. image:: images/ab_1mb_correlation.png
 
 
-############
+============
 Eigenvectors
-############
+============
 
 The AB correlation matrix eigenvector (EV) is used to determine if a region is in the active (A) or
 the inactive (B) compartment. It's calculation is very straightforward:
@@ -87,9 +87,9 @@ To plot the EV, you can use :class:`~fanc.plotting.LinePlot`:
 .. image:: images/ab_1mb_ev.png
 
 
-###################
-Enrichment profiles
-###################
+================================
+Enrichment profiles (Saddle plot)
+================================
 
 An enrichment profile, which is used to create a :func:`~fanc.plotting.saddle_plot` is used
 to show how "interactive" genomic regions belonging to the A or B compartment are. To
