@@ -227,12 +227,17 @@ class ABCompartmentMatrix(RegionMatrixTable):
                 if isinstance(genome, string_types):
                     genome = Genome.from_string(genome, mode='r')
                     close_genome = True
+                genome_chromosomes = genome.chromosomes()
 
                 gc_content = [np.nan] * len(self.regions)
                 for chromosome_sub in self.chromosomes():
                     if chromosome_sub in exclude_chromosomes:
                         continue
                     logger.debug("{}".format(chromosome_sub))
+
+                    if chromosome_sub not in genome_chromosomes:
+                        raise ValueError("Chromosome {} not found in genome. "
+                                         "Are you using the correct genome file?")
                     chromosome_sequence = genome[chromosome_sub].sequence
                     for region in self.regions(chromosome_sub):
                         s = chromosome_sequence[region.start - 1:region.end]
