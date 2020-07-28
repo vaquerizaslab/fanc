@@ -320,10 +320,29 @@ simply a preset for ``-r 0.1``.
 For some applications it might be useful to remove the prominent Hi-C diagonal. You can use the
 ``-d <n>`` parameter to remove all pairs in pixels up to a distance of n from the diagonal.
 
-You can balance your Hi-C matrices using the ``-k`` or the ``-i`` parameters, which perform
-Knight-Ruiz (KR) and ICE balancing, respectively. We typically recommend KR balancing for
-performance reasons. Each chromosome in the matrix is corrected independently, unless you
-specify the ``-w`` option. By default the corrected matrix entries correspond to contact
+You can balance your Hi-C matrices using the ``-n`` parameter. By default, this applies Knight-Ruiz
+(KR) balancing to each chromosome. You can opt for another normalisation method using
+``--norm-method``, for example ``--norm-method ice`` for ICE balancing, or ``--norm-method vc``
+for vanilla coverage normalisation (which in this case is equivalent of a single ICE iteration).
+We typically recommend KR balancing for performance reasons. Each chromosome in the matrix is
+corrected independently, unless you specify the ``-w`` option.
+
+.. note::
+
+  The default normalisation mode is per chromosome, and the FAN-C analysis functions assume
+  this has been used. In the majority of cases, when you are working with intra-chromosomal
+  data, this is what you want. Some commands have a ``--whole-genome`` option (or equivalent)
+  to apply the analysis to the whole matrix instead of individual chromosomes. Only use this
+  option if you have corrected the whole matrix at once (``-w``), and if you understand the
+  effect of whole-matrix analysis on your results, compared to per-chromosome analysis!
+
+  When you are working with inter-chromosomal data, the chromosome's bias vectors are re-used
+  for normalisation. This is likely not the most suitable normalisation for your inter-chromosomal
+  data! If you are interested in inter-chromosomal data specifically, you may want to use
+  whole-genome correction, and possibly also exclude the intra-chromosomal contacts. You can do
+  that using the ``--only-inter`` option.
+
+By default the corrected matrix entries correspond to contact
 probabilities. You can use the ``--restore-coverage`` option to force matrix entries in a
 chromosome to sum up to the total number of reads before correction.
 

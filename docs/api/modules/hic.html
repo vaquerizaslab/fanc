@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Hic module &mdash; FAN-C 0.8.31-beta documentation</title>
+  <title>Hic module &mdash; FAN-C 0.8.38-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.31
+                0.8.38
               </div>
             
           
@@ -2660,6 +2660,69 @@ HicEdgeFilter.</p>
 <dd><p>Check if an edge falls into a low-coverage region.</p>
 </dd></dl>
 
+</dd></dl>
+
+<dl class="function">
+<dt id="fanc.hic.ice_balancing">
+<code class="sig-prename descclassname">fanc.hic.</code><code class="sig-name descname">ice_balancing</code><span class="sig-paren">(</span><em class="sig-param">hic</em>, <em class="sig-param">tolerance=0.01</em>, <em class="sig-param">max_iterations=500</em>, <em class="sig-param">whole_matrix=True</em>, <em class="sig-param">inter_chromosomal=True</em>, <em class="sig-param">intra_chromosomal=True</em>, <em class="sig-param">restore_coverage=False</em>, <em class="sig-param">sqrt=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.ice_balancing" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply ICE balancing to Hi-C matrices.</p>
+<p>Iteratively calculates and divides by the matrix margins.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hic</strong> – Hi-C object</p></li>
+<li><p><strong>tolerance</strong> – Error tolerance (marginal error)</p></li>
+<li><p><strong>max_iterations</strong> – Maximum number of iterations to perform
+to achieve error tolerance</p></li>
+<li><p><strong>whole_matrix</strong> – Correct the whole matrix at once.
+Default is to correct each chromosome individually.</p></li>
+<li><p><strong>inter_chromosomal</strong> – Include inter-chromosomal contacts in balancing (only whole matrix)</p></li>
+<li><p><strong>intra_chromosomal</strong> – Include intra-chromosomal contacts in balancing (only whole matrix)</p></li>
+<li><p><strong>restore_coverage</strong> – Restore the matrix to its original coverage after balancing,
+i.e. the sum of contacts in the matrix after balancing remains
+(roughly) the same</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>bias vector</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="fanc.hic.sqrt_vanilla_coverage_norm">
+<code class="sig-prename descclassname">fanc.hic.</code><code class="sig-name descname">sqrt_vanilla_coverage_norm</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.sqrt_vanilla_coverage_norm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply vanilla coverage normalisation to Hi-C matrices with sqrt bias vectors.</p>
+<p>Identical to ice_balancing with max_iterations set to 1.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>args</strong> – see ice_balancing</p></li>
+<li><p><strong>kwargs</strong> – ice_balancing</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>bias vector (numpy)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="fanc.hic.vanilla_coverage_norm">
+<code class="sig-prename descclassname">fanc.hic.</code><code class="sig-name descname">vanilla_coverage_norm</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.hic.vanilla_coverage_norm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply vanilla coverage normalisation to Hi-C matrices.</p>
+<p>Identical to ice_balancing with max_iterations set to 1 and sqrt to False.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>args</strong> – see ice_balancing</p></li>
+<li><p><strong>kwargs</strong> – ice_balancing</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>bias vector (numpy)</p>
+</dd>
+</dl>
 </dd></dl>
 
 </div>

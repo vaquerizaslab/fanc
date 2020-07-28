@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Hi-C aggregate analysis &mdash; FAN-C 0.8.31-beta documentation</title>
+  <title>Hi-C aggregate analysis &mdash; FAN-C 0.8.38-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.31
+                0.8.38
               </div>
             
           
@@ -197,8 +197,8 @@ vicinity.</p>
                       <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BOUNDARY_MODE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">INTERPOLATION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RELATIVE</span><span class="p">]</span>
                       <span class="p">[</span><span class="o">-</span><span class="n">a</span> <span class="n">ABSOLUTE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">e</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">rescale</span><span class="p">]</span>
                       <span class="p">[</span><span class="o">--</span><span class="n">colormap</span> <span class="n">COLORMAP</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">vmin</span> <span class="n">VMIN</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">vmax</span> <span class="n">VMAX</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
-                      <span class="p">[</span><span class="o">-</span><span class="n">C</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">keep</span><span class="o">-</span><span class="n">submatrices</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span>
-                      <span class="p">[</span><span class="o">--</span><span class="n">labels</span> <span class="n">LABELS</span> <span class="n">LABELS</span> <span class="n">LABELS</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">-</span><span class="n">C</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">keep</span><span class="o">-</span><span class="n">submatrices</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">labels</span> <span class="n">LABELS</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">--</span><span class="n">label</span><span class="o">-</span><span class="n">locations</span> <span class="n">LABEL_LOCATIONS</span><span class="p">]</span>
                       <span class="nb">input</span> <span class="p">[</span><span class="n">regions</span><span class="p">]</span> <span class="p">[</span><span class="n">output</span><span class="p">]</span>
 </pre></div>
 </div>
@@ -292,7 +292,10 @@ vicinity.</p>
 <dd><p>Flip submatrix if region is on the negative strand.</p>
 </dd>
 <dt><kbd>--labels</kbd></dt>
-<dd><p>Labels for the left, center, and right edge of the matrix.</p>
+<dd><p>Labels for the left, center, and right edge of the matrix (comma-separated).</p>
+</dd>
+<dt><kbd>--label-locations</kbd></dt>
+<dd><p>Relative location of ticks on bottom and left of aggregate plot (comma-separated). Ranges from 0 (left/bottom) to 1.0 (right/top). Default: 0,0.5,1.0</p>
 </dd>
 </dl>
 </div>

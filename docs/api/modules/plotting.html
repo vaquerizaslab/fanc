@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Plotting API &mdash; FAN-C 0.8.31-beta documentation</title>
+  <title>Plotting API &mdash; FAN-C 0.8.38-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.31
+                0.8.38
               </div>
             
           
@@ -255,6 +255,15 @@
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.MirrorMatrixPlot" title="fanc.plotting.MirrorMatrixPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MirrorMatrixPlot</span></code></a>(top_plot, bottom_plot[, …])</p></td>
 <td><p>Stack two plots on top of each other, bottom plot inverted.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.distance_decay_plot" title="fanc.plotting.distance_decay_plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distance_decay_plot</span></code></a>(*matrices[, ax, …])</p></td>
+<td><p>An distance decay (expected values) plot.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">aggregate_plot</span></code>(aggregate_matrix[, labels, …])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">saddle_plot</span></code>(ab_enrichment_matrix, cutoffs[, …])</p></td>
+<td><p></p></td>
 </tr>
 </tbody>
 </table>
@@ -1603,6 +1612,31 @@ plot. Default: None</p></li>
 </dl>
 </dd></dl>
 
+</dd></dl>
+
+<dl class="function">
+<dt id="fanc.plotting.distance_decay_plot">
+<code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">distance_decay_plot</code><span class="sig-paren">(</span><em class="sig-param">*matrices</em>, <em class="sig-param">ax=None</em>, <em class="sig-param">chromosome=None</em>, <em class="sig-param">labels=None</em>, <em class="sig-param">tight=True</em>, <em class="sig-param">norm=True</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.distance_decay_plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>An distance decay (expected values) plot.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>matrices</strong> – Hi-C objects to be plotted</p></li>
+<li><p><strong>ax</strong> – Optional matplotlib ax object for the plot.
+If not specified, will use <code class="docutils literal notranslate"><span class="pre">plt.gca()</span></code></p></li>
+<li><p><strong>chromosome</strong> – Optional, but recommended for the default
+chromosome-normalised matrices. The name of a chromosome to plot</p></li>
+<li><p><strong>labels</strong> – Optional labels when providing multiple objects.
+Will replace default labels in the legend. Must be the
+same number as matrix objects</p></li>
+<li><p><strong>tight</strong> – If True, uses tight figure layout. Disable for grid-based plotting.</p></li>
+<li><p><strong>kwargs</strong> – Parameters passed on to <code class="docutils literal notranslate"><span class="pre">ax.plot</span></code></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>ax</p>
+</dd>
+</dl>
 </dd></dl>
 
 </div>

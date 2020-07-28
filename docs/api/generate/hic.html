@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Generate, bin, filter, and correct Hic objects &mdash; FAN-C 0.8.31-beta documentation</title>
+  <title>Generate, bin, filter, and correct Hic objects &mdash; FAN-C 0.8.38-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.31
+                0.8.38
               </div>
             
           
@@ -216,7 +216,7 @@ achieved better normalisation results by setting the matrix diagonal to 0 before
 </ul>
 <p>Finally, we can normalise the matrix using matrix balancing. You have the choice of either
 Knight-Ruiz matrix balancing (KR, <code class="xref py py-class docutils literal notranslate"><span class="pre">kr_balancing</span></code>) or iterative correction (ICE,
-<code class="xref py py-class docutils literal notranslate"><span class="pre">ice_balancing</span></code>). KR balancing is typically faster, but also consumes a lot
+<a class="reference internal" href="../modules/hic.html#fanc.hic.ice_balancing" title="fanc.hic.ice_balancing"><code class="xref py py-class docutils literal notranslate"><span class="pre">ice_balancing</span></code></a>). KR balancing is typically faster, but also consumes a lot
 more memory, especially for high matrix resolutions. ICE is slow, and might not always converge
 to a solution, but is much more memory efficient in its implementation.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">fanc.hic</span> <span class="kn">import</span> <span class="n">kr_balancing</span>

@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Expected and O/E calculations &mdash; FAN-C 0.8.31-beta documentation</title>
+  <title>Expected and O/E calculations &mdash; FAN-C 0.8.38-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.31
+                0.8.38
               </div>
             
           
@@ -176,6 +176,7 @@
 Additionally, we set up the Python session like this:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">fancplot</span>
 
 <span class="n">hic_500kb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;output/hic/binned/fanc_example_500kb.hic&quot;</span><span class="p">)</span>
 </pre></div>
@@ -184,7 +185,7 @@ Additionally, we set up the Python session like this:</p>
 function to calculate expected values from existing matrix data called
 <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer.expected_values" title="fanc.matrix.RegionMatrixContainer.expected_values"><code class="xref py py-func docutils literal notranslate"><span class="pre">expected_values()</span></code></a>. This function calculates and returns
 intra-chromosomal, intra-chromosomal per chromosome, and inter-chromosomal expected values.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>intra_expected, intra_expected_chromosome, <span class="nv">inter_expected</span> <span class="o">=</span> hic_500kb.expected_values<span class="o">()</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">intra_expected</span><span class="p">,</span> <span class="n">intra_expected_chromosome</span><span class="p">,</span> <span class="n">inter_expected</span> <span class="o">=</span> <span class="n">hic_500kb</span><span class="o">.</span><span class="n">expected_values</span><span class="p">()</span>
 </pre></div>
 </div>
 <p>Here, <code class="docutils literal notranslate"><span class="pre">intra_expected</span></code> is a list of average (/expected) contact values, where the position of
@@ -208,9 +209,25 @@ inter-chromosomal contact value.</p>
 </pre></div>
 </div>
 <img alt="../../_images/oe_500kb.png" src="../../_images/oe_500kb.png" />
+<p>FAN-C also has a built-in function for plotting the expected values,
+<a class="reference internal" href="../modules/plotting.html#fanc.plotting.distance_decay_plot" title="fanc.plotting.distance_decay_plot"><code class="xref py py-func docutils literal notranslate"><span class="pre">distance_decay_plot()</span></code></a>. Additional named arguments
+are passed on to <code class="docutils literal notranslate"><span class="pre">ax.plot</span></code>, for example to change the line color.
+The function returns a <code class="docutils literal notranslate"><span class="pre">matplotlib</span></code> axes object, which can then be further customised:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ax</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">distance_decay_plot</span><span class="p">(</span><span class="n">hic_500kb</span><span class="p">,</span> <span class="n">chromosome</span><span class="o">=</span><span class="s1">&#39;chr18&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;mediumturquoise&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="../../_images/oe_500kb_builtin.png" src="../../_images/oe_500kb_builtin.png" />
+<p>To compare the expected values of multiple samples, just provide multiple Hic objects:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">lowc_hindiii</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic-update/lowc_hindiii_100k_1mb.hic&quot;</span><span class="p">)</span>
+<span class="n">lowc_mboi</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic-update/lowc_mboi_100k_1mb.hic&quot;</span><span class="p">)</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">distance_decay_plot</span><span class="p">(</span><span class="n">lowc_hindiii</span><span class="p">,</span> <span class="n">lowc_mboi</span><span class="p">,</span> <span class="n">chromosome</span><span class="o">=</span><span class="s1">&#39;chr1&#39;</span><span class="p">,</span>
+                                  <span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;HindIII&#39;</span><span class="p">,</span> <span class="s1">&#39;MboI&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+<img alt="../../_images/oe_500kb_multi.png" src="../../_images/oe_500kb_multi.png" />
 <p>Note: as Hi-C matrices are normalised on a per-chromosome basis in FAN-C by default, it would be misleading
 to plot the overall normalised intra-chromosomal expected values, or to use them for downstream analysis.
-We can, however, also calculate the unnormalised expected values easily enough:</p>
+We can, however, also calculate the unnormalised expected values easily enough.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">intra_expected_nonorm</span><span class="p">,</span> <span class="n">intra_expected_chromosome_nonorm</span><span class="p">,</span> <span class="n">inter_expected_nonorm</span> <span class="o">=</span> <span class="n">hic_500kb</span><span class="o">.</span><span class="n">expected_values</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
 
 <span class="c1"># obtain bin distances</span>
@@ -228,6 +245,11 @@ We can, however, also calculate the unnormalised expected values easily enough:<
 </pre></div>
 </div>
 <img alt="../../_images/oe_500kb_nonorm.png" src="../../_images/oe_500kb_nonorm.png" />
+<p>If you are simply interested in plotting the unnormalised values, you can use</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ax</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">distance_decay_plot</span><span class="p">(</span><span class="n">hic_500kb</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="../../_images/oe_500kb_builtinnonorm.png" src="../../_images/oe_500kb_builtinnonorm.png" />
 <p>Expected values rarely need to be calculated explicitly in FAN-C analysis functions, but will be calculated
 (or retrieved) on demand whenever necessary. To obtain observed/expected matrices, for example, please
 refer to <a class="reference internal" href="../interfaces/matrix_interface.html#matrix-interface"><span class="std std-ref">RegionMatrixContainer</span></a>.</p>
