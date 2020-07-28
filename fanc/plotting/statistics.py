@@ -5,6 +5,7 @@ import matplotlib.gridspec as grd
 import seaborn as sns
 import numpy as np
 import itertools
+from sklearn.decomposition import PCA
 
 
 __all__ = ['summary_statistics_plot', 'ligation_bias_plot', 'restriction_site_distance_plot',
@@ -305,11 +306,11 @@ def pca_plot(pca_res, variance=None, eigenvectors=(0, 1),
     colors = itertools.cycle(colors)
 
     xlabel = 'PC1'
-    if variance is not None:
-        xlabel += ' (%d%%)' % int(variance[eigenvectors[0]]*100)
-
     ylabel = 'PC2'
     if variance is not None:
+        if isinstance(variance, PCA):
+            variance = variance.explained_variance_ratio_
+        xlabel += ' (%d%%)' % int(variance[eigenvectors[0]]*100)
         ylabel += ' (%d%%)' % int(variance[eigenvectors[1]]*100)
 
     if ax is None:
