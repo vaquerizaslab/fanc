@@ -24,7 +24,7 @@ mp = fancplot.SquareMatrixPlot(ab, ax=ax,
 mp.plot('chr18')
 plt.show()
 # end snippet ab fancplot-correlation
-fig.savefig('../fanc-doc/api/analyse/images/ab_1mb_correlation.png')
+fig.savefig('../docsrc/api/analyse/images/ab_1mb_correlation.png')
 
 
 # start snippet ab ev
@@ -37,10 +37,18 @@ gc_ev = ab.eigenvector(genome='hg19_chr18_19.fa', force=True)
 
 
 # start snippet ab plot-ev
-fig, ax = plt.subplots()
-lp = fancplot.LinePlot(ab)
+fig, ax = plt.subplots(figsize=(5, 2))
+lp = fancplot.LinePlot(ab, colors=['darkturquoise'])
 lp.plot('chr18')
 plt.show()
 # end snippet ab plot-ev
-fig.savefig('../fanc-doc/api/analyse/images/ab_1mb_ev.png')
+fig.savefig('../docsrc/api/analyse/images/ab_1mb_ev.png')
 
+# start snippet ab profile
+profile, cutoffs = ab.enrichment_profile(hic_1mb, genome='hg19_chr18_19.fa')
+# end snippet ab profile
+
+# start snippet ab saddle
+fig, axes = fancplot.saddle_plot(profile, cutoffs)
+# end snippet ab saddle
+fig.savefig('../docsrc/api/analyse/images/ab_1mb_saddle.png')
