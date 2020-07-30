@@ -234,6 +234,33 @@ class ComparisonMatrix(RegionMatrixTable):
     def from_matrices(cls, matrix1, matrix2, file_name=None, tmpdir=None,
                       log_cmp=False, ignore_infinite=True, ignore_zeros=False,
                       scale=True, **kwargs):
+        """
+        Create a comparison matrix from two compatible matrix objects.
+
+        The resulting object can be treated like any other matrix in
+        FAN-C, offering the same convenience functions for regions and
+        edges.
+
+        :param matrix1: First matrix object, such as a Hi-C matrix
+        :param matrix2: Second matrix object, such as a Hi-C matrix
+        :param file_name: Path to the comparison output file
+        :param tmpdir: Optional. If ``True``, will work in temporary
+                       directory until file is closed
+        :param log_cmp: If ``True``, log2-transform the comparison matrix
+                        value after the comparison has been performed. Useful,
+                        for example, for fold-change matrices
+        :param ignore_infinite: If ``True``, will remove infinite values from
+                                the final comparison matrix
+        :param ignore_zeros: If ``True``, will only compare edge weights when
+                             both are non-zero.
+        :param scale: Scale matrices to the same sequencing depth (sum of all
+                      edge weights) before the comparison. You can set this
+                      to ``False`` if you know the type of normalisation you
+                      performed already takes care of this.
+        :param kwargs: Keyword arguments passed to
+                       :func:`~fanc.matrix.RegionPairsContainer.edges`
+        :return: :class:`~fanc.architecture.comparisons.ComparisonMatrix`
+        """
         kwargs['lazy'] = True
 
         comparison_matrix = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
@@ -346,7 +373,23 @@ class ComparisonScores(RegionScoreParameterTable):
 
     @classmethod
     def from_scores(cls, scores1, scores2, attributes=None, file_name=None, tmpdir=None,
-                    log=False, field_prefix='cmp_', *args, **kwargs):
+                    log=False, field_prefix='cmp_', **kwargs):
+        """
+        Compare parameter-based scores in a :class:`~fanc.architecture.domains.RegionScoreParameterTable`.
+
+        :param scores1: First :class:`~fanc.architecture.domains.RegionScoreParameterTable`
+        :param scores2: Second :class:`~fanc.architecture.domains.RegionScoreParameterTable`
+        :param attributes: If ``None``, will do all possible comparisons. Provide a list of
+                           region attributes (e.g. ["insulation_1000000", "insulation_2000000"])
+                           for specific comparisons.
+        :param file_name: Optional path to an output file
+        :param tmpdir: Optional. If ``True``, will work in temporary
+                       directory until file is closed
+        :param log: log2-transform values after comparison
+        :param field_prefix: Prefix of the output field
+        :param kwargs: Keyword arguments passed on to :func:`~genomic_regions.RegionBased.regions`
+        :return: :class:`~fanc.architecture.comparisons.ComparisonScores`
+        """
         # all matching parameters
         if attributes is None:
             attributes = []
@@ -426,8 +469,28 @@ class ComparisonRegions(RegionsTable):
 
     @classmethod
     def from_regions(cls, region_based1, region_based2, attribute='score',
-                     file_name=None, tmpdir=None, log=False, score_field='score',
-                     *args, **kwargs):
+                     file_name=None, tmpdir=None, log=False, score_field=None,
+                     **kwargs):
+        """
+        Compare genomic tracks with region-associated scores.
+
+        All scores are assumed to be floats.
+
+        :param region_based1: First :class:`~genomic_regions.RegionBased` object
+        :param region_based2: Second :class:`~genomic_regions.RegionBased` object
+        :param attribute: Name of the attribute to be compared. Typically "score"
+        :param file_name: Optional path to an output file
+        :param tmpdir: Optional. If ``True``, will work in temporary
+                       directory until file is closed
+        :param log: If ``True``, will log2-transform values after comparison
+        :param score_field: Name of the attribute comparison scores will be saved to.
+                            Will use ``attribute`` if not provided.
+        :param kwargs: Keyword arguments passed on to :func:`~genomic_regions.RegionBased.regions`
+        :return: :class:`~fanc.architecture.comparisons.ComparisonRegions`
+        """
+        if score_field is None:
+            score_field = attribute
+
         comparison_regions = cls(file_name=file_name, mode='w', tmpdir=tmpdir,
                                  additional_fields={attribute: tables.Float32Col()})
         comparison_regions.add_regions(region_based1.regions, preserve_attributes=False)

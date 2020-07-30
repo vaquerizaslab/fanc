@@ -14,3 +14,4 @@ we will accomplish the same using only the Python API.
    AB compartments <analyse/compartments>
    PCA analysis <analyse/pca>
    TADs and TAD boundaries <analyse/domains>
+   Matrix and score comparisons <analyse/comparisons>
