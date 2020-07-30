@@ -12,7 +12,8 @@ import logging
 import os
 
 from genomic_regions import GenomicRegion
-from .architecture.domains import InsulationScore, InsulationScores, DirectionalityIndex
+from .architecture.domains import InsulationScore, InsulationScores, DirectionalityIndex, \
+    DirectionalityIndexes, Boundaries
 from .architecture.compartments import ABCompartmentMatrix
 from .architecture.comparisons import FoldChangeMatrix, DifferenceMatrix
 from .architecture.aggregate import AggregateMatrix, aggregate_boundaries, aggregate_loops
