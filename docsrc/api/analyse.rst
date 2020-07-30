@@ -13,3 +13,4 @@ we will accomplish the same using only the Python API.
    Expected values and O/E matrices <analyse/oe>
    AB compartments <analyse/compartments>
    PCA analysis <analyse/pca>
+   TADs and TAD boundaries <analyse/domains>

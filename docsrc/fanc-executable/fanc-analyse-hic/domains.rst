@@ -240,6 +240,7 @@ calls rely on a smoothed insulation score track, it can attempt to identify the 
 with sub-bin resolution. Use ``-x`` to try this, but be aware that this is not precise.
 
 
+.. _directionality-index:
 
 ********************
 Directionality Index
