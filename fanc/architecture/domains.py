@@ -469,7 +469,13 @@ class Boundaries(RegionScoreTable):
         :param call_maxima: Call maxima instead of minima as boundaries
         :return: list of :class:`~fanc.data.genomic.GenomicRegion`
         """
-        index = list(insulation_score.region_data(score_field))
+        if isinstance(insulation_score, InsulationScores):
+            if window_size is None:
+                raise ValueError("Must provide window size!")
+            index = list(insulation_score.region_data('insulation_{}'.format(window_size)))
+        else:
+            index = list(insulation_score.region_data(score_field))
+
         if log:
             index = np.log2(index)
         peaks = MaximaCallerDelta(index, window_size=delta_window, sub_bin_precision=sub_bin_precision)
