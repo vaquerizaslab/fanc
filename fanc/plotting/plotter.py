@@ -999,7 +999,7 @@ class LinePlot(RegionPlotBase):
 
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
-        self.ax.set_xlim(limits)
+        #self.ax.set_xlim(limits)
 
     def _refresh(self, region):
         for f in self.fills:
