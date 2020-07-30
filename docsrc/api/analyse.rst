@@ -4,7 +4,7 @@
 Analyse Hi-C matrices using the API
 ===================================
 
-In :ref:`analyse_hic` we analyses a Hi-C matrix using command line tools. Here,
+In :ref:`analyse_hic` we analysed a Hi-C matrix using command line tools. Here,
 we will accomplish the same using only the Python API.
 
 .. toctree::
@@ -15,3 +15,4 @@ we will accomplish the same using only the Python API.
    PCA analysis <analyse/pca>
    TADs and TAD boundaries <analyse/domains>
    Matrix and score comparisons <analyse/comparisons>
+   Aggregate analysis <analyse/aggregate>
