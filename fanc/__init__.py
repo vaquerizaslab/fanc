@@ -15,7 +15,8 @@ from genomic_regions import GenomicRegion
 from .architecture.domains import InsulationScore, InsulationScores, DirectionalityIndex, \
     DirectionalityIndexes, Boundaries
 from .architecture.compartments import ABCompartmentMatrix
-from .architecture.comparisons import FoldChangeMatrix, DifferenceMatrix
+from .architecture.comparisons import FoldChangeMatrix, DifferenceMatrix, DifferenceRegions, \
+    FoldChangeRegions, DifferenceScores, FoldChangeScores
 from .architecture.aggregate import AggregateMatrix, aggregate_boundaries, aggregate_loops
 from .config import config
 from .general import FileBased
