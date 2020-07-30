@@ -365,7 +365,7 @@ class ComparisonScores(RegionScoreParameterTable):
             region_ixs[(region.chromosome, region.start, region.end)] = len(region_pairs)
             region_pairs.append([region, None])
 
-        for region in scores2.regions:
+        for region in scores2.regions(**kwargs):
             ix = region_ixs[(region.chromosome, region.start, region.end)]
             region_pairs[ix][1] = region
 
@@ -433,7 +433,7 @@ class ComparisonRegions(RegionsTable):
         comparison_regions.add_regions(region_based1.regions, preserve_attributes=False)
 
         regions = dict()
-        for region in region_based1.regions:
+        for region in region_based1.regions(**kwargs):
             regions[(region.chromosome, region.start, region.end)] = region
 
         scores = []
