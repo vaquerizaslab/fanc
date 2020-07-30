@@ -242,10 +242,10 @@ class InsulationScores(RegionScoreParameterTable):
                                 for ii_bin in range(start, stop):
                                     values_by_chromosome[w_ix][ii_bin] += weight
 
-                for k in range(len(values_by_chromosome)):
-                    for w_ix, bin_window_size in enumerate(bin_window_sizes):
+                for w_ix, bin_window_size in enumerate(bin_window_sizes):
+                    for k in range(len(values_by_chromosome[w_ix])):
                         if (k - window_offset < bin_window_size - 1
-                                or k + window_offset > len(values_by_chromosome) - bin_window_size):
+                                or k + window_offset > len(values_by_chromosome[w_ix]) - bin_window_size):
                             values_by_chromosome[w_ix][k] = np.nan
                         else:
                             values_by_chromosome[w_ix][k] /= bin_window_size ** 2
