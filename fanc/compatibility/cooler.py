@@ -11,6 +11,7 @@ from functools import cmp_to_key
 import tempfile
 import warnings
 from ..tools.files import tmp_file_name
+from ..tools.general import str_to_int
 import shutil
 
 
@@ -26,7 +27,7 @@ def is_cooler(file_name):
             if len(fields) != 2:
                 return False
             hic_file, at_resolution = fields
-            file_name = hic_file + '::resolutions/{}'.format(at_resolution)
+            file_name = hic_file + '::resolutions/{}'.format(str_to_int(at_resolution))
         cooler.Cooler(file_name)
         return True
     except KeyError:
@@ -275,7 +276,7 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
         if at_resolution is None:
             largs[0] = hic_file
         else:
-            largs[0] = hic_file + '::resolutions/{}'.format(at_resolution)
+            largs[0] = hic_file + '::resolutions/{}'.format(str_to_int(at_resolution))
 
         cooler.Cooler.__init__(self, *largs, **kwargs)
         RegionMatrixContainer.__init__(self)
@@ -337,7 +338,15 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
         if region.start is not None and region.end is not None:
             query += ':{}-{}'.format(region.start - 1, region.end)
 
-        df = self.bins().fetch(query)
+        try:
+            df = self.bins().fetch(query)
+        except ValueError:  # region might be beyond chromosome bounds
+            start = region.start if region.start > 0 else 1
+            chromosome_end = self.chromosome_lengths[region.chromosome]
+            end = region.end if region.end <= chromosome_end else chromosome_end
+            query = '{}:{}-{}'.format(region.chromosome, start - 1, end)
+            df = self.bins().fetch(query)
+
         for index, row in df.iterrows():
             yield self._series_to_region(row, ix=index, lazy_region=lazy_region)
 
