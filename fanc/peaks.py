@@ -891,7 +891,7 @@ class RaoPeakCaller(object):
 
     def __init__(self, p=None, w_init=None, min_locus_dist=None, max_w=20, min_ll_reads=16,
                  process_inter=False, correct_inter='fdr', n_processes=4,
-                 slice_size=200, min_mappable_fraction=0.7, cluster=False):
+                 slice_size=2000, min_mappable_fraction=0.7, cluster=False):
         """
         Initialize RaoPeakCaller with peak calling parameters.
 
