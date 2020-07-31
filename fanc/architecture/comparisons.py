@@ -491,6 +491,8 @@ class ComparisonRegions(RegionsTable):
         if score_field is None:
             score_field = attribute
 
+        logger.debug("Using scores from '{}' field, writing to '{}' field".format(attribute, score_field))
+
         comparison_regions = cls(file_name=file_name, mode='w', tmpdir=tmpdir,
                                  additional_fields={attribute: tables.Float32Col()})
         comparison_regions.add_regions(region_based1.regions, preserve_attributes=False)
@@ -504,6 +506,7 @@ class ComparisonRegions(RegionsTable):
             region1 = regions[(region2.chromosome, region2.start, region2.end)]
             v1 = getattr(region1, attribute)
             v2 = getattr(region2, attribute)
+
             v = comparison_regions.compare(v1, v2)
             if log:
                 v = np.log2(v)
