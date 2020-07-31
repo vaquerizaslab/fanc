@@ -16,3 +16,4 @@ we will accomplish the same using only the Python API.
    TADs and TAD boundaries <analyse/domains>
    Matrix and score comparisons <analyse/comparisons>
    Aggregate analysis <analyse/aggregate>
+   Loop calling <analyse/loops>
