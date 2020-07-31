@@ -91,13 +91,22 @@ Although not necessarily Hi-C related in every case, FAN-C can also be used to c
 kind of genomic track with scores associated with regions. File types like BED, GFF, BigWig
 and many more (see :ref:`genomic_regions`) can be loaded using :func:`~fanc.load` and then
 compared using :func:`~fanc.architecture.comparisons.ComparisonRegions.from_regions`. FAN-C
-has built-in classes for fold-change (:class:`~fanc.architecture.comparisons.FoldChangeRegions)
-and difference (:class:`~fanc.architecture.comparisons.DifferenceRegions):
+has built-in classes for fold-change (:class:`~fanc.architecture.comparisons.FoldChangeRegions`)
+and difference (:class:`~fanc.architecture.comparisons.DifferenceRegions`):
 
 .. literalinclude:: code/comparisons_example_code.py
     :language: python
-    :start-after: start snippet scores compare
-    :end-before: end snippet scores compare
+    :start-after: start snippet regions compare
+    :end-before: end snippet regions compare
+
+We can plot it like any other region-based FAN-C object:
+
+.. literalinclude:: code/comparisons_example_code.py
+    :language: python
+    :start-after: start snippet regions plot
+    :end-before: end snippet regions plot
+
+.. image:: images/comparisons_regions.png
 
 This outputs a :class:`~fanc.regions.RegionsTable`, but you can export to file using the
 :func:`~fanc.regions.RegionsTable.to_bed`, :func:`~fanc.regions.RegionsTable.to_gff`, and
@@ -130,3 +139,17 @@ using FAN-C - in this case, a separate comparison is run for each parameter. The
 :class:`~fanc.architecture.comparisons.ComparisonScores` object, which is based on
 :class:`~fanc.architecture.domains.RegionScoreParameterTable` and can be used as such. The
 comparison is done with :func:`~fanc.architecture.comparisons.ComparisonScores.from_scores`.
+
+.. literalinclude:: code/comparisons_example_code.py
+    :language: python
+    :start-after: start snippet scores compare
+    :end-before: end snippet scores compare
+
+We can plot it like any other parameter-based FAN-C object:
+
+.. literalinclude:: code/comparisons_example_code.py
+    :language: python
+    :start-after: start snippet scores plot
+    :end-before: end snippet scores plot
+
+.. image:: images/comparisons_scores.png
