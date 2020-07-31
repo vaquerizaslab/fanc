@@ -24,7 +24,7 @@ from .map import *
 from .hic import Hic
 from .matrix import Edge, RegionMatrix
 from .pairs import ReadPairs
-from .peaks import RaoPeakInfo
+from .peaks import RaoPeakInfo, RaoPeakCaller, RaoPeakFilter
 from .regions import Genome, Chromosome
 from .registry import class_id_dict
 from .version import __version__
