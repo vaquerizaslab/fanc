@@ -281,6 +281,7 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
         cooler.Cooler.__init__(self, *largs, **kwargs)
         RegionMatrixContainer.__init__(self)
         self._mappability = None
+        self._expected_value_and_marginals_cache = None
 
     def __enter__(self):
         return self
@@ -445,3 +446,21 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
 
     def bias_vector(self):
         return np.array([r.bias for r in self.regions(lazy=True)])
+
+    def expected_values_and_marginals(self, selected_chromosome=None, norm=True,
+                                      *args, **kwargs):
+        if self._expected_value_and_marginals_cache is not None:
+            logger.debug("Using cached expected values")
+            intra_expected, chromosome_intra_expected, \
+            inter_expected, marginals, valid = self._expected_value_and_marginals_cache
+        else:
+            intra_expected, chromosome_intra_expected, \
+            inter_expected, marginals, valid = RegionMatrixContainer.expected_values_and_marginals(self, norm=norm,
+                                                                                                   *args, **kwargs)
+            self._expected_value_and_marginals_cache = intra_expected, chromosome_intra_expected, \
+                                                       inter_expected, marginals, valid
+
+        if selected_chromosome is not None:
+            return chromosome_intra_expected[selected_chromosome], marginals, valid
+
+        return intra_expected, chromosome_intra_expected, inter_expected, marginals, valid
