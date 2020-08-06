@@ -265,6 +265,9 @@
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">saddle_plot</span></code>(ab_enrichment_matrix, cutoffs[, …])</p></td>
 <td><p></p></td>
 </tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.pca_plot" title="fanc.plotting.pca_plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pca_plot</span></code></a>(pca_res[, variance, eigenvectors, …])</p></td>
+<td><p>Plot the results of a Hi-C PCA analysis from <a class="reference internal" href="architecture/comparisons.html#fanc.architecture.comparisons.hic_pca" title="fanc.architecture.comparisons.hic_pca"><code class="xref py py-func docutils literal notranslate"><span class="pre">hic_pca()</span></code></a>.</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -1635,6 +1638,34 @@ same number as matrix objects</p></li>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>ax</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="fanc.plotting.pca_plot">
+<code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">pca_plot</code><span class="sig-paren">(</span><em class="sig-param">pca_res</em>, <em class="sig-param">variance=None</em>, <em class="sig-param">eigenvectors=(0</em>, <em class="sig-param">1)</em>, <em class="sig-param">markers=None</em>, <em class="sig-param">colors=None</em>, <em class="sig-param">names=None</em>, <em class="sig-param">ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.pca_plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot the results of a Hi-C PCA analysis from <a class="reference internal" href="architecture/comparisons.html#fanc.architecture.comparisons.hic_pca" title="fanc.architecture.comparisons.hic_pca"><code class="xref py py-func docutils literal notranslate"><span class="pre">hic_pca()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pca_res</strong> – The PCA result from <a class="reference internal" href="architecture/comparisons.html#fanc.architecture.comparisons.hic_pca" title="fanc.architecture.comparisons.hic_pca"><code class="xref py py-func docutils literal notranslate"><span class="pre">hic_pca()</span></code></a></p></li>
+<li><p><strong>variance</strong> – A vector specifying the explained variance of each EV in the PCA or
+the PCA object from <a class="reference internal" href="architecture/comparisons.html#fanc.architecture.comparisons.hic_pca" title="fanc.architecture.comparisons.hic_pca"><code class="xref py py-func docutils literal notranslate"><span class="pre">hic_pca()</span></code></a>.
+Optional, used to display the explained variance along the axes.</p></li>
+<li><p><strong>eigenvectors</strong> – Tuple of length two specifying which eigenvectors (EVs) to plot.
+0-based, (0, 1) by default for the first to EVs.</p></li>
+<li><p><strong>markers</strong> – List of marker definitions from matplotlib (e.g. [“o”, “*”, “s”]).
+Must be same length as number of samples in PCA.</p></li>
+<li><p><strong>colors</strong> – List of colour definitions from matplotlib.
+Must be same length as number of samples in PCA.</p></li>
+<li><p><strong>names</strong> – Sample names for plot legend. Must be same length as number of
+samples in PCA.</p></li>
+<li><p><strong>ax</strong> – Optional matplotlib axes object to plot into. Otherwise uses <code class="docutils literal notranslate"><span class="pre">plt.gca()</span></code></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>figure, ax</p>
 </dd>
 </dl>
 </dd></dl>

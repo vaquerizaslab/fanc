@@ -12,6 +12,24 @@ Additionally, we set up the Python session like this:
     :start-after: start snippet oe setup
     :end-before: end snippet oe setup
 
+If you want to try the tutorial with an equivalent Cooler file, load the Hi-C file like
+this instead:
+
+.. literalinclude:: code/oe_example_code.py
+    :language: python
+    :start-after: start snippet alternative cooler
+    :end-before: end snippet alternative cooler
+
+or like this if you want to work with a Juicer file built from the same data:
+
+.. literalinclude:: code/oe_example_code.py
+    :language: python
+    :start-after: start snippet alternative juicer
+    :end-before: end snippet alternative juicer
+
+Note that there may be minor differences in the results due to the "zooming" and balancing
+applied by the different tools.
+
 :class:`~fanc.matrix.RegionMatrixContainer` objects (see :ref:`here <matrix_interface>`) have a builtin
 function to calculate expected values from existing matrix data called
 :func:`~fanc.matrix.RegionMatrixContainer.expected_values`. This function calculates and returns

@@ -88,6 +88,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compatibility.html"> Working with Cooler, Juicer, and text files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="../fanc_analyse_hic.html"> Analyse Hi-C matrices</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="oe.html"> Expected values and O/E matrices</a></li>
@@ -181,6 +182,15 @@
             
   <div class="section" id="ab-compartment-analysis">
 <span id="fanc-ab-compartments"></span><h1>AB compartment analysis<a class="headerlink" href="#ab-compartment-analysis" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The following examples use the matrix files in FAN-C format. If you want to try the same
+commands using Juicer <code class="docutils literal notranslate"><span class="pre">.hic</span></code> files, replace <code class="docutils literal notranslate"><span class="pre">output/hic/binned/fanc_example_1mb.hic</span></code>
+with <code class="docutils literal notranslate"><span class="pre">architecture/other-hic/fanc_example.juicer.hic&#64;1mb</span></code>. If you want to work with
+Cooler files in this tutorial, use <code class="docutils literal notranslate"><span class="pre">architecture/other-hic/fanc_example.mcool&#64;1mb</span></code>.
+The results will be minimally different due to the “zooming” and balancing applied by
+each package.</p>
+</div>
 <p>Regions in a Hi-C matrix can generally be assigned to either the active or the inactive
 compartment, also called ‘A’ and ‘B’ compartments, respectively.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">compartments</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">DOMAINS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">v</span> <span class="n">EIGENVECTOR</span><span class="p">]</span>
@@ -318,14 +328,14 @@ in any case.</p>
 <img alt="../../_images/fanc_example_1mb.ab_and_ev.png" src="../../_images/fanc_example_1mb.ab_and_ev.png" />
 <p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">compartments</span></code> outputs the first eigenvector by default. In some cases it might be
 useful to choose a different eigenvector (sometimes the first eigenvector identifies
-chromosomal arms rather than compartments). To change the eiegnvector use the <cite>–i`</cite> option,
+chromosomal arms rather than compartments). To change the eiegnvector use the <code class="docutils literal notranslate"><span class="pre">--i</span></code> option,
 e.g. <code class="docutils literal notranslate"><span class="pre">-i</span> <span class="pre">2</span></code> for the second instead of the first correlation matrix eigenvector.</p>
 <p>The sign of the eigenvector does not necessarily correspond well to the A or B compartment.
 Often, the eigenvector is “flipped” (inverted signs on its entries). Mathematically, if x
 is an eigenvector, so is -x. You can use external information to “orient” the eigenvector,
 so that it most likely corresponds to the active and inactive compartments. Specifically,
 you can supply a FASTA file with the genomic sequence to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">compartments</span></code> using the
-<code class="docutils literal notranslate"><span class="pre">-g</span> <span class="pre">&lt;fasta_file&gt;</span></code> argument., This is typically a good idea: <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">compartments</span></code> then
+<code class="docutils literal notranslate"><span class="pre">-g</span> <span class="pre">&lt;fasta_file&gt;</span></code> argument. This is generally a good idea: <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">compartments</span></code> then
 calculates the average GC content of regions with positive and those with negative eigenvector
 entries. As GC content has previously been shown to correlate well with compartmentalisation,
 the eigenvector is oriented in such a way that negative entries correspond to ‘B’ (low GC

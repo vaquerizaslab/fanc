@@ -5,6 +5,15 @@
 Hi-C domain analysis
 ####################
 
+.. note::
+
+    The following examples use the matrix files in FAN-C format. If you want to try the same
+    commands using Juicer ``.hic`` files, replace ``output/hic/binned/fanc_example_100kb.hic``
+    with ``architecture/other-hic/fanc_example.juicer.hic@100kb``. You will also need to adjust the
+    `-vmax` value in the triangular matrix plot to `50`. If you want to work with
+    Cooler files in this tutorial, use ``architecture/other-hic/fanc_example.mcool@100kb``.
+    The results will be minimally different due to the "zooming" and balancing applied by
+    each package.
 
 Like compartments, topologically associating domains, or TADs, for a fundamental level of
 genome organisation.
@@ -240,6 +249,7 @@ calls rely on a smoothed insulation score track, it can attempt to identify the 
 with sub-bin resolution. Use ``-x`` to try this, but be aware that this is not precise.
 
 
+.. _directionality-index:
 
 ********************
 Directionality Index

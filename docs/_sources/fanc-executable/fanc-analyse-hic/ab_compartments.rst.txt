@@ -4,6 +4,14 @@
 AB compartment analysis
 #######################
 
+.. note::
+
+    The following examples use the matrix files in FAN-C format. If you want to try the same
+    commands using Juicer ``.hic`` files, replace ``output/hic/binned/fanc_example_1mb.hic``
+    with ``architecture/other-hic/fanc_example.juicer.hic@1mb``. If you want to work with
+    Cooler files in this tutorial, use ``architecture/other-hic/fanc_example.mcool@1mb``.
+    The results will be minimally different due to the "zooming" and balancing applied by
+    each package.
 
 Regions in a Hi-C matrix can generally be assigned to either the active or the inactive
 compartment, also called 'A' and 'B' compartments, respectively.
@@ -83,7 +91,7 @@ We can plot the eigenvector using ``fancplot``:
 
 ``fanc compartments`` outputs the first eigenvector by default. In some cases it might be
 useful to choose a different eigenvector (sometimes the first eigenvector identifies
-chromosomal arms rather than compartments). To change the eiegnvector use the `--i`` option,
+chromosomal arms rather than compartments). To change the eiegnvector use the ``--i`` option,
 e.g. ``-i 2`` for the second instead of the first correlation matrix eigenvector.
 
 The sign of the eigenvector does not necessarily correspond well to the A or B compartment.
@@ -91,7 +99,7 @@ Often, the eigenvector is "flipped" (inverted signs on its entries). Mathematica
 is an eigenvector, so is -x. You can use external information to "orient" the eigenvector,
 so that it most likely corresponds to the active and inactive compartments. Specifically,
 you can supply a FASTA file with the genomic sequence to ``fanc compartments`` using the
-``-g <fasta_file>`` argument., This is typically a good idea: ``fanc compartments`` then
+``-g <fasta_file>`` argument. This is generally a good idea: ``fanc compartments`` then
 calculates the average GC content of regions with positive and those with negative eigenvector
 entries. As GC content has previously been shown to correlate well with compartmentalisation,
 the eigenvector is oriented in such a way that negative entries correspond to 'B' (low GC

@@ -1,0 +1,297 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>PCA &mdash; FAN-C 0.8.38-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Plotting (API)" href="../plot.html" />
+    <link rel="prev" title="AB compartments" href="compartments.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.38
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../interfaces.html">Interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../analyse.html">Analyse Hi-C matrices (API)</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="oe.html">Expected values and O/E matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="compartments.html">AB compartments</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">PCA analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plot.html">Plotting (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules.html">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../api.html">fanc Python module</a> &raquo;</li>
+        
+          <li><a href="../analyse.html">Analyse Hi-C matrices using the API</a> &raquo;</li>
+        
+      <li>PCA</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/api/analyse/pca.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="pca">
+<span id="api-pca"></span><h1>PCA<a class="headerlink" href="#pca" title="Permalink to this headline">¶</a></h1>
+<p>To follow this tutorial, download the FAN-C example data, for example through our
+<a class="reference external" href="https://keeper.mpdl.mpg.de/d/147906745b634c779ed3/">Keeper library</a>. Then set up
+your Python session like this, loading some of our previously published
+<a class="reference external" href="https://doi.org/10.1038/s41467-018-06961-0">Low-C datasets</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
+<span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">fancplot</span>
+<span class="kn">from</span> <span class="nn">fanc.architecture.comparisons</span> <span class="kn">import</span> <span class="n">hic_pca</span>
+
+<span class="n">lowc_hindiii_100k</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic/lowc_hindiii_100k_1mb.hic&quot;</span><span class="p">)</span>
+<span class="n">lowc_hindiii_5M</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic/lowc_hindiii_5M_1mb.hic&quot;</span><span class="p">)</span>
+<span class="n">lowc_mboi_1M</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic/lowc_mboi_1M_1mb.hic&quot;</span><span class="p">)</span>
+<span class="n">lowc_mboi_100k</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic/lowc_mboi_100k_1mb.hic&quot;</span><span class="p">)</span>
+<span class="n">lowc_mboi_50k</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic/lowc_mboi_50k_1mb.hic&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>PCA is one way in FAN-C to compare different Hi-C matrices to each other. A matrix of
+pixels vs matrices is assembled that contains the (normalised) contact strength of each
+matrix for the respective pixel (=region pair). PCA is then run on this matrix, and the
+resulting eigenvectors can be plotted to examine the variability between datasets.</p>
+<p>In FAN-C, simply use <a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.hic_pca" title="fanc.architecture.comparisons.hic_pca"><code class="xref py py-func docutils literal notranslate"><span class="pre">hic_pca()</span></code></a> for this purpose,
+as shown here for chromosome 19:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pca_info</span><span class="p">,</span> <span class="n">pca_result</span> <span class="o">=</span> <span class="n">hic_pca</span><span class="p">(</span><span class="n">lowc_hindiii_5M</span><span class="p">,</span> <span class="n">lowc_hindiii_100k</span><span class="p">,</span>
+                               <span class="n">lowc_mboi_1M</span><span class="p">,</span> <span class="n">lowc_mboi_50k</span><span class="p">,</span>
+                               <span class="n">lowc_mboi_100k</span><span class="p">,</span> <span class="n">ignore_zeros</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                               <span class="n">scale</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="n">sample_size</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span>
+                               <span class="n">strategy</span><span class="o">=</span><span class="s1">&#39;variance&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We can plot the result using <a class="reference internal" href="../modules/plotting.html#fanc.plotting.pca_plot" title="fanc.plotting.pca_plot"><code class="xref py py-func docutils literal notranslate"><span class="pre">pca_plot()</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">pca_plot</span><span class="p">(</span><span class="n">pca_result</span><span class="p">,</span> <span class="n">variance</span><span class="o">=</span><span class="n">pca_info</span><span class="p">,</span>
+                            <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;HindIII 5M&quot;</span><span class="p">,</span> <span class="s2">&quot;HindIII 100k&quot;</span><span class="p">,</span>
+                                   <span class="s2">&quot;MboI 1M&quot;</span><span class="p">,</span> <span class="s2">&quot;MboI 50k&quot;</span><span class="p">,</span> <span class="s2">&quot;MboI 100k&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<img alt="../../_images/pca_default.png" src="../../_images/pca_default.png" />
+<p>We can easily change the colors and markers, for example by colouring all samples with
+MboI and HindIII differently, and assigning different markers to samples with more or
+less than 1M cells:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">pca_plot</span><span class="p">(</span><span class="n">pca_result</span><span class="p">,</span> <span class="n">variance</span><span class="o">=</span><span class="n">pca_info</span><span class="p">,</span>
+                            <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;HindIII 5M&quot;</span><span class="p">,</span> <span class="s2">&quot;HindIII 100k&quot;</span><span class="p">,</span>
+                                   <span class="s2">&quot;MboI 1M&quot;</span><span class="p">,</span> <span class="s2">&quot;MboI 50k&quot;</span><span class="p">,</span> <span class="s2">&quot;MboI 100k&quot;</span><span class="p">],</span>
+                            <span class="n">colors</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;orange&quot;</span><span class="p">,</span> <span class="s2">&quot;orange&quot;</span><span class="p">,</span> <span class="s2">&quot;cyan&quot;</span><span class="p">,</span> <span class="s2">&quot;cyan&quot;</span><span class="p">,</span> <span class="s2">&quot;cyan&quot;</span><span class="p">],</span>
+                            <span class="n">markers</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="s2">&quot;o&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<img alt="../../_images/pca_adjust.png" src="../../_images/pca_adjust.png" />
+<p>Sometimes the first eigenvector captures the library sequencing depth, so you may want to
+plot the second and third EVs instead using <code class="docutils literal notranslate"><span class="pre">eigenvectors=(1,2)</span></code> (in this case it does
+not seem to be particularly informative):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">pca_plot</span><span class="p">(</span><span class="n">pca_result</span><span class="p">,</span> <span class="n">variance</span><span class="o">=</span><span class="n">pca_info</span><span class="p">,</span>
+                            <span class="n">eigenvectors</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+                            <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;HindIII 5M&quot;</span><span class="p">,</span> <span class="s2">&quot;HindIII 100k&quot;</span><span class="p">,</span>
+                                   <span class="s2">&quot;MboI 1M&quot;</span><span class="p">,</span> <span class="s2">&quot;MboI 50k&quot;</span><span class="p">,</span> <span class="s2">&quot;MboI 100k&quot;</span><span class="p">],</span>
+                            <span class="n">colors</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;orange&quot;</span><span class="p">,</span> <span class="s2">&quot;orange&quot;</span><span class="p">,</span> <span class="s2">&quot;cyan&quot;</span><span class="p">,</span> <span class="s2">&quot;cyan&quot;</span><span class="p">,</span> <span class="s2">&quot;cyan&quot;</span><span class="p">],</span>
+                            <span class="n">markers</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="s2">&quot;o&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<img alt="../../_images/pca_ev.png" src="../../_images/pca_ev.png" />
+<p>This kind of analysis can be tricky, and selecting informative pixels from the matrix can
+be key to getting a robust and intuitive PCA result. In the above example, we are using
+several parameters to select informative pixels for the PCA. First, we are only using
+pixels that are non-zero in all samples with <code class="docutils literal notranslate"><span class="pre">ignore_zeros=True</span></code>. Second, we are sorting
+the pixels, listing the ones with the largest variance across samples first, using
+<code class="docutils literal notranslate"><span class="pre">strategy='variance'</span></code>. Finally, we are selecting the top 100k pixels (those with the
+largest variance) first with <code class="docutils literal notranslate"><span class="pre">sample_size=100000</span></code>.</p>
+<p>When you are analysing matrices of higher resolution, pixels far away from the diagonal
+might be dominated by noise. <code class="docutils literal notranslate"><span class="pre">ignore_zeros</span></code> removes most of the noisy pixels, but
+additionally you might want to set a <code class="docutils literal notranslate"><span class="pre">max_distance</span></code> to only select pixels corresponding
+to regions closer than this value. Similarly, if you want to exclude contacts close to
+the diagonal, use <code class="docutils literal notranslate"><span class="pre">min_distance</span></code>.</p>
+<p>For more options have a look at the API reference for <a class="reference internal" href="../modules/plotting.html#fanc.plotting.pca_plot" title="fanc.plotting.pca_plot"><code class="xref py py-func docutils literal notranslate"><span class="pre">pca_plot()</span></code></a>.</p>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../plot.html" class="btn btn-neutral float-right" title="Plotting (API)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="compartments.html" class="btn btn-neutral float-left" title="AB compartments" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

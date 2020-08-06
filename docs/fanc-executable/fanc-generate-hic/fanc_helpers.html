@@ -88,10 +88,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compatibility.html"> Working with Cooler, Juicer, and text files</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="fanc_auto.html"> fanc auto: Automated generation of Hi-C matrices</a></li>
 <li class="toctree-l3"><a class="reference internal" href="fanc_modular_steps.html"> Individual pipeline steps</a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#"> Helper tools</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#fanc-from-txt-import-hic-from-text-file">fanc from-txt: import Hic from text file</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#fanc-dump-export-hic-objects-to-text-file">fanc dump: export Hic objects to text file</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#fanc-subset-create-hic-objects-by-subsetting">fanc subset: create Hic objects by subsetting</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#fanc-downsample-downsample-hic-objects">fanc downsample: downsample Hic objects</a></li>
@@ -180,6 +182,66 @@
 <p>FAN-C provides little helper tools that make working with Hi-C and associated data
 somewhat easier. These are not strictly necessary for matrix generation and analysis,
 but can often speed your analysis up or simply make it a little more convenient.</p>
+<div class="section" id="fanc-from-txt-import-hic-from-text-file">
+<span id="fanc-from-txt"></span><h2>fanc from-txt: import Hic from text file<a class="headerlink" href="#fanc-from-txt-import-hic-from-text-file" title="Permalink to this headline">¶</a></h2>
+<p>You can easily import Hi-C matrices from a compatible text file format, such as that from
+HiC-Pro, with <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">to-txt</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">from</span><span class="o">-</span><span class="n">txt</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="n">contacts</span> <span class="n">regions</span> <span class="n">output</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>contacts</kbd></dt>
+<dd><p>Contacts file in sparse matrix format, i.e. each row should contain &lt;bin1&gt;&lt;tab&gt;&lt;bin2&gt;&lt;tab&gt;&lt;weight&gt;.</p>
+</dd>
+<dt><kbd>regions</kbd></dt>
+<dd><p>Path to file with genomic regions, for example in BED format: &lt;chromosome&gt;&lt;tab&gt;&lt;start&gt;&lt;tab&gt;&lt;end&gt;. The BED can optionally contain the bin index, as corresponding to the index used in the contacts file.</p>
+</dd>
+<dt><kbd>output</kbd></dt>
+<dd><p>Output Hic file.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>-tmp, --work-in-tmp</kbd></dt>
+<dd><p>Work in temporary directory</p>
+</dd>
+</dl>
+</div>
+<p>The command requires two input files:</p>
+<ol class="arabic simple">
+<li><p>A sparse matrix with the tab-separated format <code class="docutils literal notranslate"><span class="pre">&lt;bin1&gt;&lt;tab&gt;&lt;bin2&gt;&lt;tab&gt;&lt;weight&gt;</span></code>:</p></li>
+</ol>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">1</span>  <span class="mi">1</span>       <span class="mf">40.385642</span>
+<span class="mi">1</span>  <span class="mi">828</span>     <span class="mf">5.272852</span>
+<span class="mi">1</span>  <span class="mi">1264</span>    <span class="mf">5.205258</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+</div></blockquote>
+<ol class="arabic simple" start="2">
+<li><p>A regions file in BED format <code class="docutils literal notranslate"><span class="pre">&lt;chromosome&gt;&lt;tab&gt;&lt;start&gt;&lt;tab&gt;&lt;end&gt;[&lt;tab&gt;&lt;bin</span> <span class="pre">ID&gt;]</span></code>:</p></li>
+</ol>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chr1</span>       <span class="mi">0</span>       <span class="mi">1000000</span> <span class="mi">1</span>
+<span class="n">chr1</span>       <span class="mi">1000000</span> <span class="mi">2000000</span> <span class="mi">2</span>
+<span class="n">chr1</span>       <span class="mi">2000000</span> <span class="mi">3000000</span> <span class="mi">3</span>
+<span class="n">chr1</span>       <span class="mi">3000000</span> <span class="mi">4000000</span> <span class="mi">4</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">&lt;bin</span> <span class="pre">ID&gt;</span></code> field is optional, but if provided it must correspond to the bins used
+in the matrix file. If not provided, bin indices will be 0-based!</p>
+</div></blockquote>
+<p>The FAN-C example data contains some HiC-Pro example files that you can try this out on:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">fanc</span> <span class="n">from</span><span class="o">-</span><span class="n">txt</span> <span class="n">hicpro</span><span class="o">/</span><span class="n">dixon_2M_1000000_iced</span><span class="o">.</span><span class="n">matrix</span> <span class="n">hicpro</span><span class="o">/</span><span class="n">dixon_2M_1000000_abs</span><span class="o">.</span><span class="n">bed</span> <span class="n">hicpro</span><span class="o">/</span><span class="n">dixon_2M_1000000_iced</span><span class="o">.</span><span class="n">hic</span>
+</pre></div>
+</div>
+</div>
 <div class="section" id="fanc-dump-export-hic-objects-to-text-file">
 <h2>fanc dump: export Hic objects to text file<a class="headerlink" href="#fanc-dump-export-hic-objects-to-text-file" title="Permalink to this headline">¶</a></h2>
 <p>You can easily export FAN-C Hic objects to a txt file using <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">dump</span></code>.</p>

@@ -90,12 +90,17 @@
 <li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../api.html">Python API</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compatibility.html">Working with Juicer and Cooler files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../interfaces.html">Interfaces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../generate.html">Generate Hi-C matrices (API)</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="../analyse.html">Analyse Hi-C matrices (API)</a><ul class="current">
 <li class="toctree-l3 current"><a class="current reference internal" href="#">Expected values and O/E matrices</a></li>
 <li class="toctree-l3"><a class="reference internal" href="compartments.html">AB compartments</a></li>
-<li class="toctree-l3"><a class="reference internal" href="compartments.html#eigenvectors">Eigenvectors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pca.html">PCA analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="domains.html">TADs and TAD boundaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparisons.html">Matrix and score comparisons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aggregate.html">Aggregate analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="loops.html">Loop calling</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../plot.html">Plotting (API)</a></li>
@@ -181,6 +186,17 @@ Additionally, we set up the Python session like this:</p>
 <span class="n">hic_500kb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;output/hic/binned/fanc_example_500kb.hic&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>If you want to try the tutorial with an equivalent Cooler file, load the Hi-C file like
+this instead:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hic_500kb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic/fanc_example.mcool@500kb&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>or like this if you want to work with a Juicer file built from the same data:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hic_500kb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic/fanc_example.juicer.hic@500kb&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that there may be minor differences in the results due to the “zooming” and balancing
+applied by the different tools.</p>
 <p><a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer" title="fanc.matrix.RegionMatrixContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrixContainer</span></code></a> objects (see <a class="reference internal" href="../interfaces/matrix_interface.html#matrix-interface"><span class="std std-ref">here</span></a>) have a builtin
 function to calculate expected values from existing matrix data called
 <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer.expected_values" title="fanc.matrix.RegionMatrixContainer.expected_values"><code class="xref py py-func docutils literal notranslate"><span class="pre">expected_values()</span></code></a>. This function calculates and returns

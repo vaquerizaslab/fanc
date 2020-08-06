@@ -298,22 +298,28 @@ using <a class="reference internal" href="#fanc.architecture.aggregate.Aggregate
 <dl class="method">
 <dt id="fanc.architecture.aggregate.AggregateMatrix.from_center_pairs">
 <em class="property">classmethod </em><code class="sig-name descname">from_center_pairs</code><span class="sig-paren">(</span><em class="sig-param">hic</em>, <em class="sig-param">pair_regions</em>, <em class="sig-param">window=None</em>, <em class="sig-param">pixels=16</em>, <em class="sig-param">keep_components=True</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">region_viewpoint='center'</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.aggregate.AggregateMatrix.from_center_pairs" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="field-list simple">
+<dd><p>Construct an aggregate matrix from pairs of regions.</p>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>hic</strong> – </p></li>
-<li><p><strong>pair_regions</strong> – </p></li>
-<li><p><strong>window</strong> – </p></li>
-<li><p><strong>pixels</strong> – </p></li>
-<li><p><strong>keep_components</strong> – </p></li>
-<li><p><strong>file_name</strong> – </p></li>
-<li><p><strong>tmpdir</strong> – </p></li>
-<li><p><strong>region_viewpoint</strong> – </p></li>
-<li><p><strong>kwargs</strong> – </p></li>
+<li><p><strong>hic</strong> – A compatible Hi-C matrix</p></li>
+<li><p><strong>pair_regions</strong> – A list of region pairs</p></li>
+<li><p><strong>window</strong> – A window size in base pairs</p></li>
+<li><p><strong>pixels</strong> – The dimension (in pixels) of the output matrix</p></li>
+<li><p><strong>keep_components</strong> – Keep all submatrices that make up the aggregate matrix</p></li>
+<li><p><strong>file_name</strong> – Optional path to an output file</p></li>
+<li><p><strong>tmpdir</strong> – Optional. If <code class="docutils literal notranslate"><span class="pre">True</span></code>, will work in temporary
+directory until file is closed</p></li>
+<li><p><strong>region_viewpoint</strong> – Location in each region that is used as
+anchor for the extracted matrix. ‘center’ by default,
+also valid are ‘start’, ‘end’, ‘five_prime’, and
+‘three_prime’</p></li>
+<li><p><strong>kwargs</strong> – Keyword arguments passed on to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">extract_submatrices()</span></code></p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p></p>
+<dd class="field-even"><p><a class="reference internal" href="#fanc.architecture.aggregate.AggregateMatrix" title="fanc.architecture.aggregate.AggregateMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">AggregateMatrix</span></code></a></p>
 </dd>
 </dl>
 </dd></dl>

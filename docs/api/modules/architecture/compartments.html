@@ -194,7 +194,7 @@
 <dd><p>Bases: <a class="reference internal" href="../matrix.html#fanc.matrix.RegionMatrixTable" title="fanc.matrix.RegionMatrixTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.matrix.RegionMatrixTable</span></code></a></p>
 <p>Class representing O/E correlation matrix used to derive AB compartments.</p>
 <p>You can generate an <a class="reference internal" href="#fanc.architecture.compartments.ABCompartmentMatrix" title="fanc.architecture.compartments.ABCompartmentMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">ABCompartmentMatrix</span></code></a> from a Hic object
-using the <code class="xref py py-func docutils literal notranslate"><span class="pre">from_hic()</span></code> class method.</p>
+using the <a class="reference internal" href="#fanc.architecture.compartments.ABCompartmentMatrix.from_hic" title="fanc.architecture.compartments.ABCompartmentMatrix.from_hic"><code class="xref py py-func docutils literal notranslate"><span class="pre">from_hic()</span></code></a> class method.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">hic</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;path/to/file.hic&quot;</span><span class="p">)</span>
 <span class="n">ab</span> <span class="o">=</span> <span class="n">ABCompartmentMatrix</span><span class="o">.</span><span class="n">from_hic</span><span class="p">(</span><span class="n">hic</span><span class="p">)</span>
 </pre></div>
@@ -564,6 +564,31 @@ Replace original file with copy and delete copy.</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="fanc.architecture.compartments.ABCompartmentMatrix.domains">
+<code class="sig-name descname">domains</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.domains" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the AB domain regions of the compartment matrix.</p>
+<p>This returns a <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionWrapper</span></code> object, where you can
+iterate over the domains using</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">region</span> <span class="ow">in</span> <span class="n">domains</span><span class="o">.</span><span class="n">regions</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">region</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>  <span class="c1"># A or B</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>args</strong> – Positional arguments for
+<a class="reference internal" href="#fanc.architecture.compartments.ABCompartmentMatrix.eigenvector" title="fanc.architecture.compartments.ABCompartmentMatrix.eigenvector"><code class="xref py py-func docutils literal notranslate"><span class="pre">eigenvector()</span></code></a></p></li>
+<li><p><strong>kwargs</strong> – Keyword arguments for
+<a class="reference internal" href="#fanc.architecture.compartments.ABCompartmentMatrix.eigenvector" title="fanc.architecture.compartments.ABCompartmentMatrix.eigenvector"><code class="xref py py-func docutils literal notranslate"><span class="pre">eigenvector()</span></code></a></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionWrapper</span></code> object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
 <dt id="fanc.architecture.compartments.ABCompartmentMatrix.downsample">
 <code class="sig-name descname">downsample</code><span class="sig-paren">(</span><em class="sig-param">n</em>, <em class="sig-param">file_name=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.downsample" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sample edges from this object.</p>
@@ -756,6 +781,100 @@ parameter:</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="fanc.architecture.compartments.ABCompartmentMatrix.eigenvector">
+<code class="sig-name descname">eigenvector</code><span class="sig-paren">(</span><em class="sig-param">sub_region=None</em>, <em class="sig-param">genome=None</em>, <em class="sig-param">eigenvector=0</em>, <em class="sig-param">per_chromosome=None</em>, <em class="sig-param">oe_per_chromosome=None</em>, <em class="sig-param">exclude_chromosomes=None</em>, <em class="sig-param">force=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.eigenvector" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the eigenvector (EV) of this AB matrix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sub_region</strong> – Optional region string to only output the EV of
+that region.</p></li>
+<li><p><strong>genome</strong> – A <a class="reference internal" href="../regions.html#fanc.regions.Genome" title="fanc.regions.Genome"><code class="xref py py-class docutils literal notranslate"><span class="pre">Genome</span></code></a> object or path to a
+FASTA file. Used to orient EV value signs so that the “A”
+compartment corresponds to the regions with higher
+GC content. It is recommended to make use of this,
+as otherwise the sign of the EV is arbitrary and
+will not allow for between-sample comparisons.</p></li>
+<li><p><strong>eigenvector</strong> – Index of the eigenvector to calculate. This
+parameter is 0-based! Always try “0” first,
+and if that EV does not seem to reflect A/B
+compartments, try increasing that value.</p></li>
+<li><p><strong>per_chromosome</strong> – Calculate the eigenvector on a per-chromosome
+basis (<code class="docutils literal notranslate"><span class="pre">True</span></code> by default). If your matrix
+is whole-genome normalised and you know what
+you are doing, set this to <code class="docutils literal notranslate"><span class="pre">False</span></code> to calculate
+the EV on the whole matrix.</p></li>
+<li><p><strong>oe_per_chromosome</strong> – Use the expected value vector matching each chromosome.
+Do not modify this unless you know what you are doing.</p></li>
+<li><p><strong>exclude_chromosomes</strong> – List of chromosome names to exclude from the EV
+calculation. Can sometimes be useful if certain
+chromosomes do not produce reasonable compartment
+profiles.</p></li>
+<li><p><strong>force</strong> – Force EV recalculation, even if the EV has already been previously
+calculated with the same parameters and is stored in the object.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code> of eigenvector values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.architecture.compartments.ABCompartmentMatrix.enrichment_profile">
+<code class="sig-name descname">enrichment_profile</code><span class="sig-paren">(</span><em class="sig-param">hic</em>, <em class="sig-param">percentiles=(20.0</em>, <em class="sig-param">40.0</em>, <em class="sig-param">60.0</em>, <em class="sig-param">80.0</em>, <em class="sig-param">100.0)</em>, <em class="sig-param">only_gc=False</em>, <em class="sig-param">symmetric_at=None</em>, <em class="sig-param">exclude_chromosomes=()</em>, <em class="sig-param">intra_chromosomal=True</em>, <em class="sig-param">inter_chromosomal=False</em>, <em class="sig-param">eigenvector=None</em>, <em class="sig-param">collapse_identical_breakpoints=False</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.enrichment_profile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate a compartment enrichment profile for the compartment matrix.</p>
+<p>This returns a <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code> with the enrichment profile matrix,
+and a list of cutoffs used to bin regions according to the eigenvector (EV)
+values. These cutoffs are determined by the <code class="docutils literal notranslate"><span class="pre">percentiles</span> <span class="pre">argument</span></code>.</p>
+<p>The returned objects can be used to generate a saddle plot, for example using
+<code class="xref py py-func docutils literal notranslate"><span class="pre">saddle_plot()</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hic</strong> – A Hi-C matrix</p></li>
+<li><p><strong>percentiles</strong> – The percentiles at which to split the EV, and bin genomic
+regions accordingly into ranges of EV values.</p></li>
+<li><p><strong>only_gc</strong> – If True, use only the region’s GC content, and not the EV,
+to calculate the enrichment profile.</p></li>
+<li><p><strong>symmetric_at</strong> – If set to a float, splits the genomic regions into two
+groups with EV below and above this value. Percentiles
+are then calculated on each group separately, and it is
+ensured that the <code class="docutils literal notranslate"><span class="pre">symmetric_at</span></code> breakpoint is in the
+centre of the enrichment profile. Note that this doubles
+the number of bins, and that the number of regions to the
+left and right of the breakpoint are likely not the same.</p></li>
+<li><p><strong>exclude_chromosomes</strong> – List of chromosome names to exclude from the
+profile calculation.</p></li>
+<li><p><strong>intra_chromosomal</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code> (default), include intra-chromosomal contacts
+in the calculation</p></li>
+<li><p><strong>inter_chromosomal</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, include inter-chromosomal contacts
+in the calculation. This is disabled by defaults, due to
+the way matrices are typically normalised (per-chromosome)</p></li>
+<li><p><strong>eigenvector</strong> – Optional. A custom eigenvector of the same length as genomic
+regions in the Hi-C matrix. This will skip the eigenvector
+calculation and just use the values in this vector instead.
+In principle, you could even use this to supply a completely
+different type of data, such as expression values, for the
+enrichment analysis.</p></li>
+<li><p><strong>collapse_identical_breakpoints</strong> – (experimental) If <code class="docutils literal notranslate"><span class="pre">True</span></code>, will merge
+all breakpoints with the same values
+(such as multiple bins with EV=0) into
+one. This can make the saddle plot look
+cleaner.</p></li>
+<li><p><strong>args</strong> – Positional arguments for
+<a class="reference internal" href="#fanc.architecture.compartments.ABCompartmentMatrix.eigenvector" title="fanc.architecture.compartments.ABCompartmentMatrix.eigenvector"><code class="xref py py-func docutils literal notranslate"><span class="pre">eigenvector()</span></code></a></p></li>
+<li><p><strong>kwargs</strong> – Keyword arguments for
+<a class="reference internal" href="#fanc.architecture.compartments.ABCompartmentMatrix.eigenvector" title="fanc.architecture.compartments.ABCompartmentMatrix.eigenvector"><code class="xref py py-func docutils literal notranslate"><span class="pre">eigenvector()</span></code></a></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code> with the enrichment profile matrix, a list of cutoffs</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
 <dt id="fanc.architecture.compartments.ABCompartmentMatrix.expected_values">
 <code class="sig-name descname">expected_values</code><span class="sig-paren">(</span><em class="sig-param">selected_chromosome=None</em>, <em class="sig-param">norm=True</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.expected_values" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the expected values for genomic contacts at all distances.</p>
@@ -867,6 +986,30 @@ query region</p>
 <li><p><strong>silent</strong> – do not print flush progress</p></li>
 <li><p><strong>update_mappability</strong> – After writing data, update mappability and expected values</p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="fanc.architecture.compartments.ABCompartmentMatrix.from_hic">
+<em class="property">classmethod </em><code class="sig-name descname">from_hic</code><span class="sig-paren">(</span><em class="sig-param">hic</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">per_chromosome=True</em>, <em class="sig-param">oe_per_chromosome=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.from_hic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate an AB compartment matrix from a Hi-C object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hic</strong> – Hi-C object (FAN-C, Juicer, Cooler)</p></li>
+<li><p><strong>file_name</strong> – Path to output file. If not specified, creates file in memory.</p></li>
+<li><p><strong>tmpdir</strong> – Optional. Work in temporary directory until file is closed.</p></li>
+<li><p><strong>per_chromosome</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code> (default) calculate compartment profile
+on a per-chromosome basis (recommended). Otherwise calculates
+profile on the whole matrix - make sure your normalisation
+is suitable for this (i.e. whole matrix!)</p></li>
+<li><p><strong>oe_per_chromosome</strong> – Use the expected value vector matching each chromosome.
+Do not modify this unless you know what you are doing.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><a class="reference internal" href="#fanc.architecture.compartments.ABCompartmentMatrix" title="fanc.architecture.compartments.ABCompartmentMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">ABCompartmentMatrix</span></code></a> object</p>
 </dd>
 </dl>
 </dd></dl>
