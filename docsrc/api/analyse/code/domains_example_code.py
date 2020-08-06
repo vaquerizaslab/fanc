@@ -9,6 +9,14 @@ hic_100kb = fanc.load("output/hic/binned/fanc_example_100kb.hic")
 # end snippet domains setup
 import matplotlib.pyplot as plt
 
+# start snippet alternative cooler
+hic_100kb = fanc.load("architecture/other-hic/fanc_example.mcool@100kb")
+# end snippet alternative cooler
+
+# start snippet alternative juicer
+hic_100kb = fanc.load("architecture/other-hic/fanc_example.juicer.hic@100kb")
+# end snippet alternative juicer
+
 # start snippet insulation basic
 insulation = fanc.InsulationScores.from_hic(hic_100kb,
                                             [5000000, 1000000, 1500000,

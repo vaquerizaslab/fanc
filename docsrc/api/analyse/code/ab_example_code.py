@@ -6,6 +6,13 @@ import matplotlib.pyplot as plt
 hic_1mb = fanc.load("output/hic/binned/fanc_example_1mb.hic")
 # end snippet ab setup
 
+# start snippet alternative cooler
+hic_1mb = fanc.load("architecture/other-hic/fanc_example.mcool@1mb")
+# end snippet alternative cooler
+
+# start snippet alternative juicer
+hic_1mb = fanc.load("architecture/other-hic/fanc_example.juicer.hic@1mb")
+# end snippet alternative juicer
 
 # start snippet ab matrix
 ab = fanc.ABCompartmentMatrix.from_hic(hic_1mb)

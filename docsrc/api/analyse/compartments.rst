@@ -13,6 +13,24 @@ Additionally, we set up the Python session like this:
     :start-after: start snippet ab setup
     :end-before: end snippet ab setup
 
+If you want to try the tutorial with an equivalent Cooler file, load the Hi-C file like
+this instead:
+
+.. literalinclude:: code/ab_example_code.py
+    :language: python
+    :start-after: start snippet alternative cooler
+    :end-before: end snippet alternative cooler
+
+or like this if you want to work with a Juicer file built from the same data:
+
+.. literalinclude:: code/ab_example_code.py
+    :language: python
+    :start-after: start snippet alternative juicer
+    :end-before: end snippet alternative juicer
+
+Note that there may be minor differences in the results due to the "zooming" and balancing
+applied by the different tools.
+
 AB correlation matrices can very easily be obtained from Hi-C files using the
 :func:`~fanc.architecture.compartments.ABCompartmentMatrix.from_hic` function:
 
@@ -87,9 +105,9 @@ To plot the EV, you can use :class:`~fanc.plotting.LinePlot`:
 .. image:: images/ab_1mb_ev.png
 
 
-================================
+=================================
 Enrichment profiles (Saddle plot)
-================================
+=================================
 
 An enrichment profile, which is used to create a :func:`~fanc.plotting.saddle_plot` is used
 to show how "interactive" genomic regions belonging to the A or B compartment are. To

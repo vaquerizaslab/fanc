@@ -11,6 +11,13 @@ hic_500kb.close()
 hic_500kb = fanc.load("output/hic/binned/fanc_example_500kb.hic", mode='a')
 # end snippet oe append
 
+# start snippet alternative cooler
+hic_500kb = fanc.load("architecture/other-hic/fanc_example.mcool@500kb")
+# end snippet alternative cooler
+
+# start snippet alternative juicer
+hic_500kb = fanc.load("architecture/other-hic/fanc_example.juicer.hic@500kb")
+# end snippet alternative juicer
 
 # start snippet oe basic
 intra_expected, intra_expected_chromosome, inter_expected = hic_500kb.expected_values()

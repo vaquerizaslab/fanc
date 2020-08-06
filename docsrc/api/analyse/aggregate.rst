@@ -15,6 +15,24 @@ necessary files, and set up your Python session like this:
     :start-after: start snippet aggregate setup
     :end-before: end snippet aggregate setup
 
+If you want to try the tutorial with an equivalent Cooler file, load the Hi-C file like
+this instead:
+
+.. literalinclude:: code/aggregate_example_code.py
+    :language: python
+    :start-after: start snippet aggregate cooler
+    :end-before: end snippet aggregate cooler
+
+or like this if you want to work with a Juicer file built from the same data:
+
+.. literalinclude:: code/aggregate_example_code.py
+    :language: python
+    :start-after: start snippet aggregate juicer
+    :end-before: end snippet aggregate juicer
+
+Note that there may be minor differences in the results due to the "zooming" and balancing
+applied by the different tools.
+
 Also have a look at the command line documentation at :ref:`fanc-aggregate`, which explains
 the different types of aggregate analyses with helpful illustrations.
 

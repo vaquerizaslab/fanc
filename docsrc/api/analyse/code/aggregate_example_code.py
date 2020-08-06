@@ -14,6 +14,14 @@ loops = fanc.load("architecture/loops/rao2014.chr11_77400000_78600000.loops_no_s
 # end snippet aggregate setup
 import matplotlib.pyplot as plt
 
+# start snippet aggregate cooler
+hic_100kb = fanc.load("architecture/other-hic/fanc_example.mcool@100kb")
+# end snippet aggregate cooler
+
+# start snippet aggregate juicer
+hic_100kb = fanc.load("architecture/other-hic/fanc_example.juicer.hic@100kb")
+# end snippet aggregate juicer
+
 # start snippet aggregate fixed
 fixed_am = fanc.AggregateMatrix.from_center(hic_100kb, boundaries.regions,
                                             window=5000000)
