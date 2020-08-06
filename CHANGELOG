@@ -1,3 +1,7 @@
+0.8.39
+
+- Fix for wrong barplot alignment
+
 0.8.38
 
 - Fix for using fanc pca without -r argument
