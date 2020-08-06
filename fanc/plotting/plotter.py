@@ -1084,6 +1084,7 @@ class BarPlot(RegionPlotBase):
         for i, (x, w, h, c) in enumerate(self._bar_values(region)):
             kwargs = self.plot_kwargs.copy()
             kwargs.setdefault('color', c)
+            kwargs.setdefault('align', 'edge')
             kwargs.setdefault('label', self.labels[i] if self.labels else "")
             kwargs.setdefault('alpha', self.alpha)
 
