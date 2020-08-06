@@ -9,6 +9,8 @@ somewhat easier. These are not strictly necessary for matrix generation and anal
 but can often speed your analysis up or simply make it a little more convenient.
 
 
+.. _fanc_from_txt:
+
 ========================================
 fanc from-txt: import Hic from text file
 ========================================
