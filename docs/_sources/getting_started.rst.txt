@@ -166,13 +166,6 @@ You can download the files from `our Keeper library <https://keeper.mpdl.mpg.de/
    unzip examples.zip
    cd examples
 
-or clone the FAN-C repository from our `GitHub page <http://www.github.com/vaquerizaslab/fanc>`_:
-
-.. code:: bash
-
-   git clone http://www.github.com/vaquerizaslab/fanc
-   cd examples
-
 From the examples folder, run:
 
 .. code:: bash
