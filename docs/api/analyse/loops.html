@@ -1,0 +1,410 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Loop calling &mdash; FAN-C 0.8.39-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Plotting (API)" href="../plot.html" />
+    <link rel="prev" title="Aggregate analyses" href="aggregate.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.39
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compatibility.html">Working with Juicer and Cooler files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../interfaces.html">Interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../analyse.html">Analyse Hi-C matrices (API)</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="oe.html">Expected values and O/E matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="compartments.html">AB compartments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pca.html">PCA analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="domains.html">TADs and TAD boundaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparisons.html">Matrix and score comparisons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aggregate.html">Aggregate analysis</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Loop calling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#annotate-pixels">Annotate pixels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#filter-pixels">Filter pixels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#merge-pixels">Merge pixels</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plot.html">Plotting (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules.html">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../api.html">fanc Python module</a> &raquo;</li>
+        
+          <li><a href="../analyse.html">Analyse Hi-C matrices using the API</a> &raquo;</li>
+        
+      <li>Loop calling</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/api/analyse/loops.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="loop-calling">
+<span id="api-loops"></span><h1>Loop calling<a class="headerlink" href="#loop-calling" title="Permalink to this headline">¶</a></h1>
+<p>To follow this tutorial, download the FAN-C example data, for example through our
+<a class="reference external" href="https://keeper.mpdl.mpg.de/d/147906745b634c779ed3/">Keeper library</a>, and set up
+your Python session like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
+<span class="kn">import</span> <span class="nn">fanc.peaks</span>
+<span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">fancplot</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%(asctime)s</span><span class="s2"> </span><span class="si">%(levelname)s</span><span class="s2"> </span><span class="si">%(message)s</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1">#hic_10kb = fanc.load(&quot;architecture/other-hic/bonev2017_esc_10kb.chr1.hic&quot;)</span>
+<span class="n">hic_sample</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/loops/rao2014.chr11_77400000_78600000.hic&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Also have a look at the command line documentation at <a class="reference internal" href="../../fanc-executable/fanc-analyse-hic/loops.html#fanc-loops"><span class="std std-ref">Loop calling</span></a> for the
+command-line approach to loop calling in FAN-C.</p>
+<p>Loop calling in FAN-C is a 3-step process:</p>
+<ol class="arabic simple">
+<li><p>Annotate pixels with local enrichment, probability, and mappability information</p></li>
+<li><p>Filter pixels based on suitable cutoffs to identify pixels that are part of a loop</p></li>
+<li><p>Merge nearby pixels into a single loop call</p></li>
+</ol>
+<div class="section" id="annotate-pixels">
+<h2>Annotate pixels<a class="headerlink" href="#annotate-pixels" title="Permalink to this headline">¶</a></h2>
+<p>Start by annotating each pixel with loop information using the
+<a class="reference internal" href="../modules/peaks.html#fanc.peaks.RaoPeakCaller" title="fanc.peaks.RaoPeakCaller"><code class="xref py py-class docutils literal notranslate"><span class="pre">RaoPeakCaller</span></code></a> and <a class="reference internal" href="../modules/peaks.html#fanc.peaks.RaoPeakCaller.call_peaks" title="fanc.peaks.RaoPeakCaller.call_peaks"><code class="xref py py-func docutils literal notranslate"><span class="pre">call_peaks()</span></code></a> function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">loop_caller</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">RaoPeakCaller</span><span class="p">()</span>
+<span class="n">loop_info</span> <span class="o">=</span> <span class="n">loop_caller</span><span class="o">.</span><span class="n">call_peaks</span><span class="p">(</span><span class="n">hic_sample</span><span class="p">,</span>
+                                   <span class="n">file_name</span><span class="o">=</span><span class="s2">&quot;architecture/loops/rao2014.chr11_77400000_78600000.loop_info&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This creates a <a class="reference internal" href="../modules/peaks.html#fanc.peaks.RaoPeakInfo" title="fanc.peaks.RaoPeakInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">RaoPeakInfo</span></code></a> object, which contains a bunch of information
+on each pixel. Here are the most important ones:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code> and <code class="docutils literal notranslate"><span class="pre">uncorrected</span></code> are the normalised and raw contact strength, respectively</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">e_d</span></code>, <code class="docutils literal notranslate"><span class="pre">e_h</span></code>, <code class="docutils literal notranslate"><span class="pre">e_v</span></code>, and <code class="docutils literal notranslate"><span class="pre">e_ll</span></code> are the expected values calculated from the
+donut, horizontal, vertical, and lower left neighborhoods, repectively, of the pixel</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">oe_d</span></code>, <code class="docutils literal notranslate"><span class="pre">oe_h</span></code>, <code class="docutils literal notranslate"><span class="pre">oe_v</span></code>, <code class="docutils literal notranslate"><span class="pre">oe_ll</span></code> are the observed/expected (O/E) values
+calculated from the donut, horizontal, vertical, and lower left neighborhoods, repectively,
+of the pixel</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fdr_d</span></code>, <code class="docutils literal notranslate"><span class="pre">fdr_h</span></code>, <code class="docutils literal notranslate"><span class="pre">fdr_v</span></code>, <code class="docutils literal notranslate"><span class="pre">fdr_ll</span></code> are the false discovery rates (FDRs)
+calculated from the donut, horizontal, vertical, and lower left neighborhoods, repectively,
+of the pixel</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mappability_d</span></code>, <code class="docutils literal notranslate"><span class="pre">mappability_h</span></code>, <code class="docutils literal notranslate"><span class="pre">mappability_v</span></code>, <code class="docutils literal notranslate"><span class="pre">mappability_ll</span></code> are the mappabilities
+of the donut, horizontal, vertical, and lower left neighborhoods, repectively,
+of the pixel. This is a value between 0 and 1 stating how many pixels in each neighborhood
+have valid weights</p></li>
+</ul>
+<p>By default, most intra-chromosomal pixels will receive this information, but you have some
+influence over the computation with additional parameters. For example, loops tend to occur
+away from the diagonal, so you may want to exclude pixels near the diagonal using <code class="docutils literal notranslate"><span class="pre">min_locus_dist</span></code>,
+whihc is expressed in bins. You can also change the values for <code class="docutils literal notranslate"><span class="pre">p</span></code> and <code class="docutils literal notranslate"><span class="pre">w_init</span></code> (see original
+publication for details) - otherwise sensible defaults are chosen. <code class="docutils literal notranslate"><span class="pre">min_mappable_fraction</span></code>
+controls which pixels are excluded if their local neighbourhoods are below a certain mappability
+fraction, which is 0.7 by default, i.e. 70% of each neighbourhood must be valid.</p>
+<p>Finally, loops calling is very resource intensive and needs to be heavily parallelised. The number
+of parallel processes is controlled with <code class="docutils literal notranslate"><span class="pre">n_processes</span></code>. By default, this runs loop calling
+locally. However, we highly recommend setting <code class="docutils literal notranslate"><span class="pre">cluster=True</span></code> if you are in a cluster environment
+that supports DRMAA (e.g. SGE, Slurm). You may need to set the <code class="docutils literal notranslate"><span class="pre">DRMAA_LIBRARY_PATH</span></code> environment
+variable to the location of your <code class="docutils literal notranslate"><span class="pre">libdrmaa.so</span></code> in your shell in order for this to work.
+<a class="reference internal" href="../modules/peaks.html#fanc.peaks.RaoPeakCaller.call_peaks" title="fanc.peaks.RaoPeakCaller.call_peaks"><code class="xref py py-func docutils literal notranslate"><span class="pre">call_peaks()</span></code></a> must then be called from a head node in order to be
+able to submit jobs to the cluster. Read more about the interface with DRMAA in the
+<a class="reference external" href="https://github.com/pygridtools/gridmap">gridmap package</a>.</p>
+<p>To access the new pixel information, you can use the <code class="xref py py-func docutils literal notranslate"><span class="pre">peaks()</span></code> iterator:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">loop_info</span><span class="o">.</span><span class="n">peaks</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">edge</span><span class="o">.</span><span class="n">oe_d</span><span class="p">,</span> <span class="n">edge</span><span class="o">.</span><span class="n">fdr_d</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We can also plot it like a regular matrix:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># regular Hi-C</span>
+<span class="n">p_hic</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">TriangularMatrixPlot</span><span class="p">(</span><span class="n">loop_info</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+                                      <span class="n">max_dist</span><span class="o">=</span><span class="mi">600000</span><span class="p">)</span>
+<span class="c1"># Donut O/E values</span>
+<span class="n">p_oe_d</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">TriangularMatrixPlot</span><span class="p">(</span><span class="n">loop_info</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+                                       <span class="n">weight_field</span><span class="o">=</span><span class="s1">&#39;oe_d&#39;</span><span class="p">,</span> <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;Reds&#39;</span><span class="p">,</span>
+                                       <span class="n">max_dist</span><span class="o">=</span><span class="mi">600000</span><span class="p">)</span>
+<span class="c1"># Donut FDR values</span>
+<span class="n">p_fdr_d</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">TriangularMatrixPlot</span><span class="p">(</span><span class="n">loop_info</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+                                        <span class="n">weight_field</span><span class="o">=</span><span class="s1">&#39;fdr_d&#39;</span><span class="p">,</span> <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;binary_r&#39;</span><span class="p">,</span>
+                                        <span class="n">max_dist</span><span class="o">=</span><span class="mi">600000</span><span class="p">)</span>
+
+<span class="n">gf</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">([</span><span class="n">p_hic</span><span class="p">,</span> <span class="n">p_oe_d</span><span class="p">,</span> <span class="n">p_fdr_d</span><span class="p">],</span> <span class="n">ticks_last</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">gf</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr11:77.4mb-78.6mb&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="../../_images/loops_annotate.png" src="../../_images/loops_annotate.png" />
+<p>Note how we are controlling which attribute is plotted with <code class="docutils literal notranslate"><span class="pre">weight_field</span></code>.</p>
+<p>These kinds of plots can be extremely useful to choose appropriate filtering thresholds for
+each of these attributes, which we will see in the next section.</p>
+</div>
+<div class="section" id="filter-pixels">
+<h2>Filter pixels<a class="headerlink" href="#filter-pixels" title="Permalink to this headline">¶</a></h2>
+<p>Based on the annotation, we can try to filter out pixels that are not part of loops. This can
+be done with filters, specifically</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../modules/peaks.html#fanc.peaks.EnrichmentPeakFilter" title="fanc.peaks.EnrichmentPeakFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">EnrichmentPeakFilter</span></code></a> filters pixels below a minimum O/E in specific
+neighborhoods</p></li>
+<li><p><a class="reference internal" href="../modules/peaks.html#fanc.peaks.FdrPeakFilter" title="fanc.peaks.FdrPeakFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FdrPeakFilter</span></code></a> filters pixels with an FDR higher than specified in each
+neighborhood</p></li>
+<li><p><a class="reference internal" href="../modules/peaks.html#fanc.peaks.MappabilityPeakFilter" title="fanc.peaks.MappabilityPeakFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">MappabilityPeakFilter</span></code></a> filters pixels with a minimum mappable fraction
+below the specified cutoffs</p></li>
+<li><p><a class="reference internal" href="../modules/peaks.html#fanc.peaks.ObservedPeakFilter" title="fanc.peaks.ObservedPeakFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">ObservedPeakFilter</span></code></a> filters pixels that do not have a minimum number of
+raw reads mapping to them</p></li>
+<li><p><a class="reference internal" href="../modules/peaks.html#fanc.peaks.DistancePeakFilter" title="fanc.peaks.DistancePeakFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">DistancePeakFilter</span></code></a> filters pixels that are closer than a certain number
+of bins from the diagonal</p></li>
+</ul>
+<p>Each of these is instantiated and then added to the object using
+<a class="reference internal" href="../modules/peaks.html#fanc.peaks.RaoPeakInfo.filter" title="fanc.peaks.RaoPeakInfo.filter"><code class="xref py py-func docutils literal notranslate"><span class="pre">filter()</span></code></a>. When applying multiple filters it is recommended to
+first queue them using <code class="docutils literal notranslate"><span class="pre">queue=True</span></code> and to run all of them together with
+<a class="reference internal" href="../modules/peaks.html#fanc.peaks.RaoPeakInfo.run_queued_filters" title="fanc.peaks.RaoPeakInfo.run_queued_filters"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_queued_filters()</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># filter on O/E</span>
+<span class="n">enrichment_filter</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">peaks</span><span class="o">.</span><span class="n">EnrichmentPeakFilter</span><span class="p">(</span>
+        <span class="n">enrichment_ll_cutoff</span><span class="o">=</span><span class="mf">1.75</span><span class="p">,</span>
+        <span class="n">enrichment_d_cutoff</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+        <span class="n">enrichment_h_cutoff</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="n">enrichment_v_cutoff</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">loop_info</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">enrichment_filter</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<span class="c1"># filter on FDR</span>
+<span class="n">fdr_filter</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">peaks</span><span class="o">.</span><span class="n">FdrPeakFilter</span><span class="p">(</span>
+    <span class="n">fdr_ll_cutoff</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+    <span class="n">fdr_d_cutoff</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+    <span class="n">fdr_h_cutoff</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+    <span class="n">fdr_v_cutoff</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>
+<span class="n">loop_info</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">fdr_filter</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<span class="c1"># filter on mappability</span>
+<span class="n">mappability_filter</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">peaks</span><span class="o">.</span><span class="n">MappabilityPeakFilter</span><span class="p">(</span>
+    <span class="n">mappability_ll_cutoff</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+    <span class="n">mappability_d_cutoff</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+    <span class="n">mappability_h_cutoff</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+    <span class="n">mappability_v_cutoff</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
+<span class="n">loop_info</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">mappability_filter</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<span class="c1"># filter on distance from diagonal</span>
+<span class="n">distance_filter</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">peaks</span><span class="o">.</span><span class="n">DistancePeakFilter</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<span class="n">loop_info</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">distance_filter</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<span class="c1"># filter on minimum number of observed values</span>
+<span class="n">observed_filter</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">peaks</span><span class="o">.</span><span class="n">ObservedPeakFilter</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">loop_info</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">observed_filter</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<span class="n">loop_info</span><span class="o">.</span><span class="n">run_queued_filters</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../../_images/loops_remaining.png" src="../../_images/loops_remaining.png" />
+<p>We could also tweak the above cutoffs to further remove noisy pixels. The next step is to merge
+pixels belonging to the same loop into loop calls.</p>
+</div>
+<div class="section" id="merge-pixels">
+<h2>Merge pixels<a class="headerlink" href="#merge-pixels" title="Permalink to this headline">¶</a></h2>
+<p>To merge the remaining pixels into loops use</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">merged_peaks</span> <span class="o">=</span> <span class="n">loop_info</span><span class="o">.</span><span class="n">merged_peaks</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">merged_peaks</span></code> now contains putative loop calls. However, there will still be a number of
+false-positive loops in this object, which typically consist of a single enriched pixel, likely
+due to noise. Real loops generally consist of multiple pixels. We can remove the “singlets”
+using <a class="reference internal" href="../modules/peaks.html#fanc.peaks.RaoMergedPeakFilter" title="fanc.peaks.RaoMergedPeakFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">RaoMergedPeakFilter</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">singlet_filter</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">peaks</span><span class="o">.</span><span class="n">RaoMergedPeakFilter</span><span class="p">(</span><span class="n">cutoff</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">merged_peaks</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">singlet_filter</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>A cutoff here of <code class="docutils literal notranslate"><span class="pre">-1</span></code> remove all singlets. In Rao, Huntley et al. (2014) they only remove
+singlets if their qvalue sum is larger than <code class="docutils literal notranslate"><span class="pre">0.02</span></code>, which you can use instead of <code class="docutils literal notranslate"><span class="pre">-1</span></code>
+and particularly strong singlets will still be kept in the data.</p>
+<p>For our example dataset this leaves only a single loop, which we can export with
+<code class="xref py py-func docutils literal notranslate"><span class="pre">to_bedpe()</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># regular Hi-C</span>
+<span class="n">merged_peaks</span><span class="o">.</span><span class="n">to_bedpe</span><span class="p">(</span><span class="s2">&quot;architecture/loops/rao2014.chr11_77400000_78600000.bedpe&quot;</span><span class="p">)</span>
+<span class="c1"># chr11	77807143	77842857	chr11	77947143	77982857	.	0.0</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../plot.html" class="btn btn-neutral float-right" title="Plotting (API)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="aggregate.html" class="btn btn-neutral float-left" title="Aggregate analyses" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

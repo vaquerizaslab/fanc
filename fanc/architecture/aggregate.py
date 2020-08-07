@@ -384,17 +384,23 @@ class AggregateMatrix(FileGroup):
                           region_viewpoint='center',
                           **kwargs):
         """
+        Construct an aggregate matrix from pairs of regions.
 
-        :param hic:
-        :param pair_regions:
-        :param window:
-        :param pixels:
-        :param keep_components:
-        :param file_name:
-        :param tmpdir:
-        :param region_viewpoint:
-        :param kwargs:
-        :return:
+        :param hic: A compatible Hi-C matrix
+        :param pair_regions: A list of region pairs
+        :param window: A window size in base pairs
+        :param pixels: The dimension (in pixels) of the output matrix
+        :param keep_components: Keep all submatrices that make up the aggregate matrix
+        :param file_name: Optional path to an output file
+        :param tmpdir: Optional. If ``True``, will work in temporary
+                       directory until file is closed
+        :param region_viewpoint: Location in each region that is used as
+                                 anchor for the extracted matrix. 'center' by default,
+                                 also valid are 'start', 'end', 'five_prime', and
+                                 'three_prime'
+        :param kwargs: Keyword arguments passed on to
+                       :func:`~fanc.architecture.aggregate.extract_submatrices`
+        :return: :class:`~fanc.architecture.aggregate.AggregateMatrix`
         """
         kwargs.setdefault('oe', True)
         kwargs.setdefault('keep_invalid', False)

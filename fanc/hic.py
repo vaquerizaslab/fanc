@@ -255,58 +255,58 @@ class Hic(RegionMatrixTable):
                 pool = None
                 try:
                     logger.info("Launching processes")
-                    pool = mp.Pool(threads, _bin_hic_partition_worker,
-                                   (file_name,
-                                    qin, qout,
-                                    msgpack.dumps(overlap_map),
-                                    _edges_by_overlap_method,
-                                    access_lock))
+                    with mp.get_context("spawn").Pool(threads, _bin_hic_partition_worker,
+                                                      (file_name,
+                                                       qin, qout,
+                                                       msgpack.dumps(overlap_map),
+                                                       _edges_by_overlap_method,
+                                                       access_lock)) as pool:
 
-                    n_fragments = len(hic.regions)
-                    thread_max = min(int(n_fragments/threads), _regions_soft_max)
-                    partitions = [[0, 0]]
-                    previous_chromosome = None
-                    for i, region in enumerate(hic.regions(lazy=True)):
-                        if previous_chromosome is not None and (region.chromosome != previous_chromosome
-                                                                or i == n_fragments - 1):
-                            partition_size = partitions[-1][1] - partitions[-1][0]
-                            current_size = i - partitions[-1][1]
-                            partition_empty = thread_max - partition_size
+                        n_fragments = len(hic.regions)
+                        thread_max = min(int(n_fragments/threads), _regions_soft_max)
+                        partitions = [[0, 0]]
+                        previous_chromosome = None
+                        for i, region in enumerate(hic.regions(lazy=True)):
+                            if previous_chromosome is not None and (region.chromosome != previous_chromosome
+                                                                    or i == n_fragments - 1):
+                                partition_size = partitions[-1][1] - partitions[-1][0]
+                                current_size = i - partitions[-1][1]
+                                partition_empty = thread_max - partition_size
 
-                            if partition_size == 0 or partition_empty > current_size/2:
-                                partitions[-1][1] = i
-                            else:
-                                partitions.append([partitions[-1][1], i])
-                        previous_chromosome = region.chromosome
-                    partitions[-1][1] = n_fragments
+                                if partition_size == 0 or partition_empty > current_size/2:
+                                    partitions[-1][1] = i
+                                else:
+                                    partitions.append([partitions[-1][1], i])
+                            previous_chromosome = region.chromosome
+                        partitions[-1][1] = n_fragments
 
-                    logger.info("Submitting partitions")
+                        logger.info("Submitting partitions")
 
-                    # submit intra-chromosomal first to distribute
-                    # load among workers more evenly
-                    n_chunks = 0
-                    for partition in partitions:
-                        qin.put((partition, partition))
-                        n_chunks += 1
-
-                    # then submit inter-chromosomal partitions
-                    for cix1, partition1 in enumerate(partitions):
-                        for cix2 in range(cix1 + 1, len(partitions)):
-                            partition2 = partitions[cix2]
-                            qin.put((partition1, partition2))
+                        # submit intra-chromosomal first to distribute
+                        # load among workers more evenly
+                        n_chunks = 0
+                        for partition in partitions:
+                            qin.put((partition, partition))
                             n_chunks += 1
 
-                    self._disable_edge_indexes()
-                    logger.info("Collecting results")
-                    with RareUpdateProgressBar(max_value=n_chunks, prefix="Binning") as pb:
-                        for i in range(n_chunks):
-                            out = qout.get(block=True)
-                            if isinstance(out, Exception):
-                                raise out
-                            edges = msgpack.loads(out, use_list=False, strict_map_key=False)
-                            for (source, sink), weight in edges.items():
-                                self.add_edge_simple(source, sink, weight=weight)
-                            pb.update(i)
+                        # then submit inter-chromosomal partitions
+                        for cix1, partition1 in enumerate(partitions):
+                            for cix2 in range(cix1 + 1, len(partitions)):
+                                partition2 = partitions[cix2]
+                                qin.put((partition1, partition2))
+                                n_chunks += 1
+
+                        self._disable_edge_indexes()
+                        logger.info("Collecting results")
+                        with RareUpdateProgressBar(max_value=n_chunks, prefix="Binning") as pb:
+                            for i in range(n_chunks):
+                                out = qout.get(block=True)
+                                if isinstance(out, Exception):
+                                    raise out
+                                edges = msgpack.loads(out, use_list=False, strict_map_key=False)
+                                for (source, sink), weight in edges.items():
+                                    self.add_edge_simple(source, sink, weight=weight)
+                                pb.update(i)
                 finally:
                     for i in range(threads):
                         qin.put(None)
@@ -412,15 +412,29 @@ class Hic(RegionMatrixTable):
         mask = self.add_mask_description('low_coverage',
                                          'Mask low coverage regions in the Hic matrix '
                                          '(absolute cutoff {:.4}, relative '
-                                         'cutoff {:.1%}'.format(float(cutoff) if cutoff else 0., float(rel_cutoff) if rel_cutoff else 0.))
+                                         'cutoff {:.1%}'.format(float(cutoff) if cutoff else 0.,
+                                                                float(rel_cutoff) if rel_cutoff else 0.))
 
         low_coverage_filter = LowCoverageFilter(self, rel_cutoff=rel_cutoff, cutoff=cutoff, mask=mask)
         self.filter(low_coverage_filter, queue)
 
     def filter_statistics(self):
         stats = self.mask_statistics(self._edges)
-
         return stats
+
+    def normalise(self, method='KR', **kwargs):
+        if method.lower() == 'kr':
+            bias_vector = kr_balancing(self, **kwargs)
+        elif method.lower() == 'ice':
+            bias_vector = ice_balancing(self, **kwargs)
+        elif method.lower() == 'vc' or method.lower() == 'vanilla':
+            bias_vector = vanilla_coverage_norm(self, **kwargs)
+        elif method.lower() in {'sqrt_vc', 'sqrt-vc', 'sqrt_vanilla', 'sqrt-vanilla',
+                                'vc_sqrt', 'vc-sqrt', 'vanilla-sqrt', 'vanilla_sqrt'}:
+            bias_vector = sqrt_vanilla_coverage_norm(self, **kwargs)
+        else:
+            raise ValueError("Unknown normalisation method: {}".format(method))
+        return bias_vector
 
 
 class LegacyHic(Hic):
@@ -672,7 +686,26 @@ class LowCoverageFilter(HicEdgeFilter):
 
 
 def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
-                  inter_chromosomal=True, intra_chromosomal=True):
+                  inter_chromosomal=True, intra_chromosomal=True, restore_coverage=False,
+                  sqrt=True):
+    """
+    Apply ICE balancing to Hi-C matrices.
+
+    Iteratively calculates and divides by the matrix margins.
+
+    :param hic: Hi-C object
+    :param tolerance: Error tolerance (marginal error)
+    :param max_iterations: Maximum number of iterations to perform
+                           to achieve error tolerance
+    :param whole_matrix: Correct the whole matrix at once.
+                         Default is to correct each chromosome individually.
+    :param inter_chromosomal: Include inter-chromosomal contacts in balancing (only whole matrix)
+    :param intra_chromosomal: Include intra-chromosomal contacts in balancing (only whole matrix)
+    :param restore_coverage: Restore the matrix to its original coverage after balancing,
+                             i.e. the sum of contacts in the matrix after balancing remains
+                             (roughly) the same
+    :return: bias vector
+    """
     logger.info("Starting ICE matrix balancing")
 
     if not whole_matrix:
@@ -680,36 +713,59 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
         for chromosome in hic.chromosomes():
             region_converter = dict()
             bias_vector = []
+            n_regions = 0
             for i, region in enumerate(hic.regions(chromosome)):
                 region_converter[region.ix] = i
                 bias_vector.append(1)
+                if region.valid:
+                    n_regions += 1
             bias_vector = np.array(bias_vector, dtype='float64')
 
             marginal_error = tolerance + 1
             current_iteration = 0
 
-            edges = [[e['source'], e['sink'], e['weight']]
-                     for e in hic.edges_dict((chromosome, chromosome), lazy=True, norm=False)]
+            total_weight = 0
+            edges = []
+            for e in hic.edges_dict((chromosome, chromosome), lazy=True, norm=False):
+                source, sink, weight = e['source'], e['sink'], e['weight']
+                edges.append([source, sink, weight])
+                total_weight += weight
+                if source != sink:
+                    total_weight += weight
 
             while (marginal_error > tolerance and
-                   current_iteration <= max_iterations):
+                   current_iteration < max_iterations):
                 m = np.zeros(len(bias_vector), dtype='float64')
-                for i in range(len(edges)):
-                    source = region_converter[edges[i][0]]
-                    sink = region_converter[edges[i][1]]
-                    m[source] += edges[i][2]
+                for source, sink, weight in edges:
+                    source_sub = region_converter[source]
+                    sink_sub = region_converter[sink]
+                    m[source_sub] += weight
                     if source != sink:
-                        m[sink] += edges[i][2]
+                        m[sink_sub] += weight
 
-                bias_vector *= np.sqrt(m)
                 marginal_error = _marginal_error(m)
+
+                if sqrt:
+                    m = np.sqrt(m)
+                else:
+                    # multiply with constant factor so marginals are 1
+                    bias_mean = np.mean(m[m != 0])
+                    marginal_mean = np.sqrt(np.sum(m) / n_regions)
+                    m = m * marginal_mean / bias_mean
+
+                bias_vector *= m
+
                 for i in range(len(edges)):
                     source = region_converter[edges[i][0]]
                     sink = region_converter[edges[i][1]]
-                    edges[i][2] = 0 if m[sink] == 0 else edges[i][2] / np.sqrt(m[source]) / np.sqrt(m[sink])
+                    edges[i][2] = 0 if m[sink] == 0 else edges[i][2] / m[source] / m[sink]
 
                 current_iteration += 1
                 logger.debug("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
+
+            if restore_coverage:
+                bias_vector = bias_vector / np.sqrt(total_weight / n_regions)
+
             bias_vectors.append(bias_vector)
         logger.info("Done.")
         logger.info("Adding bias vector...")
@@ -721,13 +777,21 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
         marginal_error = tolerance + 1
         current_iteration = 0
         logger.info("Collecting edges")
-        edges = [[e.source, e.sink, e.weight] for e in hic.edges(norm=False,
-                                                                 intra_chromosomal=intra_chromosomal,
-                                                                 inter_chromosomal=inter_chromosomal)]
+
+        total_weight = 0
+        edges = []
+        for e in hic.edges(norm=False, lazy=True,
+                           intra_chromosomal=intra_chromosomal,
+                           inter_chromosomal=inter_chromosomal):
+            source, sink, weight = e.source, e.sink, e.weight
+            edges.append([source, sink, weight])
+            total_weight += weight
+            if source != sink:
+                total_weight += weight
+
         logger.info("Starting iterations")
         while (marginal_error > tolerance and
-               current_iteration <= max_iterations):
-
+               current_iteration < max_iterations):
             m = np.zeros(len(bias_vector), dtype='float64')
             for i in range(len(edges)):
                 source = edges[i][0]
@@ -738,7 +802,6 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
 
             bias_vector *= np.sqrt(m)
             marginal_error = _marginal_error(m)
-
             for i in range(len(edges)):
                 source = edges[i][0]
                 sink = edges[i][1]
@@ -746,6 +809,9 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
 
             current_iteration += 1
             logger.debug("Iteration: %d, error: %lf" % (current_iteration, marginal_error))
+
+        if restore_coverage:
+            bias_vector = bias_vector / np.sqrt(total_weight / len(hic.regions))
 
     with np.errstate(divide='ignore'):
         bias_vector = 1/bias_vector
@@ -759,6 +825,35 @@ def _marginal_error(marginals, percentile=99.9):
     marginals = marginals[marginals != 0]
     error = np.percentile(np.abs(marginals - marginals.mean()), percentile)
     return error / marginals.mean()
+
+
+def vanilla_coverage_norm(*args, **kwargs):
+    """
+    Apply vanilla coverage normalisation to Hi-C matrices.
+
+    Identical to ice_balancing with max_iterations set to 1 and sqrt to False.
+
+    :param args: see ice_balancing
+    :param kwargs: ice_balancing
+    :return: bias vector (numpy)
+    """
+    kwargs['max_iterations'] = 1
+    kwargs['sqrt'] = False
+    return ice_balancing(*args, **kwargs)
+
+
+def sqrt_vanilla_coverage_norm(*args, **kwargs):
+    """
+    Apply vanilla coverage normalisation to Hi-C matrices with sqrt bias vectors.
+
+    Identical to ice_balancing with max_iterations set to 1.
+
+    :param args: see ice_balancing
+    :param kwargs: ice_balancing
+    :return: bias vector (numpy)
+    """
+    kwargs['max_iterations'] = 1
+    return ice_balancing(*args, **kwargs)
 
 
 def kr_balancing(hic, whole_matrix=True, intra_chromosomal=True, inter_chromosomal=True,

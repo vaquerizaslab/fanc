@@ -29,6 +29,11 @@ class RegionScoreTable(RegionsTable):
         RegionsTable.__init__(*args, **kwargs)
 
     def scores(self):
+        """
+        Return scores as list.
+
+        :return: list of float
+        """
         return self.region_data('score')
 
 
@@ -73,10 +78,24 @@ class RegionScoreParameterTable(RegionMultiScoreTable):
         return [self._parameter_prefix + str(v) for v in parameters]
 
     def scores(self, parameter, scores=None):
+        """
+        Return scores for a specific parameter size as list.
+
+        :param parameter: Parameter scores were calculated for, such as window size
+        :param scores: If provided, set scores for this parameter to the ones in this list.
+        :return: list of scores
+        """
         score_field = self._score_field_converter([parameter])[0]
         return self.region_data(score_field, scores)
 
-    def score_regions(self, parameter):
+    def score_regions(self, parameter, **kwargs):
+        """
+        Construct a new object with regions that have a ``score`` attribute
+        which corresponds to scores calculated with this parameter.
+        :param parameter: Use scores calculated with this parameter (e.g. window size)
+        :param kwargs: Keyword arguments passed to :class:`~fanc.regions.RegionsTable`
+        :return: :class:`~fanc.architecture.domains.RegionScoreTable`
+        """
         score_field = self._score_field_converter([parameter])[0]
         regions = []
         for region in self.regions:
@@ -84,7 +103,7 @@ class RegionScoreParameterTable(RegionMultiScoreTable):
                               start=region.start, end=region.end,
                               strand=region.strand, score=getattr(region, score_field))
             regions.append(r)
-        scores = RegionScoreTable()
+        scores = RegionScoreTable(**kwargs)
         scores.add_regions(regions)
         return scores
 
@@ -111,12 +130,36 @@ class RegionScoreParameterTable(RegionMultiScoreTable):
         return file_name
 
     def to_bed(self, file_name, parameter, subset=None):
+        """
+        Write scores to BED file.
+
+        :param file_name: Path to output file
+        :param parameter: Parameter the scores were calculated for, such as window size
+        :param subset: A :class:`~genomic_regions.GenomicRegion` or region string specifying a
+                       region range to be written to file, e.g. "chr19:1-1mb"
+        """
         return self._to_file(file_name, parameter, subset=subset, _write_function=write_bed)
 
     def to_gff(self, file_name, parameter, subset=None):
+        """
+        Write scores to GFF file.
+
+        :param file_name: Path to output file
+        :param parameter: Parameter the scores were calculated for, such as window size
+        :param subset: A :class:`~genomic_regions.GenomicRegion` or region string specifying a
+                       region range to be written to file, e.g. "chr19:1-1mb"
+        """
         return self._to_file(file_name, parameter, subset=subset, _write_function=write_gff)
 
     def to_bigwig(self, file_name, parameter, subset=None):
+        """
+        Write scores to BigWig file.
+
+        :param file_name: Path to output file
+        :param parameter: Parameter the scores were calculated for, such as window size
+        :param subset: A :class:`~genomic_regions.GenomicRegion` or region string specifying a
+                       region range to be written to file, e.g. "chr19:1-1mb"
+        """
         return self._to_file(file_name, parameter, subset=subset, _write_function=write_bigwig)
 
 
@@ -152,6 +195,11 @@ class InsulationScores(RegionScoreParameterTable):
 
     @property
     def window_sizes(self):
+        """
+        Get a list of window sizes in this object.
+
+        :return: list of window sizes (int)
+        """
         return self._parameters
 
     @classmethod
@@ -160,9 +208,52 @@ class InsulationScores(RegionScoreParameterTable):
                  na_threshold=0.5, normalise=True, normalisation_window=None,
                  trim_mean_proportion=0.0, geometric_mean=False,
                  subtract_mean=False, log=True):
+        """
+        Calculate insulation scores with multiple window sizes.
 
+        Insulation scores provide a great way to quantify the level of
+        interactions the cross each genomic region. It is calculated by summing up
+        (normalised) contacts in a square next to the diagonal for each genomic
+        region. Therefore, low scores correspond to highly insulated regions with
+        few interactions spanning them.
+
+        :param hic: A Hi-C object
+        :param window_sizes: A window size or list of window sizes used for the
+                             sliding window
+        :param window_offset: An offset of the sliding window in bins from the
+                              diagonal
+        :param file_name: Path to file where insulation scores are saved
+        :param tmpdir: Optional. If ``True``, will work with file in temporary
+                       directory until it is closed
+        :param impute_missing: Will replace missing / masked values in matrix
+                               with their expected value prior to insulation
+                               score calculation
+        :param na_threshold: Fraction of missing values that is tolerated
+                             in a sliding window before the score is set to NaN
+        :param normalise: Normalise insulation score by dividing by chromosome mean
+                          or mean of a sliding window if ``normalisation_window``
+                          is set.
+        :param normalisation_window: If ``None`` (default), normalisation is performed
+                                     by dividing insulation scores by the chromosome mean.
+                                     You can set this to a number of bins to perform a more
+                                     local normalisation using average values in a window of
+                                     that size
+        :param trim_mean_proportion: If > 0 will use a trimmed mean for normalisation
+                                     trimming this fraction of scores before calculating the
+                                     mean. Use this if you expect outliers in insulation
+                                     scores
+        :param geometric_mean: Use a geometric mean instead of arithmetic. If using
+                               log-transformed, and if you intend to subtract scores
+                               from different samples for comparison, this is
+                               recommended
+        :param subtract_mean: For normalisation, subtract mean instead of dividing by it.
+        :param log: Log2-transform insulation scores after calculation. In the default
+                    parameters, this makes scores roughly symmetrical around 0.
+        :return: :class:`~fanc.architecture.domains.InsulationScores`
+        """
         if isinstance(window_sizes, int):
             window_sizes = [window_sizes]
+        window_sizes = sorted(window_sizes)
 
         bin_window_sizes = [int(hic.distance_to_bins(w) / 2) for w in window_sizes]
 
@@ -242,10 +333,10 @@ class InsulationScores(RegionScoreParameterTable):
                                 for ii_bin in range(start, stop):
                                     values_by_chromosome[w_ix][ii_bin] += weight
 
-                for k in range(len(values_by_chromosome)):
-                    for w_ix, bin_window_size in enumerate(bin_window_sizes):
+                for w_ix, bin_window_size in enumerate(bin_window_sizes):
+                    for k in range(len(values_by_chromosome[w_ix])):
                         if (k - window_offset < bin_window_size - 1
-                                or k + window_offset > len(values_by_chromosome) - bin_window_size):
+                                or k + window_offset > len(values_by_chromosome[w_ix]) - bin_window_size):
                             values_by_chromosome[w_ix][k] = np.nan
                         else:
                             values_by_chromosome[w_ix][k] /= bin_window_size ** 2
@@ -315,7 +406,7 @@ class InsulationScores(RegionScoreParameterTable):
             ins_matrix = np.array(list(itertools.chain.from_iterable(ii_list[w_ix])))
 
             if log:
-                logger.debug("Log-transforming insulation index")
+                logger.debug("Log-transforming insulation score")
                 ins_matrix = np.log2(ins_matrix)
 
             insulation_scores.scores(window_size, ins_matrix)
@@ -350,11 +441,28 @@ class DirectionalityIndexes(RegionScoreParameterTable):
 
     @property
     def window_sizes(self):
+        """
+        Get a list of window sizes in this object.
+
+        :return: list of window sizes (int)
+        """
         return self._parameters
 
     @classmethod
     def from_hic(cls, hic, window_sizes, weight_field=None,
                  file_name=None, tmpdir=None, **kwargs):
+        """
+        Compute the directionality index for multiple window sizes.
+
+        :param hic: A compatible Hi-C object
+        :param window_sizes: A list of window sizes
+        :param weight_field: Internal. Key of the weight attribute for an edge in this object.
+        :param file_name: Path to output file. If not provided, will work in memory.
+        :param tmpdir: Optional. If ``True``, will work in temporary directory until
+                       file is closed.
+        :param kwargs: Keyword arguments passed on to :class:`~fanc.matrix.RegionMatrixTable.edges`
+        :return: :class:`~fanc.architecture.domains.DirectionalityIndexes`
+        """
         kwargs['lazy'] = True
 
         if isinstance(window_sizes, int):
@@ -448,7 +556,8 @@ class Boundaries(RegionScoreTable):
         RegionScoreTable.__init__(*args, **kwargs)
 
     @classmethod
-    def from_insulation_score(cls, insulation_score, min_score=None,
+    def from_insulation_score(cls, insulation_score, window_size=None,
+                              min_score=None,
                               delta_window=3, log=False,
                               sub_bin_precision=False, call_maxima=False,
                               score_field='score',
@@ -456,6 +565,10 @@ class Boundaries(RegionScoreTable):
         """
         Call insulation boundaries based on minima in an insulation vector of this object.
 
+        :param insulation_score: :class:`~fanc.architecture.domains.InsulationScores` or
+                                 :class:`~fanc.architecture.domains.InsulationScore` object
+        :param window_size: Window size in base pairs. Only necessary for
+                            :class:`~fanc.architecture.domains.InsulationScores` objects
         :param min_score: Minimum difference between minimum and the closest maximum
                           in the insulation vector for a region to be considered a
                           boundary
@@ -467,9 +580,16 @@ class Boundaries(RegionScoreTable):
         :param sub_bin_precision: Call boundaries with sub bin precision, by taking
                                   into account the precise zero transition of the delta vector.
         :param call_maxima: Call maxima instead of minima as boundaries
+        :param score_field:
         :return: list of :class:`~fanc.data.genomic.GenomicRegion`
         """
-        index = list(insulation_score.region_data(score_field))
+        if isinstance(insulation_score, InsulationScores):
+            if window_size is None:
+                raise ValueError("Must provide window size!")
+            index = list(insulation_score.region_data('insulation_{}'.format(window_size)))
+        else:
+            index = list(insulation_score.region_data(score_field))
+
         if log:
             index = np.log2(index)
         peaks = MaximaCallerDelta(index, window_size=delta_window, sub_bin_precision=sub_bin_precision)

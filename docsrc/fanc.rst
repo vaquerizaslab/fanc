@@ -10,5 +10,6 @@ It provides convenient commands for the generation, modification, and analysis o
    :maxdepth: 2
 
     Overview and shared parameters <fanc-executable/fanc_basic>
+    Working with Cooler, Juicer, and text files <fanc-executable/compatibility>
     Generate Hi-C matrices <fanc-executable/fanc_generate_hic>
     Analyse Hi-C matrices <fanc-executable/fanc_analyse_hic>

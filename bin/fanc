@@ -75,7 +75,6 @@ class Fanc(object):
 
         # echo parameters back to user
         fanc_command = " ".join(sys.argv)
-        logger.debug("Running '{}'".format(fanc_command))
 
         # use dispatch pattern to invoke method with same name
         from datetime import datetime
@@ -84,6 +83,10 @@ class Fanc(object):
         try:
             if config.raise_exception_on_trapped_signal:
                 enable_signal_traps()
+
+            import fanc
+            logger.info("FAN-C version: {}".format(fanc.__version__))
+            logger.debug("Running '{}'".format(fanc_command))
 
             fixed_command = args.command.replace("-", "_")
             command = getattr(commands, fixed_command)

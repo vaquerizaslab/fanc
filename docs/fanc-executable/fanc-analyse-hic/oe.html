@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Expected values &mdash; FAN-C 0.8.31-beta documentation</title>
+  <title>Expected values &mdash; FAN-C 0.8.39-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.31
+                0.8.39
               </div>
             
           
@@ -88,6 +88,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compatibility.html"> Working with Cooler, Juicer, and text files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="../fanc_analyse_hic.html"> Analyse Hi-C matrices</a><ul class="current">
 <li class="toctree-l3 current"><a class="current reference internal" href="#"> Expected values and O/E matrices</a><ul>
@@ -181,6 +182,15 @@
             
   <div class="section" id="expected-values">
 <span id="fanc-oe"></span><h1>Expected values<a class="headerlink" href="#expected-values" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The following examples use the matrix files in FAN-C format. If you want to try the first few
+commands using Juicer <code class="docutils literal notranslate"><span class="pre">.hic</span></code> files, replace <code class="docutils literal notranslate"><span class="pre">output/hic/binned/fanc_example_500kb.hic</span></code>
+with <code class="docutils literal notranslate"><span class="pre">architecture/other-hic/fanc_example.juicer.hic&#64;500kb</span></code>. If you want to work with
+Cooler files in this tutorial, use <code class="docutils literal notranslate"><span class="pre">architecture/other-hic/fanc_example.mcool&#64;500kb</span></code>.
+The results will be minimally different due to the “zooming” and balancing applied by
+each package.</p>
+</div>
 <p>The contact intensity in a Hi-C matrix gets progressively weaker the further apart
 two loci are. The expected values follow a distinctive profile with distance for
 Hi-C matrices, which can be approximated by a power law and forms an almost straight

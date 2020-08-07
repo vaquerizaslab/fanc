@@ -76,6 +76,20 @@ class ABCompartmentMatrix(RegionMatrixTable):
     @classmethod
     def from_hic(cls, hic, file_name=None, tmpdir=None,
                  per_chromosome=True, oe_per_chromosome=None):
+        """
+        Generate an AB compartment matrix from a Hi-C object.
+
+        :param hic: Hi-C object (FAN-C, Juicer, Cooler)
+        :param file_name: Path to output file. If not specified, creates file in memory.
+        :param tmpdir: Optional. Work in temporary directory until file is closed.
+        :param per_chromosome: If ``True`` (default) calculate compartment profile
+                               on a per-chromosome basis (recommended). Otherwise calculates
+                               profile on the whole matrix - make sure your normalisation
+                               is suitable for this (i.e. whole matrix!)
+        :param oe_per_chromosome: Use the expected value vector matching each chromosome.
+                                  Do not modify this unless you know what you are doing.
+        :return: :class:`~fanc.architecture.compartments.ABCompartmentMatrix` object
+        """
         ab_matrix = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
         ab_matrix.add_regions(hic.regions, preserve_attributes=False)
         ab_matrix.meta.per_chromosome = per_chromosome
@@ -135,6 +149,36 @@ class ABCompartmentMatrix(RegionMatrixTable):
     def eigenvector(self, sub_region=None, genome=None, eigenvector=0,
                     per_chromosome=None, oe_per_chromosome=None,
                     exclude_chromosomes=None, force=False):
+        """
+        Calculate the eigenvector (EV) of this AB matrix.
+
+        :param sub_region: Optional region string to only output the EV of
+                           that region.
+        :param genome: A :class:`~fanc.regions.Genome` object or path to a
+                       FASTA file. Used to orient EV value signs so that the "A"
+                       compartment corresponds to the regions with higher
+                       GC content. It is recommended to make use of this,
+                       as otherwise the sign of the EV is arbitrary and
+                       will not allow for between-sample comparisons.
+        :param eigenvector: Index of the eigenvector to calculate. This
+                            parameter is 0-based! Always try "0" first,
+                            and if that EV does not seem to reflect A/B
+                            compartments, try increasing that value.
+        :param per_chromosome: Calculate the eigenvector on a per-chromosome
+                               basis (``True`` by default). If your matrix
+                               is whole-genome normalised and you know what
+                               you are doing, set this to ``False`` to calculate
+                               the EV on the whole matrix.
+        :param oe_per_chromosome: Use the expected value vector matching each chromosome.
+                                  Do not modify this unless you know what you are doing.
+        :param exclude_chromosomes: List of chromosome names to exclude from the EV
+                                    calculation. Can sometimes be useful if certain
+                                    chromosomes do not produce reasonable compartment
+                                    profiles.
+        :param force: Force EV recalculation, even if the EV has already been previously
+                      calculated with the same parameters and is stored in the object.
+        :return: :class:`~numpy.array` of eigenvector values
+        """
         if per_chromosome is None:
             per_chromosome = self.meta.per_chromosome
 
@@ -183,12 +227,17 @@ class ABCompartmentMatrix(RegionMatrixTable):
                 if isinstance(genome, string_types):
                     genome = Genome.from_string(genome, mode='r')
                     close_genome = True
+                genome_chromosomes = genome.chromosomes()
 
                 gc_content = [np.nan] * len(self.regions)
                 for chromosome_sub in self.chromosomes():
                     if chromosome_sub in exclude_chromosomes:
                         continue
                     logger.debug("{}".format(chromosome_sub))
+
+                    if chromosome_sub not in genome_chromosomes:
+                        raise ValueError("Chromosome {} not found in genome. "
+                                         "Are you using the correct genome file?")
                     chromosome_sequence = genome[chromosome_sub].sequence
                     for region in self.regions(chromosome_sub):
                         s = chromosome_sequence[region.start - 1:region.end]
@@ -236,6 +285,23 @@ class ABCompartmentMatrix(RegionMatrixTable):
         return ev[regions[0].ix:regions[-1].ix + 1]
 
     def domains(self, *args, **kwargs):
+        """
+        Get the AB domain regions of the compartment matrix.
+
+        This returns a :class:`~genomic_regions.RegionWrapper` object, where you can
+        iterate over the domains using
+
+        .. code::
+
+            for region in domains.regions:
+                print(region.name)  # A or B
+
+        :param args: Positional arguments for
+                     :func:`~fanc.architecture.compartments.ABCompartmentMatrix.eigenvector`
+        :param kwargs: Keyword arguments for
+                      :func:`~fanc.architecture.compartments.ABCompartmentMatrix.eigenvector`
+        :return: A :class:`~genomic_regions.RegionWrapper` object
+        """
         ev = self.eigenvector(*args, **kwargs)
 
         region_subset = kwargs.get('region', None)
@@ -273,6 +339,52 @@ class ABCompartmentMatrix(RegionMatrixTable):
                            intra_chromosomal=True, inter_chromosomal=False,
                            eigenvector=None, collapse_identical_breakpoints=False,
                            *args, **kwargs):
+        """
+        Generate a compartment enrichment profile for the compartment matrix.
+
+        This returns a :class:`~numpy.ndarray` with the enrichment profile matrix,
+        and a list of cutoffs used to bin regions according to the eigenvector (EV)
+        values. These cutoffs are determined by the ``percentiles argument``.
+
+        The returned objects can be used to generate a saddle plot, for example using
+        :func:`~fanc.plotting.saddle_plot`
+
+        :param hic: A Hi-C matrix
+        :param percentiles: The percentiles at which to split the EV, and bin genomic
+                            regions accordingly into ranges of EV values.
+        :param only_gc: If True, use only the region's GC content, and not the EV,
+                        to calculate the enrichment profile.
+        :param symmetric_at: If set to a float, splits the genomic regions into two
+                             groups with EV below and above this value. Percentiles
+                             are then calculated on each group separately, and it is
+                             ensured that the ``symmetric_at`` breakpoint is in the
+                             centre of the enrichment profile. Note that this doubles
+                             the number of bins, and that the number of regions to the
+                             left and right of the breakpoint are likely not the same.
+        :param exclude_chromosomes: List of chromosome names to exclude from the
+                                    profile calculation.
+        :param intra_chromosomal: If ``True`` (default), include intra-chromosomal contacts
+                                  in the calculation
+        :param inter_chromosomal: If ``True``, include inter-chromosomal contacts
+                                  in the calculation. This is disabled by defaults, due to
+                                  the way matrices are typically normalised (per-chromosome)
+        :param eigenvector: Optional. A custom eigenvector of the same length as genomic
+                            regions in the Hi-C matrix. This will skip the eigenvector
+                            calculation and just use the values in this vector instead.
+                            In principle, you could even use this to supply a completely
+                            different type of data, such as expression values, for the
+                            enrichment analysis.
+        :param collapse_identical_breakpoints: (experimental) If ``True``, will merge
+                                               all breakpoints with the same values
+                                               (such as multiple bins with EV=0) into
+                                               one. This can make the saddle plot look
+                                               cleaner.
+        :param args: Positional arguments for
+                     :func:`~fanc.architecture.compartments.ABCompartmentMatrix.eigenvector`
+        :param kwargs: Keyword arguments for
+                     :func:`~fanc.architecture.compartments.ABCompartmentMatrix.eigenvector`
+        :return: a :class:`~numpy.ndarray` with the enrichment profile matrix, a list of cutoffs
+        """
 
         if eigenvector is not None:
             ev = np.array(eigenvector)

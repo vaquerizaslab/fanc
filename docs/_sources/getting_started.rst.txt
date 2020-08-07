@@ -133,7 +133,7 @@ prerequisites by running
 
    pip install sphinx sphinx_rtd_theme sphinx-argparse
 
-Then navigate to the :code:`docsrc` folder (assuming your in the :code:`fanc` base folder):
+Then navigate to the :code:`docsrc` folder (assuming you are in the :code:`fanc` base folder):
 
 .. code:: bash
 
@@ -164,13 +164,6 @@ You can download the files from `our Keeper library <https://keeper.mpdl.mpg.de/
 
    wget -O examples.zip "https://keeper.mpdl.mpg.de/d/147906745b634c779ed3/files/?p=/examples.zip&dl=1"
    unzip examples.zip
-   cd examples
-
-or clone the FAN-C repository from our `GitHub page <http://www.github.com/vaquerizaslab/fanc>`_:
-
-.. code:: bash
-
-   git clone http://www.github.com/vaquerizaslab/fanc
    cd examples
 
 From the examples folder, run:

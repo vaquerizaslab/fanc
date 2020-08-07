@@ -1,3 +1,23 @@
+0.9.0
+
+- Support for VC and SQRT_VC normalisations using --norm-method
+- Support for choosing Juicer normalisation method on the command line using "@" notation
+- Convenience function for saddle plot in Python API
+- Convenience function for aggregate plot in Python API
+- Updated function for distance decay in Python API
+- Fix PCA plot axis labels
+- Fix bug when enabling imputation of contacts in insulation score calculation
+- Fix x axis limits in LinePlot
+- Increased slice size in loops annotation for efficiency
+- Fix Cooler out of bounds error
+- Added support for expected value caching in Cooler files
+- Fix expected values return value when requesting only a single chromosome
+- Fix random freezing of multiprocessing workers by using "spawn" context
+
+0.8.39
+
+- Fix for wrong barplot alignment
+
 0.8.38
 
 - Fix for using fanc pca without -r argument

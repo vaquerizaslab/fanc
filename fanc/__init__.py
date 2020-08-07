@@ -12,9 +12,11 @@ import logging
 import os
 
 from genomic_regions import GenomicRegion
-from .architecture.domains import InsulationScore, InsulationScores, DirectionalityIndex
+from .architecture.domains import InsulationScore, InsulationScores, DirectionalityIndex, \
+    DirectionalityIndexes, Boundaries
 from .architecture.compartments import ABCompartmentMatrix
-from .architecture.comparisons import FoldChangeMatrix, DifferenceMatrix
+from .architecture.comparisons import FoldChangeMatrix, DifferenceMatrix, DifferenceRegions, \
+    FoldChangeRegions, DifferenceScores, FoldChangeScores
 from .architecture.aggregate import AggregateMatrix, aggregate_boundaries, aggregate_loops
 from .config import config
 from .general import FileBased
@@ -22,7 +24,7 @@ from .map import *
 from .hic import Hic
 from .matrix import Edge, RegionMatrix
 from .pairs import ReadPairs
-from .peaks import RaoPeakInfo
+from .peaks import RaoPeakInfo, RaoPeakCaller, RaoPeakFilter
 from .regions import Genome, Chromosome
 from .registry import class_id_dict
 from .version import __version__

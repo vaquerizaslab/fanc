@@ -11,6 +11,7 @@ from functools import cmp_to_key
 import tempfile
 import warnings
 from ..tools.files import tmp_file_name
+from ..tools.general import str_to_int
 import shutil
 
 
@@ -22,8 +23,11 @@ logger = logging.getLogger(__name__)
 def is_cooler(file_name):
     try:
         if "@" in file_name:
-            hic_file, at_resolution = file_name.split("@")
-            file_name = hic_file + '::resolutions/{}'.format(at_resolution)
+            fields = file_name.split("@")
+            if len(fields) != 2:
+                return False
+            hic_file, at_resolution = fields
+            file_name = hic_file + '::resolutions/{}'.format(str_to_int(at_resolution))
         cooler.Cooler(file_name)
         return True
     except KeyError:
@@ -272,11 +276,12 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
         if at_resolution is None:
             largs[0] = hic_file
         else:
-            largs[0] = hic_file + '::resolutions/{}'.format(at_resolution)
+            largs[0] = hic_file + '::resolutions/{}'.format(str_to_int(at_resolution))
 
         cooler.Cooler.__init__(self, *largs, **kwargs)
         RegionMatrixContainer.__init__(self)
         self._mappability = None
+        self._expected_value_and_marginals_cache = None
 
     def __enter__(self):
         return self
@@ -334,7 +339,15 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
         if region.start is not None and region.end is not None:
             query += ':{}-{}'.format(region.start - 1, region.end)
 
-        df = self.bins().fetch(query)
+        try:
+            df = self.bins().fetch(query)
+        except ValueError:  # region might be beyond chromosome bounds
+            start = region.start if region.start > 0 else 1
+            chromosome_end = self.chromosome_lengths[region.chromosome]
+            end = region.end if region.end <= chromosome_end else chromosome_end
+            query = '{}:{}-{}'.format(region.chromosome, start - 1, end)
+            df = self.bins().fetch(query)
+
         for index, row in df.iterrows():
             yield self._series_to_region(row, ix=index, lazy_region=lazy_region)
 
@@ -433,3 +446,21 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
 
     def bias_vector(self):
         return np.array([r.bias for r in self.regions(lazy=True)])
+
+    def expected_values_and_marginals(self, selected_chromosome=None, norm=True,
+                                      *args, **kwargs):
+        if self._expected_value_and_marginals_cache is not None:
+            logger.debug("Using cached expected values")
+            intra_expected, chromosome_intra_expected, \
+            inter_expected, marginals, valid = self._expected_value_and_marginals_cache
+        else:
+            intra_expected, chromosome_intra_expected, \
+            inter_expected, marginals, valid = RegionMatrixContainer.expected_values_and_marginals(self, norm=norm,
+                                                                                                   *args, **kwargs)
+            self._expected_value_and_marginals_cache = intra_expected, chromosome_intra_expected, \
+                                                       inter_expected, marginals, valid
+
+        if selected_chromosome is not None:
+            return chromosome_intra_expected[selected_chromosome], marginals, valid
+
+        return intra_expected, chromosome_intra_expected, inter_expected, marginals, valid

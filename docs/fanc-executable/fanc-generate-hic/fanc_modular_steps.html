@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Individual pipeline steps &mdash; FAN-C 0.8.31-beta documentation</title>
+  <title>Individual pipeline steps &mdash; FAN-C 0.8.39-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.31
+                0.8.39
               </div>
             
           
@@ -88,6 +88,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compatibility.html"> Working with Cooler, Juicer, and text files</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="fanc_auto.html"> fanc auto: Automated generation of Hi-C matrices</a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#"> Individual pipeline steps</a><ul>
@@ -548,8 +549,9 @@ overview of all parameters:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">hic</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BIN_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span> <span class="n">FILTER_LOW_COVERAGE</span><span class="p">]</span>
                 <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">FILTER_LOW_COVERAGE_RELATIVE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">a</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">FILTER_DIAGONAL</span><span class="p">]</span>
                 <span class="p">[</span><span class="o">--</span><span class="n">marginals</span><span class="o">-</span><span class="n">plot</span> <span class="n">MARGINALS_PLOT</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">reset</span><span class="o">-</span><span class="n">filters</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">--</span><span class="n">downsample</span> <span class="n">DOWNSAMPLE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">subset</span> <span class="n">SUBSET</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">k</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">-</span><span class="n">c</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">only</span><span class="o">-</span><span class="n">inter</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STATS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">statistics</span><span class="o">-</span><span class="n">plot</span> <span class="n">STATS_PLOT</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">downsample</span> <span class="n">DOWNSAMPLE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">subset</span> <span class="n">SUBSET</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">k</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">n</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">m</span> <span class="n">NORM_METHOD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">only</span><span class="o">-</span><span class="n">inter</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STATS</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">statistics</span><span class="o">-</span><span class="n">plot</span> <span class="n">STATS_PLOT</span><span class="p">]</span>
                 <span class="p">[</span><span class="o">--</span><span class="n">chromosomes</span> <span class="n">CHROMOSOMES</span> <span class="p">[</span><span class="n">CHROMOSOMES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
                 <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">deepcopy</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
                 <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span>
@@ -594,16 +596,22 @@ overview of all parameters:</p>
 <dd><p>Comma-separated list of regions that will be used in the output Hic object. All contacts between these regions will be in the output object. For example, “chr1,chr3” will result in a Hic object with all regions in chromosomes 1 and 3, plus all contacts within chromosome 1, all contacts within chromosome 3, and all contacts between chromosome 1 and 3. “chr1” will only contain regions and contactswithin chromosome 1.</p>
 </dd>
 <dt><kbd>-i, --ice-correct</kbd></dt>
-<dd><p>Use ICE iterative correction on the binned Hic matrix</p>
+<dd><p>DEPRECATED. Use ICE iterative correction on the binned Hic matrix</p>
 </dd>
 <dt><kbd>-k, --kr-correct</kbd></dt>
-<dd><p>Use Knight-Ruiz matrix balancing to correct the binned Hic matrix</p>
+<dd><p>DEPRECATED. Use Knight-Ruiz matrix balancing to correct the binned Hic matrix</p>
+</dd>
+<dt><kbd>-n, --normalise</kbd></dt>
+<dd><p>Normalise Hi-C matrix according to –norm-method</p>
+</dd>
+<dt><kbd>-m, --norm-method</kbd></dt>
+<dd><p>Normalisation method used for -n. Options are: KR (default) = Knight-Ruiz matrix balancing (Fast, accurate, but memory-intensive normalisation); ICE = ICE matrix balancing (less accurate, but more memory-efficient); VC = vanilla coverage (a single round of ICE balancing);VC-SQRT = vanilla coverage square root (reduces overcorrection compared to VC)</p>
 </dd>
 <dt><kbd>-w, --whole-matrix</kbd></dt>
 <dd><p>Correct the whole matrix at once, rather than individual chromosomes.</p>
 </dd>
 <dt><kbd>-c, --restore-coverage</kbd></dt>
-<dd><p>Restore coverage to the original total number of reads. Otherwise matrix entries will be contact probabilities. Only available for KR matrix balancing.</p>
+<dd><p>Restore coverage to the original total number of reads. Otherwise matrix entries will be contact probabilities.</p>
 </dd>
 <dt><kbd>--only-inter</kbd></dt>
 <dd><p>Calculate bias vector only on inter-chromosomal contacts. Ignores all intra-chromosomal contacts. Always uses whole-matrix balancing, i.e. implicitly sets -w</p>
@@ -645,10 +653,27 @@ apply a coverage threshold based on a fraction of the median number of pairs pai
 simply a preset for <code class="docutils literal notranslate"><span class="pre">-r</span> <span class="pre">0.1</span></code>.</p>
 <p>For some applications it might be useful to remove the prominent Hi-C diagonal. You can use the
 <code class="docutils literal notranslate"><span class="pre">-d</span> <span class="pre">&lt;n&gt;</span></code> parameter to remove all pairs in pixels up to a distance of n from the diagonal.</p>
-<p>You can balance your Hi-C matrices using the <code class="docutils literal notranslate"><span class="pre">-k</span></code> or the <code class="docutils literal notranslate"><span class="pre">-i</span></code> parameters, which perform
-Knight-Ruiz (KR) and ICE balancing, respectively. We typically recommend KR balancing for
-performance reasons. Each chromosome in the matrix is corrected independently, unless you
-specify the <code class="docutils literal notranslate"><span class="pre">-w</span></code> option. By default the corrected matrix entries correspond to contact
+<p>You can balance your Hi-C matrices using the <code class="docutils literal notranslate"><span class="pre">-n</span></code> parameter. By default, this applies Knight-Ruiz
+(KR) balancing to each chromosome. You can opt for another normalisation method using
+<code class="docutils literal notranslate"><span class="pre">--norm-method</span></code>, for example <code class="docutils literal notranslate"><span class="pre">--norm-method</span> <span class="pre">ice</span></code> for ICE balancing, or <code class="docutils literal notranslate"><span class="pre">--norm-method</span> <span class="pre">vc</span></code>
+for vanilla coverage normalisation (which in this case is equivalent of a single ICE iteration).
+We typically recommend KR balancing for performance reasons. Each chromosome in the matrix is
+corrected independently, unless you specify the <code class="docutils literal notranslate"><span class="pre">-w</span></code> option.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The default normalisation mode is per chromosome, and the FAN-C analysis functions assume
+this has been used. In the majority of cases, when you are working with intra-chromosomal
+data, this is what you want. Some commands have a <code class="docutils literal notranslate"><span class="pre">--whole-genome</span></code> option (or equivalent)
+to apply the analysis to the whole matrix instead of individual chromosomes. Only use this
+option if you have corrected the whole matrix at once (<code class="docutils literal notranslate"><span class="pre">-w</span></code>), and if you understand the
+effect of whole-matrix analysis on your results, compared to per-chromosome analysis!</p>
+<p>When you are working with inter-chromosomal data, the chromosome’s bias vectors are re-used
+for normalisation. This is likely not the most suitable normalisation for your inter-chromosomal
+data! If you are interested in inter-chromosomal data specifically, you may want to use
+whole-genome correction, and possibly also exclude the intra-chromosomal contacts. You can do
+that using the <code class="docutils literal notranslate"><span class="pre">--only-inter</span></code> option.</p>
+</div>
+<p>By default the corrected matrix entries correspond to contact
 probabilities. You can use the <code class="docutils literal notranslate"><span class="pre">--restore-coverage</span></code> option to force matrix entries in a
 chromosome to sum up to the total number of reads before correction.</p>
 <p>Finally, you can output the filtering statistics to a file or plot using the <code class="docutils literal notranslate"><span class="pre">-s</span></code> and

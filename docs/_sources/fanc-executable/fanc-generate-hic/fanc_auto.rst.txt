@@ -278,7 +278,8 @@ specified with the ``-b`` parameter. By default, it will produce binned Hic file
 
 Binned Hi-C files will be filtered for coverage (bins with less reads than 10% of the median
 bin coverage) and corrected using Knight-Ruiz matrix balancing. If you prefer ICE correction,
-use the ``--ice`` parameter. Each chromosome in the matrix is corrected independently, and
+use the ``--norm-method ice`` option, or ``--norm-method vc`` for vanilla coverage normalisation.
+Each chromosome in the matrix is corrected independently, and
 by default the corrected matrix entries correspond to contact probabilities. You can use the
 ``--restore-coverage`` option to force matrix entries in a chromosome to sum up to the
 total number of reads before correction.

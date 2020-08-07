@@ -1223,7 +1223,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                                                                    d] / chromosome_count
 
         if selected_chromosome is not None:
-            return chromosome_intra_expected[selected_chromosome], marginals
+            return chromosome_intra_expected[selected_chromosome], marginals, valid
 
         return intra_expected, chromosome_intra_expected, inter_expected, marginals, valid
 

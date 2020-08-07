@@ -1,0 +1,384 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Aggregate analyses &mdash; FAN-C 0.8.39-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Loop calling" href="loops.html" />
+    <link rel="prev" title="Matrix and score comparisons" href="comparisons.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.39
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compatibility.html">Working with Juicer and Cooler files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../interfaces.html">Interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../analyse.html">Analyse Hi-C matrices (API)</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="oe.html">Expected values and O/E matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="compartments.html">AB compartments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pca.html">PCA analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="domains.html">TADs and TAD boundaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparisons.html">Matrix and score comparisons</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Aggregate analysis</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#fixed-size-regions">Fixed-size regions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#variable-size-regions">Variable-size regions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#region-pairs">Region pairs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#useful-functions">Useful functions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="loops.html">Loop calling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plot.html">Plotting (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules.html">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../api.html">fanc Python module</a> &raquo;</li>
+        
+          <li><a href="../analyse.html">Analyse Hi-C matrices using the API</a> &raquo;</li>
+        
+      <li>Aggregate analyses</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/api/analyse/aggregate.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="aggregate-analyses">
+<span id="api-aggregate"></span><h1>Aggregate analyses<a class="headerlink" href="#aggregate-analyses" title="Permalink to this headline">¶</a></h1>
+<p>To follow this tutorial, download the FAN-C example data, for example through our
+<a class="reference external" href="https://keeper.mpdl.mpg.de/d/147906745b634c779ed3/">Keeper library</a>. Then run the
+example <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> command in  <a class="reference internal" href="../../getting_started.html#example-fanc-auto"><span class="std std-ref">Example analysis</span></a> to generate all the
+necessary files, and set up your Python session like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
+<span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">fancplot</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%(asctime)s</span><span class="s2"> </span><span class="si">%(levelname)s</span><span class="s2"> </span><span class="si">%(message)s</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="n">hic_100kb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;output/hic/binned/fanc_example_100kb.hic&quot;</span><span class="p">)</span>
+<span class="n">hic_rao</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/loops/rao2014.chr11_77400000_78600000.hic&quot;</span><span class="p">)</span>
+
+<span class="n">boundaries</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/domains/fanc_example_100kb.insulation_boundaries_score_0.7_1mb.bed&quot;</span><span class="p">)</span>
+<span class="n">tads</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/domains/gm12878_tads.bed&quot;</span><span class="p">)</span>
+<span class="n">loops</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/loops/rao2014.chr11_77400000_78600000.loops_no_singlets.bedpe&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If you want to try the tutorial with an equivalent Cooler file, load the Hi-C file like
+this instead:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hic_100kb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic/fanc_example.mcool@100kb&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>or like this if you want to work with a Juicer file built from the same data:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hic_100kb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic/fanc_example.juicer.hic@100kb&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that there may be minor differences in the results due to the “zooming” and balancing
+applied by the different tools.</p>
+<p>Also have a look at the command line documentation at <a class="reference internal" href="../../fanc-executable/fanc-analyse-hic/aggregate_hic.html#fanc-aggregate"><span class="std std-ref">Hi-C aggregate analysis</span></a>, which explains
+the different types of aggregate analyses with helpful illustrations.</p>
+<p>Aggregate analyses can provide a general overview of the 3D genomic structure around a set
+of interesting genomic regions. This is achieved by aggregating, i.e. averaging, the matrices
+around each region to obtain a single, aggregated view of all regions at the same time.</p>
+<p>FAN-C distinguished three kinds of aggregate analyses:</p>
+<ol class="arabic simple">
+<li><p>Fixed-size regions along the matrix diagonal, for example a window of 500kb around
+each active TSS in the genome</p></li>
+<li><p>Variable-size regions along the matrix diagonal, for example TADs in the genome or
+genes from 5’ to 3’</p></li>
+<li><p>Region pairs, denoting a part of the matrix off the diagonal, for example loops in
+the Hi-C matrix</p></li>
+</ol>
+<p>All of these can be computed using the <a class="reference internal" href="../modules/architecture/aggregate.html#fanc.architecture.aggregate.AggregateMatrix" title="fanc.architecture.aggregate.AggregateMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">AggregateMatrix</span></code></a>
+class, and dedicated functions for each analysis type.</p>
+<div class="section" id="fixed-size-regions">
+<h2>Fixed-size regions<a class="headerlink" href="#fixed-size-regions" title="Permalink to this headline">¶</a></h2>
+<p>Fixed-size analyses are the simplest aggregate analyses. All you need is a list of regions
+of interest, for example insulating boundaries, and they can be computed using
+<a class="reference internal" href="../modules/architecture/aggregate.html#fanc.architecture.aggregate.AggregateMatrix.from_center" title="fanc.architecture.aggregate.AggregateMatrix.from_center"><code class="xref py py-func docutils literal notranslate"><span class="pre">from_center()</span></code></a> like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fixed_am</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">AggregateMatrix</span><span class="o">.</span><span class="n">from_center</span><span class="p">(</span><span class="n">hic_100kb</span><span class="p">,</span> <span class="n">boundaries</span><span class="o">.</span><span class="n">regions</span><span class="p">,</span>
+                                            <span class="n">window</span><span class="o">=</span><span class="mi">5000000</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can optionally supply a <code class="docutils literal notranslate"><span class="pre">file_name</span></code> to save the aggregate matrix and all its components
+to disk.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">window</span></code> parameter is crucial here and sets the window around the center of each region
+that should be extracted. If the window lies outside the chromosome boundaries, the region is
+declared as “invalid” and not used for the aggregate matrix. Despite being named <code class="docutils literal notranslate"><span class="pre">from_center</span></code>,
+it is possible to use another point in each region as relative window center with <code class="docutils literal notranslate"><span class="pre">region_viewpoint</span></code>.
+You can set this to any of <code class="docutils literal notranslate"><span class="pre">start</span></code>, <code class="docutils literal notranslate"><span class="pre">end</span></code>, <code class="docutils literal notranslate"><span class="pre">five-prime</span></code>, and <code class="docutils literal notranslate"><span class="pre">three_prime</span></code> and the window
+will be centred on that part of each region. For example, use <code class="docutils literal notranslate"><span class="pre">five_prime</span></code> to aggregate the
+region around the TSS’s in a list of genes.</p>
+<p>You can plot the aggregate matrix using the covenience function <code class="xref py py-func docutils literal notranslate"><span class="pre">aggregate_plot()</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ax</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">aggregate_plot</span><span class="p">(</span><span class="n">fixed_am</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                             <span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;-2.5Mb&#39;</span><span class="p">,</span> <span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="s1">&#39;+2.5Mb&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+<img alt="../../_images/aggregate_fixed.png" src="../../_images/aggregate_fixed.png" />
+<p>In this case you can nicely see the boundary in the centre of the plot. By default, an aggregate
+analysis always uses O/E transformed matrices, as otherwise the distance decay might bias the result
+too much, particular for a chromosome-based normalisation strategy, as is the default in FAN-C.
+You can switch this off using <code class="docutils literal notranslate"><span class="pre">oe=False</span></code>, however.</p>
+</div>
+<div class="section" id="variable-size-regions">
+<h2>Variable-size regions<a class="headerlink" href="#variable-size-regions" title="Permalink to this headline">¶</a></h2>
+<p>The command for variable-size regions such as TADs is highly similar:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">variable_am</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">AggregateMatrix</span><span class="o">.</span><span class="n">from_regions</span><span class="p">(</span><span class="n">hic_100kb</span><span class="p">,</span> <span class="n">tads</span><span class="o">.</span><span class="n">regions</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>By default, each region is extended by each own length on each side (<code class="docutils literal notranslate"><span class="pre">relative_extension=1.0</span></code>),
+which is a useful preset for TADs so that the regions are clearly visible in the centre.</p>
+<p>We can visualise the region using <code class="xref py py-func docutils literal notranslate"><span class="pre">aggregate_plot()</span></code></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ax</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">aggregate_plot</span><span class="p">(</span><span class="n">variable_am</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=-</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                             <span class="n">relative_label_locations</span><span class="o">=</span><span class="p">[</span><span class="mf">0.33</span><span class="p">,</span> <span class="mf">0.66</span><span class="p">])</span>
+</pre></div>
+</div>
+<img alt="../../_images/aggregate_variable.png" src="../../_images/aggregate_variable.png" />
+<p>To generate an aggregate matrix from variable-size regions, the extracted matrices first have to be
+extrapolated to the same size. This is done internally using <code class="xref py py-func docutils literal notranslate"><span class="pre">resize()</span></code> from
+the <code class="docutils literal notranslate"><span class="pre">skimage.transform</span></code> module. You can determine the type of interpolation using the
+<code class="docutils literal notranslate"><span class="pre">interpolation</span></code> argument, which is an integer: 0: Nearest-neighbor (default), 1: Bi-linear,
+2: Bi-quadratic, 3: Bi-cubic, 4: Bi-quartic, 5: Bi-quintic. You can also turn off <code class="docutils literal notranslate"><span class="pre">antialiasing</span></code>
+in case you feel that this is a source of bias.</p>
+<p>For TADs or other regions along the diagonal specifically, you can also <code class="docutils literal notranslate"><span class="pre">rescale</span></code> the aggregate
+matrix, which applies an artificial exponential decay to the matrix, making it resemble a Hi-C
+matrix:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">rescale_am</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">AggregateMatrix</span><span class="o">.</span><span class="n">from_regions</span><span class="p">(</span><span class="n">hic_100kb</span><span class="p">,</span> <span class="n">tads</span><span class="o">.</span><span class="n">regions</span><span class="p">,</span>
+                                               <span class="n">rescale</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ax</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">aggregate_plot</span><span class="p">(</span><span class="n">rescale_am</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.045</span><span class="p">,</span>
+                             <span class="n">relative_label_locations</span><span class="o">=</span><span class="p">[</span><span class="mf">0.33</span><span class="p">,</span> <span class="mf">0.66</span><span class="p">],</span>
+                             <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;germany&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="../../_images/aggregate_rescale.png" src="../../_images/aggregate_rescale.png" />
+</div>
+<div class="section" id="region-pairs">
+<h2>Region pairs<a class="headerlink" href="#region-pairs" title="Permalink to this headline">¶</a></h2>
+<p>So far, we have only aggregated regions along the diagonal.
+<code class="xref py py-func docutils literal notranslate"><span class="pre">from_region_pairs()</span></code> allows us to aggregate
+arbitrary region pairs, albeit without extrapolation of differently-sized regions - only fixed
+window sizes are supported. You can either supply a <code class="docutils literal notranslate"><span class="pre">window</span></code>, as with fixed-size regions
+along the diagonal, or a number of <code class="docutils literal notranslate"><span class="pre">pixels</span></code>/bins, which is set to <code class="docutils literal notranslate"><span class="pre">16</span></code> by default.</p>
+<p>Here is an example for loops:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">loops_am</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">AggregateMatrix</span><span class="o">.</span><span class="n">from_center_pairs</span><span class="p">(</span><span class="n">hic_rao</span><span class="p">,</span> <span class="n">loops</span><span class="o">.</span><span class="n">region_pairs</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ax</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">aggregate_plot</span><span class="p">(</span><span class="n">loops_am</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=-</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                             <span class="n">relative_label_locations</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">],</span>
+                             <span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;loop anchor&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+<img alt="../../_images/aggregate_loops.png" src="../../_images/aggregate_loops.png" />
+</div>
+<div class="section" id="useful-functions">
+<h2>Useful functions<a class="headerlink" href="#useful-functions" title="Permalink to this headline">¶</a></h2>
+<p>If you don’t just want to plot the aggregate matrix, but work with its values, you can access
+it as a <code class="docutils literal notranslate"><span class="pre">numpy</span></code> array via <a class="reference internal" href="../modules/architecture/aggregate.html#fanc.architecture.aggregate.AggregateMatrix.matrix" title="fanc.architecture.aggregate.AggregateMatrix.matrix"><code class="xref py py-func docutils literal notranslate"><span class="pre">matrix()</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m</span> <span class="o">=</span> <span class="n">fixed_am</span><span class="o">.</span><span class="n">matrix</span><span class="p">()</span>
+<span class="nb">type</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>  <span class="c1"># numpy.ndarray</span>
+</pre></div>
+</div>
+<p>All aggregate functions discussed above have a <code class="docutils literal notranslate"><span class="pre">keep_components</span></code> parameter, which is <code class="docutils literal notranslate"><span class="pre">True</span></code>
+by default. This way, all the matrix that have been extracted from regions or region pairs are
+stored inside the aggregate matrix object. You can access them via
+<a class="reference internal" href="../modules/architecture/aggregate.html#fanc.architecture.aggregate.AggregateMatrix.components" title="fanc.architecture.aggregate.AggregateMatrix.components"><code class="xref py py-func docutils literal notranslate"><span class="pre">components()</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">component_matrix</span> <span class="ow">in</span> <span class="n">fixed_am</span><span class="o">.</span><span class="n">components</span><span class="p">():</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">component_matrix</span><span class="o">.</span><span class="n">shape</span>  <span class="c1"># 51, 51</span>
+    <span class="c1"># ...</span>
+</pre></div>
+</div>
+<p>These individual matrices can be very useful to debug a troublesome aggregate plot, because often
+it is unusual outlier matrices that have a large effect on the plot. They are simply <code class="docutils literal notranslate"><span class="pre">numpy</span></code>
+arrays, which you can plot with <code class="docutils literal notranslate"><span class="pre">imshow</span></code> from <code class="docutils literal notranslate"><span class="pre">matplotlib</span></code>, for example.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="loops.html" class="btn btn-neutral float-right" title="Loop calling" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="comparisons.html" class="btn btn-neutral float-left" title="Matrix and score comparisons" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

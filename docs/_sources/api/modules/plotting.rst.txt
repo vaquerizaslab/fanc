@@ -34,6 +34,10 @@ Index of plot classes
     SymmetricNorm
     LimitGroup
     MirrorMatrixPlot
+    distance_decay_plot
+    aggregate_plot
+    saddle_plot
+    pca_plot
 
 Description and examples
 ''''''''''''''''''''''''
@@ -45,7 +49,8 @@ Description and examples
         GenomicFeaturePlot, GenomicRegionsPlot, GenomicFeatureScorePlot,
         GenomicFigure, BigWigPlot, LinePlot,
         GenePlot, FeatureLayerPlot, GenomicDataFramePlot, HighlightAnnotation,
-        SymmetricNorm, LimitGroup, MirrorMatrixPlot
+        SymmetricNorm, LimitGroup, MirrorMatrixPlot, distance_decay_plot, saddle_plot,
+        aggregate_plot, pca_plot
     :special-members: __init__
 
     .. data:: example_data

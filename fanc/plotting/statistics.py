@@ -1,9 +1,16 @@
 from ..pairs import ReadPairs
 from .base_plotter import GenomeCoordFormatter
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as grd
 import seaborn as sns
 import numpy as np
 import itertools
+from sklearn.decomposition import PCA
+
+
+__all__ = ['summary_statistics_plot', 'ligation_bias_plot', 'restriction_site_distance_plot',
+           'marginals_plot', 'distance_decay_plot', 'aggregate_plot', 'saddle_plot',
+           'pca_plot']
 
 
 def summary_statistics_plot(stats, ax=None, **kwargs):
@@ -216,35 +223,80 @@ def marginals_plot(matrix, chromosome, ax=None, lower=None, rel_cutoff=0.1, colo
     return ax
 
 
-def distance_decay_plot(*matrices, ax=None, chromosome=None, **kwargs):
+def distance_decay_plot(*matrices, ax=None, chromosome=None, labels=None, tight=True,
+                        norm=True, **kwargs):
+    """
+    An distance decay (expected values) plot.
+
+    :param matrices: Hi-C objects to be plotted
+    :param ax: Optional matplotlib ax object for the plot.
+               If not specified, will use ``plt.gca()``
+    :param chromosome: Optional, but recommended for the default
+                       chromosome-normalised matrices. The name of a chromosome to plot
+    :param labels: Optional labels when providing multiple objects.
+                   Will replace default labels in the legend. Must be the
+                   same number as matrix objects
+    :param tight: If True, uses tight figure layout. Disable for grid-based plotting.
+    :param kwargs: Parameters passed on to ``ax.plot``
+    :return: ax
+    """
+    if labels is None:
+        labels = ['Matrix {}'.format(i) for i in range(len(matrices))]
+    elif len(labels) != len(matrices):
+        raise ValueError("Number of matrices ({}) must be equal "
+                         "to number of labels ({})".format(len(matrices), len(labels)))
+
     if ax is None:
         ax = plt.gca()
 
-    for matrix in matrices:
-        ex, ex_chromosome, ex_inter = matrix.expected_values()
+    for i, matrix in enumerate(matrices):
+        ex, ex_chromosome, ex_inter = matrix.expected_values(norm=norm)
 
         if chromosome is not None:
             ex = ex_chromosome[chromosome]
 
         bin_size = matrix.bin_size
         distances = np.arange(0, bin_size * len(ex), bin_size)
-        ax.plot(distances, ex, **kwargs)
+
+        ax.plot(distances, ex, label=labels[i], **kwargs)
 
     ax.set_xscale('log')
     ax.set_yscale('log')
 
-    ax.set_ylabel('Expected value')
-    ax.set_xlabel('Genomic separation')
+    if len(matrices) > 1:
+        ax.legend()
+
+    ax.set_ylabel('Expected contact strength')
+    ax.set_xlabel('Genomic distance')
     ax.xaxis.set_major_formatter(GenomeCoordFormatter(chromosome if chromosome is not None else "All",
                                                       minor_div=5,
                                                       display_chromosome=False,
                                                       display_scale=False))
-    ax.figure.tight_layout()
+    if tight:
+        ax.figure.tight_layout()
     return ax
 
 
 def pca_plot(pca_res, variance=None, eigenvectors=(0, 1),
              markers=None, colors=None, names=None, ax=None):
+    """
+    Plot the results of a Hi-C PCA analysis from :func:`~fanc.architecture.comparisons.hic_pca`.
+
+    :param pca_res: The PCA result from :func:`~fanc.architecture.comparisons.hic_pca`
+    :param variance: A vector specifying the explained variance of each EV in the PCA or
+                     the PCA object from :func:`~fanc.architecture.comparisons.hic_pca`.
+                     Optional, used to display the explained variance along the axes.
+    :param eigenvectors: Tuple of length two specifying which eigenvectors (EVs) to plot.
+                         0-based, (0, 1) by default for the first to EVs.
+    :param markers: List of marker definitions from matplotlib (e.g. ["o", "*", "s"]).
+                    Must be same length as number of samples in PCA.
+    :param colors: List of colour definitions from matplotlib.
+                   Must be same length as number of samples in PCA.
+    :param names: Sample names for plot legend. Must be same length as number of
+                  samples in PCA.
+    :param ax: Optional matplotlib axes object to plot into. Otherwise uses ``plt.gca()``
+    :return: figure, ax
+    """
     if markers is None:
         markers = ('^', 'o', '*', 's', 'D', 'v', 'd', 'H', 'p', '>')
     if colors is None:
@@ -253,12 +305,12 @@ def pca_plot(pca_res, variance=None, eigenvectors=(0, 1),
     markers = itertools.cycle(markers)
     colors = itertools.cycle(colors)
 
-    xlabel = 'PC1'
+    xlabel = 'PC{}'.format(eigenvectors[0] + 1)
+    ylabel = 'PC{}'.format(eigenvectors[1] + 1)
     if variance is not None:
+        if isinstance(variance, PCA):
+            variance = variance.explained_variance_ratio_
         xlabel += ' (%d%%)' % int(variance[eigenvectors[0]]*100)
-
-    ylabel = 'PC2'
-    if variance is not None:
         ylabel += ' (%d%%)' % int(variance[eigenvectors[1]]*100)
 
     if ax is None:
@@ -281,3 +333,98 @@ def pca_plot(pca_res, variance=None, eigenvectors=(0, 1),
 
     return ax.figure, ax
 
+
+def aggregate_plot(aggregate_matrix, labels=None, vmin=None, vmax=None,
+                   oe=False, log=False, colormap='bwr', ax=None, cax=None,
+                   relative_label_locations=(0, 0.5, 1), plot_colorbar=True):
+    if ax is None:
+        ax = plt.gca()
+
+    m = aggregate_matrix.matrix()
+
+    if labels is None:
+        labels = ['', '', '']
+
+    if vmin is None:
+        vmin = np.nanmin(m)
+    if vmax is None:
+        vmax = np.nanmax(m)
+
+    if oe and log:
+        abs_max = max(abs(vmin), abs(vmax))
+        vmin, vmax = -1 * abs_max, abs_max
+
+    im = ax.imshow(m, cmap=colormap, vmin=vmin, vmax=vmax, interpolation='nearest')
+    if plot_colorbar:
+        plt.colorbar(im, cax=cax)
+
+    pixels = m.shape[0]
+    ticks = [loc * pixels if loc != 1 else pixels - 1 for loc in relative_label_locations]
+
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(labels)
+    ax.set_yticks(ticks)
+    ax.set_yticklabels(labels)
+    ax.set_ylim(ax.get_xlim())
+
+    return ax
+
+
+def saddle_plot(ab_enrichment_matrix, cutoffs, colormap='RdBu_r',
+                vmin=-0.75, vmax=0.75, only_gc=False, fig=None,
+                axes=None, margin=1):
+
+    if fig is None and axes is None:
+        fig = plt.figure(figsize=(5, 5), dpi=300)
+
+    if axes is None:
+        gs = grd.GridSpec(5, 5,
+                          height_ratios=[margin, 5, 1, 1, margin],
+                          width_ratios=[margin, 5, 1, 1, margin])
+        heatmap_ax = plt.subplot(gs[1, 1])
+        barplot_ax = plt.subplot(gs[3, 1])
+        cax = plt.subplot(gs[1, 3])
+    else:
+        heatmap_ax, barplot_ax, cax = axes
+
+    im = None
+    if heatmap_ax is not None:
+        im = heatmap_ax.imshow(ab_enrichment_matrix, cmap=colormap, vmin=vmin, vmax=vmax,
+                               interpolation='nearest', aspect='auto')
+        heatmap_ax.set_xticks([0, ab_enrichment_matrix.shape[1] - 1])
+        heatmap_ax.set_xticklabels(['active', 'inactive'])
+        xlabels = heatmap_ax.get_xticklabels()
+        xlabels[0].set_horizontalalignment('left')
+        xlabels[1].set_horizontalalignment('right')
+
+        heatmap_ax.set_yticks([0, ab_enrichment_matrix.shape[1] - 1])
+        heatmap_ax.set_yticklabels(['active', 'inactive'], rotation=90)
+        ylabels = heatmap_ax.get_yticklabels()
+        ylabels[0].set_verticalalignment('bottom')
+        ylabels[1].set_verticalalignment('top')
+
+        heatmap_ax.set_ylim(heatmap_ax.get_xlim())
+
+    if cax is not None and im is not None:
+        cb = plt.colorbar(im, cax=cax)
+        cb.set_ticks([vmin, 0, vmax])
+        cb.set_label("log O/E")
+
+    if barplot_ax is not None:
+        pos = np.arange(ab_enrichment_matrix.shape[1])
+        barplot_ax.bar(pos, cutoffs, color='grey', width=1)
+        if not only_gc:
+            extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
+            barplot_ax.set_yticks([-1 * extent, 0, extent])
+        else:
+            barplot_ax.set_yticks([cutoffs[0], cutoffs[int(len(cutoffs) / 2)], cutoffs[1]])
+        barplot_ax.set_xlim(heatmap_ax.get_xlim())
+        barplot_ax.get_xaxis().set_visible(False)
+        barplot_ax.spines['right'].set_visible(False)
+        barplot_ax.spines['top'].set_visible(False)
+        barplot_ax.spines['bottom'].set_visible(False)
+        barplot_ax.yaxis.set_ticks_position('left')
+        barplot_ax.xaxis.set_ticks_position('none')
+        barplot_ax.set_ylabel("EV percentile\ncutoffs")
+
+    return fig, [heatmap_ax, barplot_ax, cax]

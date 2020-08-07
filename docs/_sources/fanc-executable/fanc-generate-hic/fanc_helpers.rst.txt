@@ -9,6 +9,53 @@ somewhat easier. These are not strictly necessary for matrix generation and anal
 but can often speed your analysis up or simply make it a little more convenient.
 
 
+.. _fanc_from_txt:
+
+========================================
+fanc from-txt: import Hic from text file
+========================================
+
+You can easily import Hi-C matrices from a compatible text file format, such as that from
+HiC-Pro, with ``fanc to-txt``.
+
+.. argparse::
+   :module: fanc.commands.fanc_commands
+   :func: from_txt_parser
+   :prog: fanc from-txt
+   :nodescription:
+   :nodefault:
+
+The command requires two input files:
+
+1. A sparse matrix with the tab-separated format ``<bin1><tab><bin2><tab><weight>``:
+
+  .. code::
+
+     1	1	40.385642
+     1	828	5.272852
+     1	1264	5.205258
+     ...
+
+2. A regions file in BED format ``<chromosome><tab><start><tab><end>[<tab><bin ID>]``:
+
+  .. code::
+
+     chr1	0	1000000	1
+     chr1	1000000	2000000	2
+     chr1	2000000	3000000	3
+     chr1	3000000	4000000	4
+     ...
+
+  The ``<bin ID>`` field is optional, but if provided it must correspond to the bins used
+  in the matrix file. If not provided, bin indices will be 0-based!
+
+The FAN-C example data contains some HiC-Pro example files that you can try this out on:
+
+.. code::
+
+   fanc from-txt hicpro/dixon_2M_1000000_iced.matrix hicpro/dixon_2M_1000000_abs.bed hicpro/dixon_2M_1000000_iced.hic
+
+
 ==========================================
 fanc dump: export Hic objects to text file
 ==========================================

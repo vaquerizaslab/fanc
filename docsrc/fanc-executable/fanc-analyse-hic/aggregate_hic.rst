@@ -5,6 +5,15 @@
 Hi-C aggregate analysis
 #######################
 
+.. note::
+
+    The following examples use the matrix files in FAN-C format. If you want to try the same
+    commands using Juicer ``.hic`` files, replace ``output/hic/binned/fanc_example_100kb.hic``
+    with ``architecture/other-hic/fanc_example.juicer.hic@100kb``. If you want to work with
+    Cooler files in this tutorial, use ``architecture/other-hic/fanc_example.mcool@100kb``.
+    The results will be minimally different due to the "zooming" and balancing applied by
+    each package.
+
 It can be very informative to view the average Hi-C matrix for a set of regions, rather
 than the Hi-C matrix at each individual region. This can help you in identifying common
 structural features of these regions or over-/under-representation of contacts in the

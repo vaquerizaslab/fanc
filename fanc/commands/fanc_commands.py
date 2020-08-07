@@ -5,6 +5,7 @@ import os.path
 import textwrap
 import shutil
 import tempfile
+import warnings
 
 # configure logging
 logger = logging.getLogger(__name__)
@@ -1191,14 +1192,33 @@ def hic_parser():
         '-i', '--ice-correct', dest='ice',
         action='store_true',
         default=False,
-        help='Use ICE iterative correction on the binned Hic matrix'
+        help='DEPRECATED. Use ICE iterative correction on the binned Hic matrix'
     )
 
     parser.add_argument(
         '-k', '--kr-correct', dest='kr',
         action='store_true',
         default=False,
-        help='Use Knight-Ruiz matrix balancing to correct the binned Hic matrix'
+        help='DEPRECATED. Use Knight-Ruiz matrix balancing to correct '
+             'the binned Hic matrix'
+    )
+
+    parser.add_argument(
+        '-n', '--normalise', dest='normalise',
+        action='store_true',
+        default=False,
+        help='Normalise Hi-C matrix according to --norm-method'
+    )
+
+    parser.add_argument(
+        '-m', '--norm-method', dest='norm_method',
+        default='kr',
+        help='Normalisation method used for -n. Options are: '
+             'KR (default) = Knight-Ruiz matrix balancing '
+             '(Fast, accurate, but memory-intensive normalisation); '
+             'ICE = ICE matrix balancing (less accurate, but more memory-efficient); '
+             'VC = vanilla coverage (a single round of ICE balancing);'
+             'VC-SQRT = vanilla coverage square root (reduces overcorrection compared to VC)'
     )
 
     parser.add_argument(
@@ -1213,18 +1233,17 @@ def hic_parser():
         action='store_true',
         default=False,
         help='Restore coverage to the original total number of reads. '
-             'Otherwise matrix entries will be contact probabilities. '
-             'Only available for KR matrix balancing.'
+             'Otherwise matrix entries will be contact probabilities.'
     )
 
     parser.add_argument(
         '--only-inter', dest='only_inter',
         action='store_true',
+        default=False,
         help="Calculate bias vector only on inter-chromosomal contacts. "
              "Ignores all intra-chromosomal contacts. "
              "Always uses whole-matrix balancing, i.e. implicitly sets -w"
     )
-    parser.set_defaults(only_inter=False)
 
     parser.add_argument(
         '-s', '--statistics', dest='stats',
@@ -1290,8 +1309,12 @@ def hic(argv, **kwargs):
     filter_diagonal = args.filter_diagonal
     downsample = args.downsample
     subset = args.subset
+
+    do_norm = args.normalise
+    norm_method = args.norm_method
     ice = args.ice
     kr = args.kr
+
     whole_matrix = args.whole_matrix
     restore_coverage = args.restore_coverage
     only_interchromosomal = args.only_inter
@@ -1305,8 +1328,26 @@ def hic(argv, **kwargs):
     deepcopy = args.deepcopy
     tmp = args.tmp
 
+    if kr or ice:
+        warnings.warn("-k and -i have been deprecated in favor of -n and --norm-method. "
+                      "-k and -i will be removed in a future version. "
+                      "Please change your scripts accordingly!")
+
     if kr and ice:
         parser.error("The arguments --ice and --kr are mutually exclusive")
+
+    if (kr or ice) and do_norm:
+        parser.error("-n and -k (or -i) are incompatible. "
+                     "Please use -n in combination with "
+                     "--norm-method!")
+
+    if kr:
+        do_norm = True
+        norm_method = 'kr'
+
+    if ice:
+        do_norm = True
+        norm_method = 'ice'
 
     coverage_args = 0
     if filter_low_coverage_auto:
@@ -1318,9 +1359,6 @@ def hic(argv, **kwargs):
 
     if coverage_args > 1:
         parser.error("The arguments -l, -r, and -a are mutually exclusive")
-
-    if ice and restore_coverage:
-        parser.error("--restore-coverage not supported for ICE matrix balancing!")
 
     if only_interchromosomal:
         whole_matrix = True
@@ -1541,17 +1579,12 @@ def hic(argv, **kwargs):
                 fig.savefig(marginals_plot_file)
                 plt.close(fig)
 
-        if ice or kr:
-            logger.info("Correcting binned Hic file")
-            from fanc.hic import ice_balancing, kr_balancing
+        if do_norm:
+            logger.info("Normalising binned Hic file")
 
-            if ice:
-                ice_balancing(binned_hic, whole_matrix=whole_matrix,
-                              intra_chromosomal=not only_interchromosomal)
-            elif kr:
-                kr_balancing(binned_hic, whole_matrix=whole_matrix,
-                             restore_coverage=restore_coverage,
-                             intra_chromosomal=not only_interchromosomal)
+            binned_hic.normalise(norm_method, whole_matrix=whole_matrix,
+                                 intra_chromosomal=not only_interchromosomal,
+                                 restore_coverage=restore_coverage)
 
         binned_hic.close()
     finally:
@@ -3956,41 +3989,11 @@ def compartments(argv, **kwargs):
                 matplotlib.use('agg')
                 import matplotlib.pyplot as plt
                 import matplotlib.gridspec as grd
-                import numpy as np
+                from fanc.plotting.statistics import saddle_plot
 
                 fig = plt.figure(figsize=(5, 5), dpi=300)
-                gs = grd.GridSpec(3, 3,
-                                  height_ratios=[5, 1, 1],
-                                  width_ratios=[5, 1, 1])
-                heatmap_ax = plt.subplot(gs[0, 0])
-                im = heatmap_ax.imshow(m, cmap=cmap, vmin=vmin, vmax=vmax,
-                                       interpolation='nearest', aspect='auto')
-                cax = plt.subplot(gs[0, 2])
-                cb = plt.colorbar(im, cax=cax)
-                cb.set_ticks([vmin, 0, vmax])
-                cb.set_label("log O/E")
-                heatmap_ax.set_xticks([0, m.shape[1] - 1])
-                heatmap_ax.set_xticklabels(['active', 'inactive'])
-                heatmap_ax.set_yticks([0, m.shape[1] - 1])
-                heatmap_ax.set_yticklabels(['active', 'inactive'])
-                heatmap_ax.set_ylim(heatmap_ax.get_xlim())
-
-                pos = np.arange(m.shape[1])
-                barplot_ax = plt.subplot(gs[2, 0])
-                barplot_ax.bar(pos, cutoffs, color='grey', width=1)
-                if not only_gc:
-                    extent = max(abs(cutoffs[0]), abs(cutoffs[-1]))
-                    barplot_ax.set_yticks([-1 * extent, 0, extent])
-                else:
-                    barplot_ax.set_yticks([cutoffs[0], cutoffs[int(len(cutoffs) / 2)], cutoffs[1]])
-                barplot_ax.set_xlim(heatmap_ax.get_xlim())
-                barplot_ax.get_xaxis().set_visible(False)
-                barplot_ax.spines['right'].set_visible(False)
-                barplot_ax.spines['top'].set_visible(False)
-                barplot_ax.spines['bottom'].set_visible(False)
-                barplot_ax.yaxis.set_ticks_position('left')
-                barplot_ax.xaxis.set_ticks_position('none')
-                barplot_ax.set_title("EV percentile cutoffs")
+                fig, axes = saddle_plot(m, cutoffs, colormap=cmap, vmin=vmin, vmax=vmax, only_gc=only_gc,
+                                        fig=fig)
                 fig.savefig(enrichment_file)
                 plt.close(fig)
     finally:
@@ -4140,20 +4143,17 @@ def expected(argv, **kwargs):
         import matplotlib
         matplotlib.use("agg")
         import matplotlib.pyplot as plt
+        from fanc.plotting.statistics import distance_decay_plot
+
+        hics = [fanc.load(file_name) for file_name in input_files]
 
         fig, ax = plt.subplots(figsize=(4, 3), dpi=300)
-        for label in labels:
-            distance = distances[label]
-            expected = expected_values[label]
-            ax.plot(distance, expected, label=label)
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.set_xlabel("Distance")
-        ax.set_ylabel("Average contacts")
-        ax.legend()
-        fig.tight_layout()
+        distance_decay_plot(*hics, ax=ax, labels=labels)
         fig.savefig(plot_file)
         plt.close(fig)
+
+        for hic in hics:
+            hic.close()
 
 
 def subset_parser():
@@ -4421,8 +4421,17 @@ def aggregate_parser():
 
     parser.add_argument(
         '--labels', dest='labels',
-        nargs=3,
-        help='Labels for the left, center, and right edge of the matrix.'
+        help='Labels for the left, center, and right edge of the '
+             'matrix (comma-separated).'
+    )
+
+    parser.add_argument(
+        '--label-locations', dest='label_locations',
+        default="0,0.5,1",
+        help='Relative location of ticks on bottom and left of aggregate plot '
+             '(comma-separated). '
+             'Ranges from 0 (left/bottom) to 1.0 (right/top). '
+             'Default: 0,0.5,1.0'
     )
 
     return parser
@@ -4460,12 +4469,19 @@ def aggregate(argv, **kwargs):
     keep_submatrices = args.keep_submatrices
     region_viewpoint = args.region_viewpoint
     orient_strand = args.orient_strand
-    labels = args.labels
+    labels = args.labels if args.labels is None else args.labels.split(",")
+    label_locations = [float(loc) for loc in args.label_locations.split(",")]
     tmp = args.tmp
 
     presets = sum([tads_preset, tads_imakaev_preset, loops_preset])
     if presets > 1:
         parser.error("--tads, --tads-imakaev, and --loops are mutually exclusive!")
+
+    if labels is not None:
+        if len(labels) != len(label_locations):
+            parser.error("Number of labels ({}) must be the same as the number of ticks ({})".format(
+                len(labels), len(label_locations)
+            ))
 
     if tads_preset:
         if relative is None:
@@ -4545,6 +4561,7 @@ def aggregate(argv, **kwargs):
                                                                          orient_strand=orient_strand,
                                                                          cache=cache,
                                                                          region_viewpoint=region_viewpoint)
+
                     if labels is None:
                         left = int(pixels / 2)
                         right = left if pixels % 2 == 1 else left - 1
@@ -4615,30 +4632,12 @@ def aggregate(argv, **kwargs):
                 import matplotlib
                 matplotlib.use('agg')
                 import matplotlib.pyplot as plt
-                import fanc.plotting
-
-                m = aggregate_matrix.matrix()
-
-                if labels is None:
-                    labels = ['', '', '']
+                from fanc.plotting.statistics import aggregate_plot
 
                 fig, ax = plt.subplots()
-                if vmin is None:
-                    vmin = np.nanmin(m)
-                if vmax is None:
-                    vmax = np.nanmax(m)
-
-                if oe and log:
-                    abs_max = max(abs(vmin), abs(vmax))
-                    vmin, vmax = -1*abs_max, abs_max
-
-                im = ax.imshow(m, cmap=colormap, vmin=vmin, vmax=vmax, interpolation='nearest')
-                plt.colorbar(im)
-                ax.set_xticks([0, pixels/2, pixels - 1])
-                ax.set_xticklabels(labels)
-                ax.set_yticks([0, pixels/2, pixels - 1])
-                ax.set_yticklabels(labels)
-                ax.set_ylim(ax.get_xlim())
+                aggregate_plot(aggregate_matrix, labels=labels, vmin=vmin, vmax=vmax,
+                               oe=oe, log=log, colormap=colormap, ax=ax,
+                               relative_label_locations=label_locations)
                 fig.savefig(plot_file)
                 plt.close(fig)
     finally:

@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Hi-C aggregate analysis &mdash; FAN-C 0.8.31-beta documentation</title>
+  <title>Hi-C aggregate analysis &mdash; FAN-C 0.8.39-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.31
+                0.8.39
               </div>
             
           
@@ -88,6 +88,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compatibility.html"> Working with Cooler, Juicer, and text files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="../fanc_analyse_hic.html"> Analyse Hi-C matrices</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="oe.html"> Expected values and O/E matrices</a></li>
@@ -181,6 +182,15 @@
             
   <div class="section" id="hi-c-aggregate-analysis">
 <span id="fanc-aggregate"></span><h1>Hi-C aggregate analysis<a class="headerlink" href="#hi-c-aggregate-analysis" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The following examples use the matrix files in FAN-C format. If you want to try the same
+commands using Juicer <code class="docutils literal notranslate"><span class="pre">.hic</span></code> files, replace <code class="docutils literal notranslate"><span class="pre">output/hic/binned/fanc_example_100kb.hic</span></code>
+with <code class="docutils literal notranslate"><span class="pre">architecture/other-hic/fanc_example.juicer.hic&#64;100kb</span></code>. If you want to work with
+Cooler files in this tutorial, use <code class="docutils literal notranslate"><span class="pre">architecture/other-hic/fanc_example.mcool&#64;100kb</span></code>.
+The results will be minimally different due to the “zooming” and balancing applied by
+each package.</p>
+</div>
 <p>It can be very informative to view the average Hi-C matrix for a set of regions, rather
 than the Hi-C matrix at each individual region. This can help you in identifying common
 structural features of these regions or over-/under-representation of contacts in the
@@ -197,8 +207,8 @@ vicinity.</p>
                       <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BOUNDARY_MODE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">INTERPOLATION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RELATIVE</span><span class="p">]</span>
                       <span class="p">[</span><span class="o">-</span><span class="n">a</span> <span class="n">ABSOLUTE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">e</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">rescale</span><span class="p">]</span>
                       <span class="p">[</span><span class="o">--</span><span class="n">colormap</span> <span class="n">COLORMAP</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">vmin</span> <span class="n">VMIN</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">vmax</span> <span class="n">VMAX</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
-                      <span class="p">[</span><span class="o">-</span><span class="n">C</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">keep</span><span class="o">-</span><span class="n">submatrices</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span>
-                      <span class="p">[</span><span class="o">--</span><span class="n">labels</span> <span class="n">LABELS</span> <span class="n">LABELS</span> <span class="n">LABELS</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">-</span><span class="n">C</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">keep</span><span class="o">-</span><span class="n">submatrices</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">labels</span> <span class="n">LABELS</span><span class="p">]</span>
+                      <span class="p">[</span><span class="o">--</span><span class="n">label</span><span class="o">-</span><span class="n">locations</span> <span class="n">LABEL_LOCATIONS</span><span class="p">]</span>
                       <span class="nb">input</span> <span class="p">[</span><span class="n">regions</span><span class="p">]</span> <span class="p">[</span><span class="n">output</span><span class="p">]</span>
 </pre></div>
 </div>
@@ -292,7 +302,10 @@ vicinity.</p>
 <dd><p>Flip submatrix if region is on the negative strand.</p>
 </dd>
 <dt><kbd>--labels</kbd></dt>
-<dd><p>Labels for the left, center, and right edge of the matrix.</p>
+<dd><p>Labels for the left, center, and right edge of the matrix (comma-separated).</p>
+</dd>
+<dt><kbd>--label-locations</kbd></dt>
+<dd><p>Relative location of ticks on bottom and left of aggregate plot (comma-separated). Ranges from 0 (left/bottom) to 1.0 (right/top). Default: 0,0.5,1.0</p>
 </dd>
 </dl>
 </div>

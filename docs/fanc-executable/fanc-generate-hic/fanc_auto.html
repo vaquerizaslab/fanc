@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.8.31-beta documentation</title>
+  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.8.39-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.31
+                0.8.39
               </div>
             
           
@@ -88,6 +88,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compatibility.html"> Working with Cooler, Juicer, and text files</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a><ul class="current">
 <li class="toctree-l3 current"><a class="current reference internal" href="#"> fanc auto: Automated generation of Hi-C matrices</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#parameters">Parameters</a></li>
@@ -198,7 +199,7 @@ the processing and filtering of objects in the pipeline.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">auto</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span> <span class="n">GENOME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RESTRICTION_ENZYME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">GENOME_INDEX</span><span class="p">]</span>
                  <span class="p">[</span><span class="o">-</span><span class="n">n</span> <span class="n">BASENAME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STEP_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BIN_SIZES</span> <span class="p">[</span><span class="n">BIN_SIZES</span> <span class="o">...</span><span class="p">]]</span>
                  <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">fanc</span><span class="o">-</span><span class="n">parallel</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">fastq</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">memory</span><span class="o">-</span><span class="nb">map</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="n">ice</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY_CUTOFF</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">ice</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">norm</span><span class="o">-</span><span class="n">method</span> <span class="n">NORM_METHOD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY_CUTOFF</span><span class="p">]</span>
                  <span class="p">[</span><span class="o">--</span><span class="n">iterative</span><span class="o">-</span><span class="n">quality</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">ITERATIVE_QUALITY_CUTOFF</span><span class="p">]</span>
                  <span class="p">[</span><span class="o">--</span><span class="n">le</span><span class="o">-</span><span class="n">inward</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">INWARD_CUTOFF</span><span class="p">]</span>
                  <span class="p">[</span><span class="o">--</span><span class="n">le</span><span class="o">-</span><span class="n">outward</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">OUTWARD_CUTOFF</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">auto</span><span class="o">-</span><span class="n">le</span><span class="o">-</span><span class="n">cutoff</span><span class="p">]</span>
@@ -255,7 +256,10 @@ the processing and filtering of objects in the pipeline.</p>
 <dd><p>Map Bowtie2 index to memory. Recommended if running on medium-memory systems and using many parallel threads).</p>
 </dd>
 <dt><kbd>--ice</kbd></dt>
-<dd><p>Correct Hi-C matrices using ICE instead of Knight-Ruiz matrix balancing. Slower, but much more memory-friendly.</p>
+<dd><p>DEPRECATED. Correct Hi-C matrices using ICE instead of Knight-Ruiz matrix balancing. Slower, but much more memory-friendly.</p>
+</dd>
+<dt><kbd>--norm-method</kbd></dt>
+<dd><p>Normalisation method. Options are: KR (default) = Knight-Ruiz matrix balancing (Fast, accurate, but memory-intensive); ICE = ICE matrix balancing (more CPU-intensive, but also more memory-efficient); VC = vanilla coverage (a single round of ICE balancing); VC-SQRT = vanilla coverage square root (reduces overcorrection compared to VC)</p>
 </dd>
 <dt><kbd>-q, --quality-cutoff</kbd></dt>
 <dd><p>Cutoff for the minimum mapping quality of a read. For numbers larger than 1, will filter on MAPQ. If a number between 0 and 1 is provided, will filter on the AS tag instead of mapping quality (only BWA). The quality cutoff is then interpreted as the fraction of bases that have to be matched for any given read. Only applies to SAM/BAM input!. Default is not to filter on mapping quality.</p>
@@ -496,7 +500,8 @@ specified with the <code class="docutils literal notranslate"><span class="pre">
 2mb, 1mb, 500kb, 250kb, 100kb, 50kb, 25kb, 10kb, and 5kb resolution.</p>
 <p>Binned Hi-C files will be filtered for coverage (bins with less reads than 10% of the median
 bin coverage) and corrected using Knight-Ruiz matrix balancing. If you prefer ICE correction,
-use the <code class="docutils literal notranslate"><span class="pre">--ice</span></code> parameter. Each chromosome in the matrix is corrected independently, and
+use the <code class="docutils literal notranslate"><span class="pre">--norm-method</span> <span class="pre">ice</span></code> option, or <code class="docutils literal notranslate"><span class="pre">--norm-method</span> <span class="pre">vc</span></code> for vanilla coverage normalisation.
+Each chromosome in the matrix is corrected independently, and
 by default the corrected matrix entries correspond to contact probabilities. You can use the
 <code class="docutils literal notranslate"><span class="pre">--restore-coverage</span></code> option to force matrix entries in a chromosome to sum up to the
 total number of reads before correction.</p>

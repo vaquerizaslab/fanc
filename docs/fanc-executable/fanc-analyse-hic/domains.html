@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Hi-C domain analysis &mdash; FAN-C 0.8.31-beta documentation</title>
+  <title>Hi-C domain analysis &mdash; FAN-C 0.8.39-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.8.31
+                0.8.39
               </div>
             
           
@@ -88,6 +88,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../fanc_basic.html"> Overview and shared parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compatibility.html"> Working with Cooler, Juicer, and text files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../fanc_generate_hic.html"> Generate Hi-C matrices</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="../fanc_analyse_hic.html"> Analyse Hi-C matrices</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="oe.html"> Expected values and O/E matrices</a></li>
@@ -179,6 +180,16 @@
             
   <div class="section" id="hi-c-domain-analysis">
 <span id="fanc-domains"></span><h1>Hi-C domain analysis<a class="headerlink" href="#hi-c-domain-analysis" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The following examples use the matrix files in FAN-C format. If you want to try the same
+commands using Juicer <code class="docutils literal notranslate"><span class="pre">.hic</span></code> files, replace <code class="docutils literal notranslate"><span class="pre">output/hic/binned/fanc_example_100kb.hic</span></code>
+with <code class="docutils literal notranslate"><span class="pre">architecture/other-hic/fanc_example.juicer.hic&#64;100kb</span></code>. You will also need to adjust the
+<cite>-vmax</cite> value in the triangular matrix plot to <cite>50</cite>. If you want to work with
+Cooler files in this tutorial, use <code class="docutils literal notranslate"><span class="pre">architecture/other-hic/fanc_example.mcool&#64;100kb</span></code>.
+The results will be minimally different due to the “zooming” and balancing applied by
+each package.</p>
+</div>
 <p>Like compartments, topologically associating domains, or TADs, for a fundamental level of
 genome organisation.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/domains/fanc_example_100kb_tads.png chr18:18mb-28mb <span class="se">\</span>
@@ -322,7 +333,7 @@ parameters:</p>
 </pre></div>
 </div>
 <p>You can plot scores from one or more window sizes using the <code class="docutils literal notranslate"><span class="pre">line</span></code> plot in <code class="docutils literal notranslate"><span class="pre">fancplot</span></code>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot --width <span class="m">6</span> -o architecture/domains/fanc_example_50kb_tads_insulation_1mb.png <span class="se">\</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot --width <span class="m">6</span> -o architecture/domains/fanc_example_100kb_tads_insulation_1mb.png <span class="se">\</span>
                chr18:18mb-28mb <span class="se">\</span>
                -p triangular output/hic/binned/fanc_example_100kb.hic -m <span class="m">4000000</span> <span class="se">\</span>
                -vmin <span class="m">0</span> -vmax <span class="m">0</span>.05 <span class="se">\</span>
@@ -366,7 +377,7 @@ impute the unmappable values from the expected values of the chromosome using <c
 <p>This will result in score without NaN (at least in the center of chromosomes), but can also
 be misleading if the region of interest happens to lie in an unmappable region. Therefore use
 this capability with caution!</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/domains/fanc_example_50kb_tads_insulation.png chr18:18mb-28mb <span class="se">\</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/domains/fanc_example_100kb_tads_insulation.png chr18:18mb-28mb <span class="se">\</span>
      -p triangular output/hic/binned/fanc_example_100kb.hic -m <span class="m">4000000</span> -vmin <span class="m">0</span> -vmax <span class="m">0</span>.05 <span class="se">\</span>
      -p scores architecture/domains/fanc_example_100kb.insulation_imputed -vmin -1 -vmax <span class="m">1</span>
 </pre></div>
@@ -431,7 +442,7 @@ the minimum compared to the two neighboring maxima):</p>
 </pre></div>
 </div>
 <p>Let’s plot the boundaries from the 1mb scores:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot --width <span class="m">6</span> -o architecture/domains/fanc_example_50kb_tads_insulation_1mb_boundaries.png <span class="se">\</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot --width <span class="m">6</span> -o architecture/domains/fanc_example_100kb_tads_insulation_1mb_boundaries.png <span class="se">\</span>
      chr18:18mb-28mb <span class="se">\</span>
      -p triangular output/hic/binned/fanc_example_100kb.hic -m <span class="m">4000000</span> -vmin <span class="m">0</span> -vmax <span class="m">0</span>.05 <span class="se">\</span>
      -p line architecture/domains/fanc_example_100kb.insulation_1mb.bed -l <span class="s2">&quot;1mb&quot;</span> <span class="se">\</span>
@@ -452,7 +463,7 @@ calls rely on a smoothed insulation score track, it can attempt to identify the 
 with sub-bin resolution. Use <code class="docutils literal notranslate"><span class="pre">-x</span></code> to try this, but be aware that this is not precise.</p>
 </div>
 <div class="section" id="directionality-index">
-<h2>Directionality Index<a class="headerlink" href="#directionality-index" title="Permalink to this headline">¶</a></h2>
+<span id="id1"></span><h2>Directionality Index<a class="headerlink" href="#directionality-index" title="Permalink to this headline">¶</a></h2>
 <p>The directionality index (<a class="reference external" href="http://www.nature.com/doifinder/10.1038/nature11082">Dixon et al. 2012</a>)
 measures the bias in contact frequency up- and downstream of an Hi-C region. When inside TADs,
 this measure tends towards zero, as interactions in either direction are equally frequent. However,
@@ -494,8 +505,8 @@ a low intensity region outside the TAD.</p>
 </dd>
 </dl>
 </div>
-<div class="section" id="id1">
-<h3>Example<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id2">
+<h3>Example<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">directionality</span></code> is very similar in syntax to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code>.
 It is typically used to calculate directionality indexes with multiple window
 sizes at the same time, as a single window size might be prone to local matrix differences:</p>
@@ -506,7 +517,7 @@ sizes at the same time, as a single window size might be prone to local matrix d
 </div>
 <p>Window sizes are chosen using the <code class="docutils literal notranslate"><span class="pre">-w</span></code> parameter.</p>
 <p>We can easily plot all directionality indexes at the same time using <code class="docutils literal notranslate"><span class="pre">fancplot</span></code>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/domains/fanc_example_50kb_tads_directionality.png chr18:18mb-28mb <span class="se">\</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fancplot -o architecture/domains/fanc_example_100kb_tads_directionality.png chr18:18mb-28mb <span class="se">\</span>
      -p triangular output/hic/binned/fanc_example_100kb.hic -m <span class="m">4000000</span> -vmin <span class="m">0</span> -vmax <span class="m">0</span>.05 <span class="se">\</span>
      -p scores architecture/domains/fanc_example_100kb.directionality
 </pre></div>

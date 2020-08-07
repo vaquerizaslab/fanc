@@ -1,7 +1,11 @@
 version: 2
 
+sphinx:
+  configuration: docsrc/conf.py
+
 python:
-   version: 3.8
+   version: 3.7
    install:
       - method: pip
         path: .
+      - requirements: docsrc/requirements.txt

@@ -148,7 +148,7 @@ class GenomicFigure(object):
         ax_specs = []
         for i in range(self.n):
             specs = {}
-            specs["ax"]  = list(box_coords_abs_to_rel(cur_top, pad_l, self._width, plot_heights[i], figsize))
+            specs["ax"] = list(box_coords_abs_to_rel(cur_top, pad_l, self._width, plot_heights[i], figsize))
             specs["cax"] = list(box_coords_abs_to_rel(cur_top, cax_l, self._cax_width, plot_heights[i], figsize))
             ax_specs.append(specs)
             cur_top += plot_heights[i] + plot_pads[i]
@@ -999,7 +999,7 @@ class LinePlot(RegionPlotBase):
 
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
-        self.ax.set_xlim(limits)
+        #self.ax.set_xlim(limits)
 
     def _refresh(self, region):
         for f in self.fills:
@@ -1084,6 +1084,7 @@ class BarPlot(RegionPlotBase):
         for i, (x, w, h, c) in enumerate(self._bar_values(region)):
             kwargs = self.plot_kwargs.copy()
             kwargs.setdefault('color', c)
+            kwargs.setdefault('align', 'edge')
             kwargs.setdefault('label', self.labels[i] if self.labels else "")
             kwargs.setdefault('alpha', self.alpha)
 

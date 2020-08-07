@@ -4,6 +4,15 @@
 Expected values
 ###############
 
+.. note::
+
+    The following examples use the matrix files in FAN-C format. If you want to try the first few
+    commands using Juicer ``.hic`` files, replace ``output/hic/binned/fanc_example_500kb.hic``
+    with ``architecture/other-hic/fanc_example.juicer.hic@500kb``. If you want to work with
+    Cooler files in this tutorial, use ``architecture/other-hic/fanc_example.mcool@500kb``.
+    The results will be minimally different due to the "zooming" and balancing applied by
+    each package.
+
 The contact intensity in a Hi-C matrix gets progressively weaker the further apart
 two loci are. The expected values follow a distinctive profile with distance for
 Hi-C matrices, which can be approximated by a power law and forms an almost straight

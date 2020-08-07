@@ -10,6 +10,7 @@ import tempfile
 from future.utils import string_types
 from fanc.config import config
 import re
+import warnings
 
 
 # configure logging
@@ -505,8 +506,19 @@ def auto_parser():
         '--ice', dest='ice',
         action='store_true',
         default=False,
-        help="Correct Hi-C matrices using ICE instead of Knight-Ruiz "
+        help="DEPRECATED. Correct Hi-C matrices using ICE instead of Knight-Ruiz "
              "matrix balancing. Slower, but much more memory-friendly."
+    )
+
+    parser.add_argument(
+        '--norm-method', dest='norm_method',
+        default='kr',
+        help='Normalisation method. Options are: '
+             'KR (default) = Knight-Ruiz matrix balancing '
+             '(Fast, accurate, but memory-intensive); '
+             'ICE = ICE matrix balancing (more CPU-intensive, but also more memory-efficient); '
+             'VC = vanilla coverage (a single round of ICE balancing); '
+             'VC-SQRT = vanilla coverage square root (reduces overcorrection compared to VC)'
     )
 
     parser.add_argument(
@@ -743,6 +755,7 @@ def auto(argv, **kwargs):
     auto_le_cutoff = args.auto_le_cutoff
     process_hic = args.process_hic
     ice = args.ice
+    norm_method = args.norm_method
     restore_coverage = args.restore_coverage
     run_with = args.run_with
     job_prefix = args.job_prefix
@@ -756,6 +769,10 @@ def auto(argv, **kwargs):
     file_names = [os.path.expanduser(file_name) for file_name in args.input]
     file_types = [file_type(file_name) for file_name in file_names]
     file_basenames = [file_basename(file_name) for file_name in file_names]
+
+    if ice:
+        warnings.warn("The --ice option is deprecated. Please use '--norm-method ice' instead!")
+        norm_method = 'ice'
 
     for file_name in file_names:
         if not os.path.exists(file_name):
@@ -1245,13 +1262,10 @@ def auto(argv, **kwargs):
 
                 hic_command = fanc_base_command + ['hic', '-f', '-b', str(bin_size),
                                                    '-r', '0.1', '-t', str(bin_threads),
-                                                   '--statistics-plot', hic_stats_file]
+                                                   '--statistics-plot', hic_stats_file,
+                                                   '-n', '--norm-method', norm_method]
                 if tmp:
                     hic_command.append('-tmp')
-                if ice:
-                    hic_command.append('-i')
-                else:
-                    hic_command.append('-k')
                 if restore_coverage:
                     hic_command.append('-c')
 

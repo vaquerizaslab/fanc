@@ -1,0 +1,402 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Matrix and score comparisons &mdash; FAN-C 0.8.39-beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Aggregate analyses" href="aggregate.html" />
+    <link rel="prev" title="TADs and TAD boundaries" href="domains.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FAN-C
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.8.39
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fancplot.html">fancplot: plotting from the command line</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Python API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../compatibility.html">Working with Juicer and Cooler files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../interfaces.html">Interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generate.html">Generate Hi-C matrices (API)</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../analyse.html">Analyse Hi-C matrices (API)</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="oe.html">Expected values and O/E matrices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="compartments.html">AB compartments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pca.html">PCA analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="domains.html">TADs and TAD boundaries</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Matrix and score comparisons</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#matrix-comparisons">Matrix comparisons</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#score-track-comparisons">Score / track comparisons</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#parameter-based-score-comparisons">Parameter-based score comparisons</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="aggregate.html">Aggregate analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="loops.html">Loop calling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plot.html">Plotting (API)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules.html">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FAN-C</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../api.html">fanc Python module</a> &raquo;</li>
+        
+          <li><a href="../analyse.html">Analyse Hi-C matrices using the API</a> &raquo;</li>
+        
+      <li>Matrix and score comparisons</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/api/analyse/comparisons.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="matrix-and-score-comparisons">
+<span id="api-comparisons"></span><h1>Matrix and score comparisons<a class="headerlink" href="#matrix-and-score-comparisons" title="Permalink to this headline">¶</a></h1>
+<p>To follow this tutorial, download the FAN-C example data, for example through our
+<a class="reference external" href="https://keeper.mpdl.mpg.de/d/147906745b634c779ed3/">Keeper library</a>, and set up
+your Python session like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
+<span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">fancplot</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%(asctime)s</span><span class="s2"> </span><span class="si">%(levelname)s</span><span class="s2"> </span><span class="si">%(message)s</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="n">hic_esc</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic/bonev2017_esc_10kb.chr1.hic&quot;</span><span class="p">)</span>
+<span class="n">hic_cn</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/other-hic/bonev2017_cn_10kb.chr1.hic&quot;</span><span class="p">)</span>
+
+<span class="n">ins_esc</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/domains/bonev2017_esc_10kb.chr1.insulation&quot;</span><span class="p">)</span>
+<span class="n">ins_cn</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;architecture/domains/bonev2017_cn_10kb.chr1.insulation&quot;</span><span class="p">)</span>
+
+<span class="n">ins_esc_100kb</span> <span class="o">=</span> <span class="n">ins_esc</span><span class="o">.</span><span class="n">score_regions</span><span class="p">(</span><span class="mi">100000</span><span class="p">)</span>
+<span class="n">ins_cn_100kb</span> <span class="o">=</span> <span class="n">ins_cn</span><span class="o">.</span><span class="n">score_regions</span><span class="p">(</span><span class="mi">100000</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Also have a look at the command line documentation at <a class="reference internal" href="../../fanc-executable/fanc-analyse-hic/comparisons.html#fanc-comparisons"><span class="std std-ref">Matrix and score comparisons</span></a> for the
+command-line approach to comparisons in FAN-C.</p>
+<p>Comparisons between datasets are important to identify and highlight differences. FAN-C
+has utilities to create comparison matrices and tracks by calculating their fold-change
+or difference.</p>
+<div class="section" id="matrix-comparisons">
+<h2>Matrix comparisons<a class="headerlink" href="#matrix-comparisons" title="Permalink to this headline">¶</a></h2>
+<p>To compare matrices in FAN-C, you can use subclasses of
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.ComparisonMatrix" title="fanc.architecture.comparisons.ComparisonMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">ComparisonMatrix</span></code></a>. There are built-in classes for
+fold-change matrices (<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.FoldChangeMatrix" title="fanc.architecture.comparisons.FoldChangeMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">FoldChangeMatrix</span></code></a>) and
+difference matrices (<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.DifferenceMatrix" title="fanc.architecture.comparisons.DifferenceMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">DifferenceMatrix</span></code></a>), and their
+usage is straightforward using the
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.ComparisonMatrix.from_matrices" title="fanc.architecture.comparisons.ComparisonMatrix.from_matrices"><code class="xref py py-func docutils literal notranslate"><span class="pre">from_matrices()</span></code></a> function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">diff_esc_cn</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">DifferenceMatrix</span><span class="o">.</span><span class="n">from_matrices</span><span class="p">(</span><span class="n">hic_esc</span><span class="p">,</span> <span class="n">hic_cn</span><span class="p">,</span>
+                                                  <span class="n">file_name</span><span class="o">=</span><span class="s2">&quot;architecture/comparisons/esc_vs_cn.diff&quot;</span><span class="p">)</span>
+<span class="n">fc_esc_cn</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">FoldChangeMatrix</span><span class="o">.</span><span class="n">from_matrices</span><span class="p">(</span><span class="n">hic_esc</span><span class="p">,</span> <span class="n">hic_cn</span><span class="p">,</span> <span class="n">log_cmp</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                                                <span class="n">file_name</span><span class="o">=</span><span class="s2">&quot;architecture/comparisons/esc_vs_cn.fc&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We enable <code class="docutils literal notranslate"><span class="pre">log_cmp</span></code> for the fold-change matrix, so comparison values are log2-transformed
+and become symmetrical around 0.</p>
+<p>Note that we could also have used <code class="docutils literal notranslate"><span class="pre">scale=False</span></code> in this case, to omit scaling to sequencing
+depth, but if you are unsure whether your matrices are comparable without scaling it is
+best to leave the setting at its default.</p>
+<p>By default, infinite values resulting from a comparison (such as NaN from division by zero)
+are omitted from the output matrix. You can keep them by disabling <code class="docutils literal notranslate"><span class="pre">ignore_infinite</span></code>.
+If you want to omit comparisons among pixels that are 0 completely, use <code class="docutils literal notranslate"><span class="pre">ignore_zeros</span></code>.</p>
+<p>We can show the result of the comparison using FAN-C plotting functions:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">p_esc</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">TriangularMatrixPlot</span><span class="p">(</span><span class="n">hic_esc</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+                                      <span class="n">max_dist</span><span class="o">=</span><span class="mi">400000</span><span class="p">)</span>
+<span class="n">p_cn</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">TriangularMatrixPlot</span><span class="p">(</span><span class="n">hic_cn</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+                                     <span class="n">max_dist</span><span class="o">=</span><span class="mi">400000</span><span class="p">)</span>
+<span class="n">p_diff</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">TriangularMatrixPlot</span><span class="p">(</span><span class="n">diff_esc_cn</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=-</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span>
+                                       <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;bwr&#39;</span><span class="p">,</span> <span class="n">max_dist</span><span class="o">=</span><span class="mi">400000</span><span class="p">)</span>
+<span class="n">p_fc</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">TriangularMatrixPlot</span><span class="p">(</span><span class="n">fc_esc_cn</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=-</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span>
+                                     <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;PiYG&#39;</span><span class="p">,</span> <span class="n">max_dist</span><span class="o">=</span><span class="mi">400000</span><span class="p">)</span>
+
+<span class="n">gf</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">([</span><span class="n">p_esc</span><span class="p">,</span> <span class="n">p_cn</span><span class="p">,</span> <span class="n">p_diff</span><span class="p">,</span> <span class="n">p_fc</span><span class="p">],</span> <span class="n">ticks_last</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">gf</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;chr1:167.9mb-168.7mb&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="../../_images/comparisons_matrices.png" src="../../_images/comparisons_matrices.png" />
+<p>As you can see, each <a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.ComparisonMatrix" title="fanc.architecture.comparisons.ComparisonMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">ComparisonMatrix</span></code></a> acts just like
+a regular matrix object.</p>
+<div class="section" id="custom-comparisons">
+<span id="fanc-compare-custom"></span><h3>Custom comparisons<a class="headerlink" href="#custom-comparisons" title="Permalink to this headline">¶</a></h3>
+<p>If you require a custom comparison beyond the builtin difference and fold-change, you can
+easily achieve that by subclassing <a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.ComparisonMatrix" title="fanc.architecture.comparisons.ComparisonMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">ComparisonMatrix</span></code></a> and
+implementing a custom <a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.ComparisonMatrix.compare" title="fanc.architecture.comparisons.ComparisonMatrix.compare"><code class="xref py py-func docutils literal notranslate"><span class="pre">compare()</span></code></a> function.
+For example, if you want to create a comparison matrix where a pixels value is <code class="docutils literal notranslate"><span class="pre">1</span></code> if
+the value in matrix 1 is larger than that in matrix 2, <code class="docutils literal notranslate"><span class="pre">-1</span></code> if it is smaller, and <code class="docutils literal notranslate"><span class="pre">0</span></code> if
+they are identical, you can use:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">fanc.architecture.comparisons</span> <span class="kn">import</span> <span class="n">ComparisonMatrix</span>
+
+
+<span class="k">class</span> <span class="nc">CustomComparisonMatrix</span><span class="p">(</span><span class="n">ComparisonMatrix</span><span class="p">):</span>
+    <span class="n">_classid</span> <span class="o">=</span> <span class="s1">&#39;CUSTOMCOMPARISONMATRIX&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">ComparisonMatrix</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">compare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">weight1</span><span class="p">,</span> <span class="n">weight2</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">weight1</span> <span class="o">&lt;</span> <span class="n">weight2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">if</span> <span class="n">weight1</span> <span class="o">&gt;</span> <span class="n">weight2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="mi">0</span>
+</pre></div>
+</div>
+<p>Setting <code class="docutils literal notranslate"><span class="pre">_classid</span></code> enables loading by <code class="xref py py-func docutils literal notranslate"><span class="pre">load()</span></code>.</p>
+</div>
+</div>
+<div class="section" id="score-track-comparisons">
+<h2>Score / track comparisons<a class="headerlink" href="#score-track-comparisons" title="Permalink to this headline">¶</a></h2>
+<p>Although not necessarily Hi-C related in every case, FAN-C can also be used to compare any
+kind of genomic track with scores associated with regions. File types like BED, GFF, BigWig
+and many more (see <a class="reference internal" href="../interfaces/regions_interface.html#genomic-regions"><span class="std std-ref">RegionBased</span></a>) can be loaded using <code class="xref py py-func docutils literal notranslate"><span class="pre">load()</span></code> and then
+compared using <a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.ComparisonRegions.from_regions" title="fanc.architecture.comparisons.ComparisonRegions.from_regions"><code class="xref py py-func docutils literal notranslate"><span class="pre">from_regions()</span></code></a>. FAN-C
+has built-in classes for fold-change (<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.FoldChangeRegions" title="fanc.architecture.comparisons.FoldChangeRegions"><code class="xref py py-class docutils literal notranslate"><span class="pre">FoldChangeRegions</span></code></a>)
+and difference (<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.DifferenceRegions" title="fanc.architecture.comparisons.DifferenceRegions"><code class="xref py py-class docutils literal notranslate"><span class="pre">DifferenceRegions</span></code></a>):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">diff_ins_esc_cn_100kb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">DifferenceRegions</span><span class="o">.</span><span class="n">from_regions</span><span class="p">(</span><span class="n">ins_esc_100kb</span><span class="p">,</span> <span class="n">ins_cn_100kb</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We can plot it like any other region-based FAN-C object:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">p_orig</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">LinePlot</span><span class="p">([</span><span class="n">ins_esc_100kb</span><span class="p">,</span> <span class="n">ins_cn_100kb</span><span class="p">],</span> <span class="n">ylim</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                           <span class="n">colors</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;darkturquoise&#39;</span><span class="p">,</span> <span class="s1">&#39;orange&#39;</span><span class="p">],</span>
+                           <span class="n">style</span><span class="o">=</span><span class="s1">&#39;mid&#39;</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="n">p_diff</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">LinePlot</span><span class="p">(</span><span class="n">diff_ins_esc_cn_100kb</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">),</span>
+                           <span class="n">colors</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;aquamarine&#39;</span><span class="p">],</span>
+                           <span class="n">style</span><span class="o">=</span><span class="s1">&#39;mid&#39;</span><span class="p">)</span>
+<span class="n">gf</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">([</span><span class="n">p_orig</span><span class="p">,</span> <span class="n">p_diff</span><span class="p">],</span> <span class="n">ticks_last</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">gf</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;chr1:167.9mb-168.7mb&quot;</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Insulation</span><span class="se">\n</span><span class="s2">score&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Insulation</span><span class="se">\n</span><span class="s2">difference&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="../../_images/comparisons_regions.png" src="../../_images/comparisons_regions.png" />
+<p>This outputs a <a class="reference internal" href="../modules/regions.html#fanc.regions.RegionsTable" title="fanc.regions.RegionsTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionsTable</span></code></a>, but you can export to file using the
+<a class="reference internal" href="../modules/regions.html#fanc.regions.RegionsTable.to_bed" title="fanc.regions.RegionsTable.to_bed"><code class="xref py py-func docutils literal notranslate"><span class="pre">to_bed()</span></code></a>, <a class="reference internal" href="../modules/regions.html#fanc.regions.RegionsTable.to_gff" title="fanc.regions.RegionsTable.to_gff"><code class="xref py py-func docutils literal notranslate"><span class="pre">to_gff()</span></code></a>, and
+<a class="reference internal" href="../modules/regions.html#fanc.regions.RegionsTable.to_bigwig" title="fanc.regions.RegionsTable.to_bigwig"><code class="xref py py-func docutils literal notranslate"><span class="pre">to_bigwig()</span></code></a> functions.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">log=True</span></code> to log2-transform comparison values after the comparison, for example for
+fold-change comparisons. You can change the attribute that is being compared using the
+<code class="docutils literal notranslate"><span class="pre">attribute</span></code> parameter, which defaults to <code class="docutils literal notranslate"><span class="pre">&quot;score&quot;</span></code>. Similarly, if you want the comparison
+to be saved under a different attribute name, you can specify that using <code class="docutils literal notranslate"><span class="pre">score_field</span></code>.</p>
+<div class="section" id="id1">
+<h3>Custom comparisons<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>For custom region-based comparisons, you can subclass
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.ComparisonRegions" title="fanc.architecture.comparisons.ComparisonRegions"><code class="xref py py-func docutils literal notranslate"><span class="pre">ComparisonRegions()</span></code></a> and override
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.ComparisonRegions.compare" title="fanc.architecture.comparisons.ComparisonRegions.compare"><code class="xref py py-func docutils literal notranslate"><span class="pre">compare()</span></code></a> in the same way you would with
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.ComparisonMatrix" title="fanc.architecture.comparisons.ComparisonMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">ComparisonMatrix</span></code></a> (see <a class="reference internal" href="#fanc-compare-custom"><span class="std std-ref">above</span></a>).</p>
+</div>
+</div>
+<div class="section" id="parameter-based-score-comparisons">
+<h2>Parameter-based score comparisons<a class="headerlink" href="#parameter-based-score-comparisons" title="Permalink to this headline">¶</a></h2>
+<p>In <a class="reference internal" href="domains.html#api-tads"><span class="std std-ref">TADs and TAD boundaries</span></a> we demonstrated how you can use
+<a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.RegionScoreParameterTable" title="fanc.architecture.domains.RegionScoreParameterTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionScoreParameterTable</span></code></a> objects to store parameter-based scores,
+such as window sizes in <a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.InsulationScores" title="fanc.architecture.domains.InsulationScores"><code class="xref py py-class docutils literal notranslate"><span class="pre">InsulationScores</span></code></a>. Such
+<a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.RegionScoreParameterTable" title="fanc.architecture.domains.RegionScoreParameterTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionScoreParameterTable</span></code></a> objects can also be compared
+using FAN-C - in this case, a separate comparison is run for each parameter. The result is a
+<a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.ComparisonScores" title="fanc.architecture.comparisons.ComparisonScores"><code class="xref py py-class docutils literal notranslate"><span class="pre">ComparisonScores</span></code></a> object, which is based on
+<a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.RegionScoreParameterTable" title="fanc.architecture.domains.RegionScoreParameterTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionScoreParameterTable</span></code></a> and can be used as such. The
+comparison is done with <a class="reference internal" href="../modules/architecture/comparisons.html#fanc.architecture.comparisons.ComparisonScores.from_scores" title="fanc.architecture.comparisons.ComparisonScores.from_scores"><code class="xref py py-func docutils literal notranslate"><span class="pre">from_scores()</span></code></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">diff_ins_esc_cn</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">DifferenceScores</span><span class="o">.</span><span class="n">from_scores</span><span class="p">(</span><span class="n">ins_esc</span><span class="p">,</span> <span class="n">ins_cn</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We can plot it like any other parameter-based FAN-C object:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">p_esc</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenomicVectorArrayPlot</span><span class="p">(</span><span class="n">ins_esc</span><span class="p">,</span> <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;RdBu_r&#39;</span><span class="p">,</span>
+                                        <span class="n">vmin</span><span class="o">=-</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                                        <span class="n">genomic_format</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">y_scale</span><span class="o">=</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">p_cn</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenomicVectorArrayPlot</span><span class="p">(</span><span class="n">ins_cn</span><span class="p">,</span> <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;RdBu_r&#39;</span><span class="p">,</span>
+                                       <span class="n">vmin</span><span class="o">=-</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                                       <span class="n">genomic_format</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">y_scale</span><span class="o">=</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">p_diff</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenomicVectorArrayPlot</span><span class="p">(</span><span class="n">diff_ins_esc_cn</span><span class="p">,</span> <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;PiYG&#39;</span><span class="p">,</span>
+                                         <span class="n">vmin</span><span class="o">=-</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                                         <span class="n">genomic_format</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">y_scale</span><span class="o">=</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+
+<span class="n">gf</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">([</span><span class="n">p_esc</span><span class="p">,</span> <span class="n">p_cn</span><span class="p">,</span> <span class="n">p_diff</span><span class="p">],</span> <span class="n">ticks_last</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">gf</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;chr1:167.9mb-168.7mb&quot;</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Insulation</span><span class="se">\n</span><span class="s2">score ESC&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Insulation</span><span class="se">\n</span><span class="s2">score CN&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Insulation</span><span class="se">\n</span><span class="s2">difference&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="../../_images/comparisons_scores.png" src="../../_images/comparisons_scores.png" />
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="aggregate.html" class="btn btn-neutral float-right" title="Aggregate analyses" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="domains.html" class="btn btn-neutral float-left" title="TADs and TAD boundaries" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

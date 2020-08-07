@@ -10,4 +10,5 @@ It provides basic commands for plotting Hi-C data and other genomic tracks.
    :maxdepth: 2
 
     Overview and basic usage <fancplot-executable/fancplot_basic>
+    Working with Cooler, Juicer, and text files <fanc-executable/compatibility>
     Panel types <fancplot-executable/panel_types>
