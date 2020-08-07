@@ -180,9 +180,10 @@ def _split_sam_worker(sam_file1, sam_file2, input_queue, monitor, batch_size=100
 def _load_paired_sam_worker(monitor, input_file_queue, output_file_queue, fi, fe,
                             partition_breaks, read_filters=None,
                             tmpdir=None, buffer_size=1000000):
+    logger.debug("Launching SAM worker")
     worker_uuid = uuid.uuid4()
     monitor.set_worker_busy(worker_uuid)
-    logger.debug("Starting load SAM worker {}".format(worker_uuid))
+    logger.debug("Assigning SAM worker ID {}".format(worker_uuid))
 
     if tmpdir is None:
         tmpdir = tempfile.mkdtemp()
@@ -1272,9 +1273,10 @@ class ReadPairs(RegionPairsTable):
         worker_pool = None
         t_pairs = None
         try:
-            monitor = Monitor()
-            input_queue = mp.Queue(maxsize=2*threads)
-            output_queue = mp.Queue(maxsize=2*threads)
+            manager = mp.Manager()
+            monitor = Monitor(manager=manager)
+            input_queue = manager.Queue(maxsize=2*threads)
+            output_queue = manager.Queue(maxsize=2*threads)
 
             monitor.set_generating_pairs(True)
             t_pairs = threading.Thread(target=_read_pairs_worker, args=(read_pairs, input_queue,
@@ -1282,22 +1284,23 @@ class ReadPairs(RegionPairsTable):
             t_pairs.daemon = True
             t_pairs.start()
 
-            worker_pool = mp.Pool(threads, _fragment_info_worker,
-                                  (monitor, input_queue, output_queue, fragment_infos, fragment_ends))
+            logger.debug("Launching fragment info workers")
+            with mp.get_context("spawn").Pool(threads, _fragment_info_worker,
+                                              (monitor, input_queue, output_queue,
+                                               fragment_infos, fragment_ends)) as worker_pool:
+                output_counter = 0
+                while output_counter < monitor.value() or not monitor.workers_idle() or monitor.is_generating_pairs():
+                    try:
+                        read_pair_infos = output_queue.get(block=True, timeout=timeout)
 
-            output_counter = 0
-            while output_counter < monitor.value() or not monitor.workers_idle() or monitor.is_generating_pairs():
-                try:
-                    read_pair_infos = output_queue.get(block=True, timeout=timeout)
-
-                    for read1_info, read2_info in msgpack.loads(read_pair_infos, strict_map_key=False):
-                        yield read1_info, read2_info
-                    output_counter += 1
-                    del read_pair_infos
-                except Empty:
-                    logger.warning("Reached SAM pair generator timeout. This could mean that no "
-                                   "valid read pairs were found after filtering. "
-                                   "Check filter settings!")
+                        for read1_info, read2_info in msgpack.loads(read_pair_infos, strict_map_key=False):
+                            yield read1_info, read2_info
+                        output_counter += 1
+                        del read_pair_infos
+                    except Empty:
+                        logger.warning("Reached SAM pair generator timeout. This could mean that no "
+                                       "valid read pairs were found after filtering. "
+                                       "Check filter settings!")
         finally:
             if worker_pool is not None:
                 worker_pool.terminate()
@@ -1405,38 +1408,42 @@ class ReadPairs(RegionPairsTable):
                                                                        split_tmpdir,
                                                                        check_sorted))
             t_split.daemon = True
+            logger.debug("Launching SAM splitting thread")
             t_split.start()
 
-            worker_pool = mp.Pool(threads, _load_paired_sam_worker,
-                                  (monitor, input_file_queue, output_file_queue,
-                                   fragment_infos, fragment_ends, self._partition_breaks,
-                                   read_filters, pairs_tmpdir))
+            logger.debug("Launching _load_paired_sam_worker workers")
+            with mp.get_context("spawn").Pool(threads, _load_paired_sam_worker,
+                                             (monitor, input_file_queue, output_file_queue,
+                                              fragment_infos, fragment_ends, self._partition_breaks,
+                                              read_filters, pairs_tmpdir)) as worker_pool:
+                logger.debug("Done launching _load_paired_sam_worker workers")
 
-            output_counter = 0
-            cumulative_wait_time = 0
-            cumulative_load_time = 0
-            while output_counter < monitor.value() or not monitor.workers_idle() or monitor.is_generating_pairs():
-                try:
-                    s = datetime.now()
-                    input_file, read_pairs_file, chunk_stats = output_file_queue.get(block=True)
-                    w = datetime.now() - s
-                    logger.debug("Wait time: {}".format(w))
-                    cumulative_wait_time += w.total_seconds()
+                output_counter = 0
+                cumulative_wait_time = 0
+                cumulative_load_time = 0
+                while output_counter < monitor.value() or not monitor.workers_idle() or monitor.is_generating_pairs():
+                    try:
+                        logger.debug("SAM output collection counter: {}".format(output_counter))
+                        s = datetime.now()
+                        input_file, read_pairs_file, chunk_stats = output_file_queue.get(block=True)
+                        w = datetime.now() - s
+                        logger.debug("Wait time: {}".format(w))
+                        cumulative_wait_time += w.total_seconds()
 
-                    s = datetime.now()
-                    os.remove(input_file)
-                    self.load_read_pairs_fragment_info_file(read_pairs_file)
-                    os.remove(read_pairs_file)
-                    for key, value in chunk_stats.items():
-                        all_stats[key] += value
-                    output_counter += 1
-                    l = datetime.now() - s
-                    logger.debug("Load time: {}".format(l))
-                    cumulative_load_time += l.total_seconds()
-                except Empty:
-                    logger.warning("Reached SAM pair generator timeout. This could mean that no "
-                                   "valid read pairs were found after filtering. "
-                                   "Check filter settings!")
+                        s = datetime.now()
+                        os.remove(input_file)
+                        self.load_read_pairs_fragment_info_file(read_pairs_file)
+                        os.remove(read_pairs_file)
+                        for key, value in chunk_stats.items():
+                            all_stats[key] += value
+                        output_counter += 1
+                        l = datetime.now() - s
+                        logger.debug("Load time: {}".format(l))
+                        cumulative_load_time += l.total_seconds()
+                    except Empty:
+                        logger.warning("Reached SAM pair generator timeout. This could mean that no "
+                                       "valid read pairs were found after filtering. "
+                                       "Check filter settings!")
         finally:
             if worker_pool is not None:
                 worker_pool.terminate()

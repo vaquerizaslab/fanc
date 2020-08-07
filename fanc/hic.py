@@ -255,58 +255,58 @@ class Hic(RegionMatrixTable):
                 pool = None
                 try:
                     logger.info("Launching processes")
-                    pool = mp.Pool(threads, _bin_hic_partition_worker,
-                                   (file_name,
-                                    qin, qout,
-                                    msgpack.dumps(overlap_map),
-                                    _edges_by_overlap_method,
-                                    access_lock))
+                    with mp.get_context("spawn").Pool(threads, _bin_hic_partition_worker,
+                                                      (file_name,
+                                                       qin, qout,
+                                                       msgpack.dumps(overlap_map),
+                                                       _edges_by_overlap_method,
+                                                       access_lock)) as pool:
 
-                    n_fragments = len(hic.regions)
-                    thread_max = min(int(n_fragments/threads), _regions_soft_max)
-                    partitions = [[0, 0]]
-                    previous_chromosome = None
-                    for i, region in enumerate(hic.regions(lazy=True)):
-                        if previous_chromosome is not None and (region.chromosome != previous_chromosome
-                                                                or i == n_fragments - 1):
-                            partition_size = partitions[-1][1] - partitions[-1][0]
-                            current_size = i - partitions[-1][1]
-                            partition_empty = thread_max - partition_size
+                        n_fragments = len(hic.regions)
+                        thread_max = min(int(n_fragments/threads), _regions_soft_max)
+                        partitions = [[0, 0]]
+                        previous_chromosome = None
+                        for i, region in enumerate(hic.regions(lazy=True)):
+                            if previous_chromosome is not None and (region.chromosome != previous_chromosome
+                                                                    or i == n_fragments - 1):
+                                partition_size = partitions[-1][1] - partitions[-1][0]
+                                current_size = i - partitions[-1][1]
+                                partition_empty = thread_max - partition_size
 
-                            if partition_size == 0 or partition_empty > current_size/2:
-                                partitions[-1][1] = i
-                            else:
-                                partitions.append([partitions[-1][1], i])
-                        previous_chromosome = region.chromosome
-                    partitions[-1][1] = n_fragments
+                                if partition_size == 0 or partition_empty > current_size/2:
+                                    partitions[-1][1] = i
+                                else:
+                                    partitions.append([partitions[-1][1], i])
+                            previous_chromosome = region.chromosome
+                        partitions[-1][1] = n_fragments
 
-                    logger.info("Submitting partitions")
+                        logger.info("Submitting partitions")
 
-                    # submit intra-chromosomal first to distribute
-                    # load among workers more evenly
-                    n_chunks = 0
-                    for partition in partitions:
-                        qin.put((partition, partition))
-                        n_chunks += 1
-
-                    # then submit inter-chromosomal partitions
-                    for cix1, partition1 in enumerate(partitions):
-                        for cix2 in range(cix1 + 1, len(partitions)):
-                            partition2 = partitions[cix2]
-                            qin.put((partition1, partition2))
+                        # submit intra-chromosomal first to distribute
+                        # load among workers more evenly
+                        n_chunks = 0
+                        for partition in partitions:
+                            qin.put((partition, partition))
                             n_chunks += 1
 
-                    self._disable_edge_indexes()
-                    logger.info("Collecting results")
-                    with RareUpdateProgressBar(max_value=n_chunks, prefix="Binning") as pb:
-                        for i in range(n_chunks):
-                            out = qout.get(block=True)
-                            if isinstance(out, Exception):
-                                raise out
-                            edges = msgpack.loads(out, use_list=False, strict_map_key=False)
-                            for (source, sink), weight in edges.items():
-                                self.add_edge_simple(source, sink, weight=weight)
-                            pb.update(i)
+                        # then submit inter-chromosomal partitions
+                        for cix1, partition1 in enumerate(partitions):
+                            for cix2 in range(cix1 + 1, len(partitions)):
+                                partition2 = partitions[cix2]
+                                qin.put((partition1, partition2))
+                                n_chunks += 1
+
+                        self._disable_edge_indexes()
+                        logger.info("Collecting results")
+                        with RareUpdateProgressBar(max_value=n_chunks, prefix="Binning") as pb:
+                            for i in range(n_chunks):
+                                out = qout.get(block=True)
+                                if isinstance(out, Exception):
+                                    raise out
+                                edges = msgpack.loads(out, use_list=False, strict_map_key=False)
+                                for (source, sink), weight in edges.items():
+                                    self.add_edge_simple(source, sink, weight=weight)
+                                pb.update(i)
                 finally:
                     for i in range(threads):
                         qin.put(None)

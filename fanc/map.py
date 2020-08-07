@@ -928,79 +928,79 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
 
         monitor.set_submitting(True)
 
-        worker_pool = mp.Pool(threads, _iterative_mapping_worker,
+        with mp.get_context("spawn").Pool(threads, _iterative_mapping_worker,
                               (mapper, input_queue, tmp_folder, output_queue,
-                               resubmission_queue, monitor, exception_queue))
+                               resubmission_queue, monitor, exception_queue)) as worker_pool:
 
-        t_resub = threading.Thread(target=_resubmissions_to_queue, args=(resubmission_queue, tmp_folder,
-                                                                         batch_size, input_queue, monitor,
-                                                                         step_size, min_size, trim_front,
-                                                                         exception_queue, worker_pool))
-        t_resub.daemon = True
-        t_resub.start()
+            t_resub = threading.Thread(target=_resubmissions_to_queue, args=(resubmission_queue, tmp_folder,
+                                                                             batch_size, input_queue, monitor,
+                                                                             step_size, min_size, trim_front,
+                                                                             exception_queue, worker_pool))
+            t_resub.daemon = True
+            t_resub.start()
 
-        t_sub = threading.Thread(target=_fastq_to_queue, args=(fastq_file, tmp_folder,
-                                                               batch_size, input_queue,
-                                                               monitor, exception_queue,
-                                                               worker_pool, restriction_enzyme))
-        t_sub.daemon = True
-        t_sub.start()
+            t_sub = threading.Thread(target=_fastq_to_queue, args=(fastq_file, tmp_folder,
+                                                                   batch_size, input_queue,
+                                                                   monitor, exception_queue,
+                                                                   worker_pool, restriction_enzyme))
+            t_sub.daemon = True
+            t_sub.start()
 
-        # check BAM status
-        if not sam_file.endswith('bam'):
-            intermediate_sam_file = sam_file
-            convert_to_bam = False
-            logger.info("Starting to output alignments to SAM file {}".format(sam_file))
-        else:
-            intermediate_sam_file = os.path.join(tmp_folder, 'intermediate.sam')
-            convert_to_bam = True
-            logger.info("Starting to output alignments to intermediate SAM file {}".format(intermediate_sam_file))
+            # check BAM status
+            if not sam_file.endswith('bam'):
+                intermediate_sam_file = sam_file
+                convert_to_bam = False
+                logger.info("Starting to output alignments to SAM file {}".format(sam_file))
+            else:
+                intermediate_sam_file = os.path.join(tmp_folder, 'intermediate.sam')
+                convert_to_bam = True
+                logger.info("Starting to output alignments to intermediate SAM file {}".format(intermediate_sam_file))
 
-        ligation_name_pattern = re.compile('(.+)__(\d)+$')
-        sam_counter = 0
-        with open(intermediate_sam_file, 'w') as o:
-            while (sam_counter < monitor.value() or monitor.is_resubmitting()
-                   or monitor.is_submitting() or not monitor.workers_idle()):
-                try:
-                    exc = exception_queue.get(block=False)
-                except Empty:
-                    pass
-                else:
-                    worker_pool.terminate()
-                    raise Exception(exc)
+            ligation_name_pattern = re.compile(r'(.+)__(\d)+$')
+            sam_counter = 0
+            with open(intermediate_sam_file, 'w') as o:
+                while (sam_counter < monitor.value() or monitor.is_resubmitting()
+                       or monitor.is_submitting() or not monitor.workers_idle()):
+                    try:
+                        exc = exception_queue.get(block=False)
+                    except Empty:
+                        pass
+                    else:
+                        worker_pool.terminate()
+                        raise Exception(exc)
+    
+                    try:
+                        partial_sam_file = output_queue.get(block=True, timeout=10)
+                        logger.debug('Processing output file {}'.format(partial_sam_file))
 
-                try:
-                    partial_sam_file = output_queue.get(block=True, timeout=10)
-                    logger.debug('Processing output file {}'.format(partial_sam_file))
+                        with open(partial_sam_file, 'r') as f:
+                            for line in f:
+                                if line.startswith('@'):
+                                    if sam_counter == 0:
+                                        o.write(line)
+                                    continue
 
-                    with open(partial_sam_file, 'r') as f:
-                        for line in f:
-                            if line.startswith('@'):
-                                if sam_counter == 0:
-                                    o.write(line)
-                                continue
+                                line = line.rstrip()
+                                if line == '':
+                                    continue
 
-                            line = line.rstrip()
-                            if line == '':
-                                continue
+                                fields = line.split("\t")
+                                m = ligation_name_pattern.match(fields[0])
+                                if m is not None:
+                                    fields[0] = m.group(1)
+                                    fields[-1] += '\tZL:i:{}'.format(m.group(2))
 
-                            fields = line.split("\t")
-                            m = ligation_name_pattern.match(fields[0])
-                            if m is not None:
-                                fields[0] = m.group(1)
-                                fields[-1] += '\tZL:i:{}'.format(m.group(2))
+                                o.write("\t".join(fields) + '\n')
 
-                            o.write("\t".join(fields) + '\n')
+                        os.remove(partial_sam_file)
 
-                    os.remove(partial_sam_file)
+                        sam_counter += 1
+                        logger.debug('Got {}/{} SAM files'.format(sam_counter, monitor.value()))
+                    except Empty:
+                        pass
 
-                    sam_counter += 1
-                    logger.debug('Got {}/{} SAM files'.format(sam_counter, monitor.value()))
-                except Empty:
-                    pass
-
-        t_sub.join()
-        t_resub.join()
+            t_sub.join()
+            t_resub.join()
 
         if convert_to_bam:
             logger.info("Converting intermediate SAM file to BAM ({})".format(sam_file))
