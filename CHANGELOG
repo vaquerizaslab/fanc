@@ -1,3 +1,7 @@
+0.9.1
+
+- Fix issue where ICE would fail for chromosomes without signal
+
 0.9.0
 
 - Support for VC and SQRT_VC normalisations using --norm-method
