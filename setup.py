@@ -32,6 +32,7 @@ setup(
     ],
     packages=find_packages(),
     package_data={'fanc': ['test/data/*/*']},
+    include_package_data=True,
     install_requires=[
         'numpy>=1.16.0',
         'scipy',
