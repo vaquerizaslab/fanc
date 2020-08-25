@@ -1,5 +1,5 @@
-# include licence file
-include LICENCE
+# include license file
+include LICENSE
 
 # include changelog
 include CHANGELOG
