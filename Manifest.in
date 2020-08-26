@@ -1,5 +1,15 @@
-# include licence file
-include LICENCE
+# include license file
+include LICENSE
 
 # include changelog
 include CHANGELOG
+
+# exclude examples
+prune examples
+
+# exclude tests
+prune fanc/test
+
+# exclude legacy code
+prune fanc/legacy
+
