@@ -467,8 +467,20 @@ def auto_parser():
         type=int,
         default=1,
         help="Maximum number of threads. "
-             "The number provided here will not be exceeded " 
+             "The number provided here will not be exceeded "
              "by analysis steps running alone or in parallel. "
+             "Default: %(default)d"
+    )
+
+    parser.add_argument(
+        '--max-restriction-site-distance', dest='max_restriction_site_distance',
+        type=int,
+        default=10000,
+        help="Insert / ligation fragment sizes are inferred from the "
+             "sum of distances of both reads to the nearest restriction sites. "
+             "Fragment larger than this value are filtered from the Pairs object. "
+             "The default value of %(default)d only removes extremely large fragments, "
+             "and is thus considered conservative."
              "Default: %(default)d"
     )
 
@@ -759,6 +771,7 @@ def auto(argv, **kwargs):
     restore_coverage = args.restore_coverage
     run_with = args.run_with
     job_prefix = args.job_prefix
+    max_restriction_site_distance = args.max_restriction_site_distance
     grid_startup_commands = os.path.expanduser(args.grid_startup_commands) \
         if args.grid_startup_commands is not None else None
     grid_cleanup_commands = os.path.expanduser(args.grid_cleanup_commands) \
@@ -1133,7 +1146,7 @@ def auto(argv, **kwargs):
 
             pairs_command = fanc_base_command + ['pairs',
                                                  # filtering
-                                                 '-d', '10000',
+                                                 '-d', str(max_restriction_site_distance),
                                                  '-l', '-p', '2']
 
             if tmp:
