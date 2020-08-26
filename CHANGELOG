@@ -1,3 +1,7 @@
+0.9.2
+
+- Add a parameter for fanc auto to choose RE distance cutoff manually
+
 0.9.1
 
 - Fix issue where ICE would fail for chromosomes without signal
