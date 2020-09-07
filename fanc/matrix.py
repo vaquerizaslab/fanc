@@ -1062,59 +1062,49 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                  possible inter-chromosomal pairs
         """
         logger.debug("Calculating possible counts")
-        regions = list(self.regions)
+
+        logger.debug("Setup for possible counts")
         chromosomes = self.chromosomes()
-
+        mappability = self.mappable()
         cb = self.chromosome_bins
-        chromosome_max_distance = defaultdict(int)
-        max_distance = 0
-        chromosome_subtractions = dict()
-        for chromosome in chromosomes:
-            start, stop = cb[chromosome]
-            max_distance = max(max_distance, stop - start)
-            chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
-            chromosome_subtractions[chromosome] = np.zeros(stop - start,
-                                                           dtype='int32')
 
-        chromosome_mappable = defaultdict(int)
-        chromosome_unmappable = defaultdict(set)
-        for i, mappable in enumerate(self.mappable()):
-            chromosome = regions[i].chromosome
-            if not mappable:  # unmappable
-                s = chromosome_subtractions[chromosome]
-                o = cb[chromosome][0]
-                ix = i - o
-                # horizontal
-                s[0: len(s) - ix] += 1
-                # vertical
-                for j in range(1, ix + 1):
-                    if ix - j not in chromosome_unmappable[chromosome]:
-                        s[j] += 1
-                chromosome_unmappable[chromosome].add(ix)
-            else:
-                chromosome_mappable[chromosome] += 1
+        max_distance = 0
+        chromosome_intra_total = dict()
+        chromosome_mappable_counts = dict()
+        for chromosome in chromosomes:
+            logger.debug("Possible counts for {}".format(chromosome))
+            chromosome_start_bin, chromosome_end_bin = cb[chromosome]
+            mappable_chromosome = np.array(mappability[chromosome_start_bin:chromosome_end_bin])
+            max_distance = max(max_distance, chromosome_end_bin - chromosome_start_bin)
+
+            possible_by_distance = np.zeros(chromosome_end_bin - chromosome_start_bin)
+            sub = np.ones(chromosome_end_bin - chromosome_start_bin)
+            d = len(mappable_chromosome)
+            for i, mappable in enumerate(mappable_chromosome):
+                if mappable:
+                    possible_by_distance[:(d - i)] += np.ones(d - i)
+                else:
+                    # subtract vertical
+                    sub[i] = 0
+                    possible_by_distance[:(i+1)] -= sub[:(i+1)][::-1]
+
+            chromosome_intra_total[chromosome] = possible_by_distance
+            chromosome_mappable_counts[chromosome] = np.sum(mappable_chromosome)
+
+        possible_by_distance_whole_matrix = defaultdict(int)
+        for possible_by_distance in chromosome_intra_total.values():
+            for distance, count in enumerate(possible_by_distance):
+                possible_by_distance_whole_matrix[distance] += count
+
+        intra_total = [possible_by_distance_whole_matrix[i]
+                       for i in range(max_distance)]
 
         inter_total = 0
-        intra_total = [0] * max_distance
-        chromosome_intra_total = dict()
-        for chromosome, d in chromosome_max_distance.items():
-            chromosome_intra_total[chromosome] = [0] * d
-
-        for i, chromosome in enumerate(chromosomes):
-            start, stop = cb[chromosome]
-            count = stop - start
-
-            # intra-chromosomal
-            s = chromosome_subtractions[chromosomes[i]]
-            for distance in range(0, count):
-                intra_total[distance] += count - distance - s[distance]
-                chromosome_intra_total[chromosome][distance] += count - distance - s[distance]
-
-            # inter-chromosomal
+        for i in range(len(chromosomes)):
+            chromosome1 = chromosomes[i]
             for j in range(i + 1, len(chromosomes)):
-                count_mappable = chromosome_mappable[chromosomes[i]]
-                count2_mappable = chromosome_mappable[chromosomes[j]]
-                inter_total += count_mappable * count2_mappable
+                chromosome2 = chromosomes[j]
+                inter_total += chromosome_mappable_counts[chromosome1] * chromosome_mappable_counts[chromosome2]
 
         return intra_total, chromosome_intra_total, inter_total
 
@@ -2395,22 +2385,30 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                                                                                                  **kwargs)
 
         # try saving to object
+        logger.debug("Attempting to save expected values and marginals to file")
         if hasattr(self, '_expected_value_group') and self._expected_value_group is not None:
             try:
                 try:
+                    logger.debug("Removing old expected value vectors")
                     self.file.remove_node(self._expected_value_group, group_name, recursive=True)
                 except tables.NoSuchNodeError:
                     pass
 
+                logger.debug("Creating expected value group")
                 group = self.file.create_group(self._expected_value_group, group_name)
 
+                logger.debug("Saving intra-chromosomal expected values")
                 self.file.create_array(group, '__intra__',
                                        np.array(intra_expected), "Intra-chromosomal expected values")
+                logger.debug("Saving inter-chromosomal expected values")
                 self.file.create_array(group, '__inter__',
                                        np.array([inter_expected]), "Inter-chromosomal expected value")
+                logger.debug("Saving marginals")
                 self.file.create_array(group, '__marginals__',
                                        np.array(marginals), "Marginals")
+
                 for chromosome, values in chromosome_intra_expected.items():
+                    logger.debug("Saving intra-chromosomal expected values {}".format(chromosome))
                     self.file.create_array(group, '_' + chromosome,
                                            np.array(values), "Intra-chromosomal expected "
                                                              "value {}".format(chromosome))
