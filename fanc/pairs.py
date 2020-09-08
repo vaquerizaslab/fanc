@@ -1152,6 +1152,7 @@ class ReadPairs(RegionPairsTable):
     _classid = 'READPAIRS'
 
     def __init__(self, file_name=None, mode='a',
+                 partition_strategy='auto',
                  _group_name='fragment_map',
                  _table_name_fragments='fragments',
                  _table_name_pairs='pairs',
@@ -1180,6 +1181,7 @@ class ReadPairs(RegionPairsTable):
                                       'right_fragment_end': t.Int64Col(pos=9),
                                       'right_fragment_chromosome': t.Int32Col(pos=10)
                                   },
+                                  partition_strategy=partition_strategy,
                                   _table_name_regions=_table_name_fragments,
                                   _table_name_edges=_table_name_pairs)
 

@@ -2159,18 +2159,20 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                     partition_pairs.add((source_partition, sink_partition))
 
             logger.info("Starting fast pair merge")
-            for source_partition, sink_partition in partition_pairs:
-                edge_table = new_pairs._edge_table(source_partition, sink_partition)
-                fields = edge_table.colnames
-                new_row = edge_table.row
-                for pair in pairs:
-                    if not pair._has_edge_table(source_partition, sink_partition):
-                        continue
-                    for row in pair._edge_table(source_partition, sink_partition).iterrows():
-                        for field in fields:
-                            new_row[field] = row[field]
-                        new_row.append()
-                edge_table.flush()
+            with RareUpdateProgressBar(max_value=len(partition_pairs), prefix='Merge') as pb:
+                for i, (source_partition, sink_partition) in enumerate(partition_pairs):
+                    edge_table = new_pairs._edge_table(source_partition, sink_partition)
+                    fields = edge_table.colnames
+                    new_row = edge_table.row
+                    for pair in pairs:
+                        if not pair._has_edge_table(source_partition, sink_partition):
+                            continue
+                        for row in pair._edge_table(source_partition, sink_partition).iterrows():
+                            for field in fields:
+                                new_row[field] = row[field]
+                            new_row.append()
+                    edge_table.flush()
+                    pb.update(i)
             new_pairs._edges_dirty = True
 
             new_pairs.flush()
@@ -2193,7 +2195,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                              "cannot perform merge!")
 
         try:
-            return cls.merge_region_pairs_tables(pairs, check_regions_identical=False)
+            return cls.merge_region_pairs_tables(pairs, check_regions_identical=False, **kwargs)
         except ValueError:
             logger.info("Pair objects not compatible with fast merge, "
                         "performing regular merge")
