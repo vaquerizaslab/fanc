@@ -1790,6 +1790,72 @@ def from_txt(argv, **kwargs):
     logger.info("All done.")
 
 
+def from_cooler_parser():
+    parser = argparse.ArgumentParser(
+        prog="fanc from-cooler",
+        description="Convert a Cooler (.cool or .mcool) file to FAN-C format."
+    )
+
+    parser.add_argument(
+        'input',
+        help="Input .cool or .mcool file. You must specify the "
+             "resolution you want to export to FAN-C using the format "
+             "/path/to/hic.mcool@<resolution>"
+    )
+
+    parser.add_argument(
+        'output',
+        help='Output FAN-C file.'
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        default=False,
+        help='Work in temporary directory'
+    )
+
+    return parser
+
+
+def from_cooler(argv, **kwargs):
+    parser = from_cooler_parser()
+
+    args = parser.parse_args(argv[2:])
+    input_file = os.path.expanduser(args.input)
+    output_file = os.path.expanduser(args.output)
+    tmp = args.tmp
+
+    import fanc
+    from fanc.tools.general import str_to_int
+
+    try:
+        import cooler
+    except ImportError:
+        parser.error("Cannot import cooler. Install cooler with 'pip install cooler'.")
+
+    tmp_files = []
+    original_output_file = output_file
+    try:
+        if tmp:  # copy file if required
+            tmp = False  # to prevent deleting input file should this be interrupted at this point
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.hic')
+            tmp_file.close()
+            output_file = tmp_file.name
+            logger.info("Temporary output file: %s" % output_file)
+            tmp_files = [output_file]
+            tmp = True
+
+        with fanc.load(input_file, mode='r', tmpdir=tmp) as cool:
+            cool.deepcopy(fanc.Hic, mode='w')
+    finally:
+        if tmp:
+            shutil.copy(output_file, original_output_file)
+        for tmp_file in tmp_files:
+            os.remove(tmp_file)
+    logger.info("All done.")
+
+
 def to_cooler_parser():
     parser = argparse.ArgumentParser(
         prog="fanc hic_to_cooler",
