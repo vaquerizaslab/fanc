@@ -1317,6 +1317,30 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         logger.debug("Scaling factor: {}/{} = {}".format(m1_sum, m2_sum, scaling_factor))
         return scaling_factor
 
+    def deepcopy(self, target_class=None, bias=True, **kwargs):
+        cls = self.__class__ if target_class is None else target_class
+
+        copy = cls(**kwargs)
+        copy.add_regions(self.regions(lazy=True))
+
+        total = len(self.edges)
+        with RareUpdateProgressBar(max_value=total) as pb:
+            for i, edge in enumerate(self.edges(lazy=True, norm=False, oe=False)):
+                copy.add_edge_simple(edge.source, edge.sink, edge.weight)
+                pb.update(i)
+        copy.flush(update_mappability=False)
+
+        try:
+            if bias and hasattr(self, 'bias_vector') and hasattr(copy, 'bias_vector'):
+                copy.bias_vector(self.bias_vector())
+            copy.flush(update_mappability=False)
+        except IndexError:
+            warnings.warn("Could not copy index vector. Hic version may be too old. "
+                          "Please run matrix balancing again after deepcopy!")
+        copy._update_mappability()
+
+        return copy
+
 
 class TableBuffer(object):
     def __init__(self, matrix, buffer_size='3G', large_distance=3, large_fraction=0.5):
@@ -2247,30 +2271,6 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         new_pairs.bias_vector(bias_vector)
 
         return new_pairs
-
-    def deepcopy(self, target_class=None, bias=True, **kwargs):
-        cls = self.__class__ if target_class is None else target_class
-
-        copy = cls(**kwargs)
-        copy.add_regions(self.regions(lazy=True))
-
-        total = len(self.edges)
-        with RareUpdateProgressBar(max_value=total) as pb:
-            for i, edge in enumerate(self.edges(lazy=True, norm=False, oe=False)):
-                copy.add_edge_simple(edge.source, edge.sink, edge.weight)
-                pb.update(i)
-        copy.flush(update_mappability=False)
-
-        try:
-            if bias and hasattr(self, 'bias_vector') and hasattr(copy, 'bias_vector'):
-                copy.bias_vector(self.bias_vector())
-            copy.flush(update_mappability=False)
-        except IndexError:
-            warnings.warn("Could not copy index vector. Hic version may be too old. "
-                          "Please run matrix balancing again after deepcopy!")
-        copy._update_mappability()
-
-        return copy
 
 
 class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
