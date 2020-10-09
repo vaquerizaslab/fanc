@@ -221,6 +221,14 @@ class LazyCoolerRegion(GenomicRegion):
         return getattr(self._series, item)
 
     @property
+    def attributes(self):
+        base_attributes = self._series.index.tolist()
+        for a in ['chromosome', 'bias', 'strand', 'start', 'end', 'weight']:
+            if a not in base_attributes:
+                base_attributes.append(a)
+        return base_attributes
+
+    @property
     def chromosome(self):
         try:
             return self._series.chrom
