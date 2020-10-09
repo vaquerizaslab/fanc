@@ -1,3 +1,7 @@
+0.9.4
+
+- Fix Cooler to FAN-C conversion
+
 0.9.3
 
 - Improved performance for possible values calculation, especially for matrices with sparse mappability
