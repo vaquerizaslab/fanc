@@ -199,6 +199,7 @@ Hi-C datasets are visualized in a single figure:
 
 """
 
+from fanc import config
 from fanc.plotting.hic_plotter import HicPlot, HicPlot2D, HicComparisonPlot2D, \
     HicSlicePlot, HicPeakPlot, TriangularMatrixPlot, SquareMatrixPlot, SplitMatrixPlot
 from fanc.plotting.plotter import VerticalSplitPlot, GenomicVectorArrayPlot, GenomicFeaturePlot, GenomicRegionsPlot, \
@@ -208,10 +209,17 @@ from fanc.plotting.plotter import VerticalSplitPlot, GenomicVectorArrayPlot, Gen
 from fanc.plotting.helpers import append_axes, absolute_wspace_hspace, SymmetricNorm, \
                                   style_ticks_whitegrid, LimitGroup
 from fanc.plotting.statistics import *
-
 from fanc.plotting.colormaps import *
 import seaborn as sns
+import matplotlib
 import matplotlib.pyplot as plt
+import logging
+
+logger = logging.getLogger(__name__)
+
+if config['pdf_font_as_text']:
+    logger.debug("Using text for PDFs instead of paths")
+    matplotlib.rcParams['pdf.fonttype'] = 42
 
 sns.set_style("ticks")
 
