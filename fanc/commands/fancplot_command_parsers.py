@@ -112,6 +112,16 @@ def fancplot_parser():
         default=False,
         help='Print version information'
     )
+
+    parser.add_argument(
+        '--pdf-text-as-font', dest='pdf_text_as_font',
+        action='store_true',
+        default=False,
+        help='When saving a plot to PDF, save text as a font instead of a path. '
+             'This will increase the file size, sometimes by a lot, but it makes the '
+             'text in plots editable in vector graphics programs such as Inkscape or '
+             'Illustrator.'
+    )
     return parser
 
 

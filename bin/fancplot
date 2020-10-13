@@ -70,6 +70,10 @@ class FancPlot(object):
                                      "plots, such as Tkinter!")
             raise
 
+        from fanc import config as fanc_config
+        if fanc_config['pdf_font_as_text'] or global_args.pdf_text_as_font:
+            matplotlib.rcParams['pdf.fonttype'] = 42
+
         plots = []
         all_subplot_args = []
         for plot_method_name, args in subplot_data:
