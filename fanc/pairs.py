@@ -172,7 +172,8 @@ def _split_sam_worker(sam_file1, sam_file2, input_queue, monitor, batch_size=100
                 monitor.increment()
         except ValueError as e:
             logger.error(e)
-            input_queue.put(None)
+            monitor.increment()
+            input_queue.put(e)
     finally:
         monitor.set_generating_pairs(False)
 
@@ -195,7 +196,11 @@ def _load_paired_sam_worker(monitor, input_file_queue, output_file_queue, fi, fe
         monitor.set_worker_idle(worker_uuid)
         logger.debug("Worker {} waiting for input".format(worker_uuid))
         s = datetime.now()
-        read_pairs_file, chunk_size, unmappable = input_file_queue.get(True)
+        input_data = input_file_queue.get(True)
+        if isinstance(input_data, Exception):
+            output_file_queue.put(input_data)
+            break
+        read_pairs_file, chunk_size, unmappable = input_data
         w = datetime.now() - s
         logger.debug("Worker {} wait time: {}".format(worker_uuid, w))
         cumulative_wait_time += w.total_seconds()
@@ -1427,7 +1432,10 @@ class ReadPairs(RegionPairsTable):
                     try:
                         logger.debug("SAM output collection counter: {}".format(output_counter))
                         s = datetime.now()
-                        input_file, read_pairs_file, chunk_stats = output_file_queue.get(block=True)
+                        output_data = output_file_queue.get(block=True)
+                        if isinstance(output_data, Exception):
+                            raise output_data
+                        input_file, read_pairs_file, chunk_stats = output_data
                         w = datetime.now() - s
                         logger.debug("Wait time: {}".format(w))
                         cumulative_wait_time += w.total_seconds()
