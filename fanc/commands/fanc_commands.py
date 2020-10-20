@@ -5127,18 +5127,17 @@ def upgrade(argv, **kwargs):
                 new_hic = fanc.Hic(file_name=output_file, mode='w')
                 new_hic.add_regions(old_fanc.regions)
 
-                bv = [row['bias'] for row in old_fanc.file.get_node('/', 'node_annot').iterrows()]
+                bv = [row['bias']**2 for row in old_fanc.file.get_node('/', 'node_annot').iterrows()]
 
                 with RareUpdateProgressBar(prefix="Upgrade", max_value=len(old_fanc.edges)) as pb:
                     for i, edge in enumerate(old_fanc.edges(lazy=True)):
                         source = edge.source
                         sink = edge.sink
                         weight = int(np.round(edge.weight / bv[source] / bv[sink]))
-
                         new_hic.add_edge_simple(source, sink, weight=weight)
                         pb.update(i)
-                new_hic.flush()
-                new_hic.bias_vector(bv)
+                new_hic.flush(update_mappability=False)
+                new_hic.bias_vector(np.sqrt(bv))
 
                 old_fanc.close()
                 new_hic.close()
