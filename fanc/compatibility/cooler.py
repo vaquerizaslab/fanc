@@ -242,7 +242,10 @@ class LazyCoolerRegion(GenomicRegion):
 
     @property
     def bias(self):
-        return self._series.weight
+        try:
+            return self._series.weight
+        except AttributeError:
+            return 1.0
 
     @property
     def strand(self):
