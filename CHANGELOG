@@ -1,3 +1,9 @@
+0.9.5
+
+- Option in fancplot and in config file to export txt in PDFs as actual text, not as paths
+- Properly raise exception in main thread if SAM file is unsorted
+- Fix error with uncorrected Cooler matrices
+
 0.9.4
 
 - Fix Cooler to FAN-C conversion
