@@ -124,7 +124,7 @@ in place.
 
 .. warning::
 
-    If you are providing sorted SAM/BAM files as input to ``fanc pairs``, the must be sorted either
+    If you are providing sorted SAM/BAM files as input to ``fanc pairs``, they must be sorted either
     using ``samtools sort -n`` or ``sambamba sort -N``. You cannot use ``sambamba sort -n``
     (note the lowercase ``n``), as this will do a lexicographic sort, which is incompatible with FAN-C!
 
