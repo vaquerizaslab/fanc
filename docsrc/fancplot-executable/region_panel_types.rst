@@ -206,14 +206,14 @@ name field is used by ``layer`` to divide features into rows:
 .. image:: images/fancplot_layer_bed.png
 
 
-*****
-genes
-*****
+****
+gene
+****
 
 The feature plot is very versatile, but it cannot handle exon specifications and does not label
-individual features. For that purpose, ``fancplot`` proves the ``genes`` panel. It is intended for use
+individual features. For that purpose, ``fancplot`` proves the ``gene`` panel. It is intended for use
 with GFF files, such as can be obtained from Gencode, although it is in principle compatible with
-any :ref:`genomic_regions` file (untested). It is most efficient when the GFF files have been sorted
+any :ref:`genomic_regions` file (not fully tested). It is most efficient when the GFF files have been sorted
 by chromosome and start coordinate, bgzipped and indexed with Tabix
 (`here is an example <https://www.htslib.org/doc/tabix.html#EXAMPLE>`_ you can use for Tabix indexing)
 

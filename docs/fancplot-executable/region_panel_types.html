@@ -97,7 +97,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#scores">scores</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#bar">bar</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#layer">layer</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#genes">genes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gene">gene</a></li>
 </ul>
 </li>
 </ul>
@@ -303,12 +303,12 @@ name field is used by <code class="docutils literal notranslate"><span class="pr
 </div>
 <img alt="../_images/fancplot_layer_bed.png" src="../_images/fancplot_layer_bed.png" />
 </div>
-<div class="section" id="genes">
-<h2>genes<a class="headerlink" href="#genes" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="gene">
+<h2>gene<a class="headerlink" href="#gene" title="Permalink to this headline">¶</a></h2>
 <p>The feature plot is very versatile, but it cannot handle exon specifications and does not label
-individual features. For that purpose, <code class="docutils literal notranslate"><span class="pre">fancplot</span></code> proves the <code class="docutils literal notranslate"><span class="pre">genes</span></code> panel. It is intended for use
+individual features. For that purpose, <code class="docutils literal notranslate"><span class="pre">fancplot</span></code> proves the <code class="docutils literal notranslate"><span class="pre">gene</span></code> panel. It is intended for use
 with GFF files, such as can be obtained from Gencode, although it is in principle compatible with
-any <a class="reference internal" href="../api/interfaces/regions_interface.html#genomic-regions"><span class="std std-ref">RegionBased</span></a> file (untested). It is most efficient when the GFF files have been sorted
+any <a class="reference internal" href="../api/interfaces/regions_interface.html#genomic-regions"><span class="std std-ref">RegionBased</span></a> file (not fully tested). It is most efficient when the GFF files have been sorted
 by chromosome and start coordinate, bgzipped and indexed with Tabix
 (<a class="reference external" href="https://www.htslib.org/doc/tabix.html#EXAMPLE">here is an example</a> you can use for Tabix indexing)</p>
 </div>
