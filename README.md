@@ -4,5 +4,5 @@ FAN-C provides a pipeline for analysing Hi-C data starting at mapped paired-end 
 
 ![](https://raw.githubusercontent.com/vaquerizaslab/fanc/main/docsrc/fnc-overview.png)
 
-Please check out the documentation at https://vaquerizaslab.github.io/fanc for detailed installation and usage
+Please check out the documentation at https://fan-c.readthedocs.io/en/latest/ for detailed installation and usage
 instructions!
