@@ -624,7 +624,7 @@ def pairs_parser():
              'is provided. In that case, filtering and correcting ' 
              'will be done in place. '
              'Possible inputs are: two SAM/BAM files (paired-end reads, ' 
-             'sorted by read name) and an output file; ' 
+             'sorted by read name using "samtools sort -n" or equivalent) and an output file; ' 
              'a HiC-Pro pairs file (format: ' 
              'name<tab>chr1<tab>pos1<tab>strand1<tab>chr2<tab>pos2<tab>strand2) ' 
              'and an output file; a pairs file in 4D Nucleome format '

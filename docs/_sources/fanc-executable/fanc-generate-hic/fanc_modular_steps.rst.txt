@@ -122,6 +122,12 @@ or an existing FAN-C Pairs object. For all but the latter, an output file is als
 positional argument, for Pairs files the output file is optional. If omitted, filtering is performed
 in place.
 
+.. warning::
+
+    If you are providing sorted SAM/BAM files as input to ``fanc pairs``, the must be sorted either
+    using ``samtools sort -n`` or ``sambamba sort -N``. You cannot use ``sambamba sort -n``
+    (note the lowercase ``n``), as this will do a lexicographic sort, which is incompatible with FAN-C!
+
 Here are example commands for the different options.
 
 SAM/BAM files:

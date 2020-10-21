@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.9.1-beta documentation</title>
+  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.9.5-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.9.1
+                0.9.5
               </div>
             
           
@@ -198,8 +198,10 @@ the processing and filtering of objects in the pipeline.</p>
 <p>Here is the help output for <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code>:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">auto</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span> <span class="n">GENOME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RESTRICTION_ENZYME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">GENOME_INDEX</span><span class="p">]</span>
                  <span class="p">[</span><span class="o">-</span><span class="n">n</span> <span class="n">BASENAME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STEP_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BIN_SIZES</span> <span class="p">[</span><span class="n">BIN_SIZES</span> <span class="o">...</span><span class="p">]]</span>
-                 <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">fanc</span><span class="o">-</span><span class="n">parallel</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">fastq</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">memory</span><span class="o">-</span><span class="nb">map</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="n">ice</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">norm</span><span class="o">-</span><span class="n">method</span> <span class="n">NORM_METHOD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY_CUTOFF</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="nb">max</span><span class="o">-</span><span class="n">restriction</span><span class="o">-</span><span class="n">site</span><span class="o">-</span><span class="n">distance</span> <span class="n">MAX_RESTRICTION_SITE_DISTANCE</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">fanc</span><span class="o">-</span><span class="n">parallel</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">fastq</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">memory</span><span class="o">-</span><span class="nb">map</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">ice</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">norm</span><span class="o">-</span><span class="n">method</span> <span class="n">NORM_METHOD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY_CUTOFF</span><span class="p">]</span>
                  <span class="p">[</span><span class="o">--</span><span class="n">iterative</span><span class="o">-</span><span class="n">quality</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">ITERATIVE_QUALITY_CUTOFF</span><span class="p">]</span>
                  <span class="p">[</span><span class="o">--</span><span class="n">le</span><span class="o">-</span><span class="n">inward</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">INWARD_CUTOFF</span><span class="p">]</span>
                  <span class="p">[</span><span class="o">--</span><span class="n">le</span><span class="o">-</span><span class="n">outward</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">OUTWARD_CUTOFF</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">auto</span><span class="o">-</span><span class="n">le</span><span class="o">-</span><span class="n">cutoff</span><span class="p">]</span>
@@ -245,6 +247,9 @@ the processing and filtering of objects in the pipeline.</p>
 </dd>
 <dt><kbd>-t, --threads</kbd></dt>
 <dd><p>Maximum number of threads. The number provided here will not be exceeded by analysis steps running alone or in parallel. Default: 1</p>
+</dd>
+<dt><kbd>--max-restriction-site-distance</kbd></dt>
+<dd><p>Insert / ligation fragment sizes are inferred from the sum of distances of both reads to the nearest restriction sites. Fragment larger than this value are filtered from the Pairs object. The default value of 10000 only removes extremely large fragments, and is thus considered conservative.Default: 10000</p>
 </dd>
 <dt><kbd>--fanc-parallel</kbd></dt>
 <dd><p>Use FAN-C parallelisation, which launches multiple mapper jobs. This may be faster in some cases than relying on the internal parallelisation of the mapper, but has potentially high disk I/O and memory usage.</p>

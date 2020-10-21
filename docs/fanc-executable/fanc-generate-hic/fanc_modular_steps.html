@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Individual pipeline steps &mdash; FAN-C 0.9.1-beta documentation</title>
+  <title>Individual pipeline steps &mdash; FAN-C 0.9.5-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.9.1
+                0.9.5
               </div>
             
           
@@ -330,6 +330,12 @@ a <a class="reference external" href="https://github.com/4dn-dcic/pairix/blob/ma
 or an existing FAN-C Pairs object. For all but the latter, an output file is also required as last
 positional argument, for Pairs files the output file is optional. If omitted, filtering is performed
 in place.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If you are providing sorted SAM/BAM files as input to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pairs</span></code>, the must be sorted either
+using <code class="docutils literal notranslate"><span class="pre">samtools</span> <span class="pre">sort</span> <span class="pre">-n</span></code> or <code class="docutils literal notranslate"><span class="pre">sambamba</span> <span class="pre">sort</span> <span class="pre">-N</span></code>. You cannot use <code class="docutils literal notranslate"><span class="pre">sambamba</span> <span class="pre">sort</span> <span class="pre">-n</span></code>
+(note the lowercase <code class="docutils literal notranslate"><span class="pre">n</span></code>), as this will do a lexicographic sort, which is incompatible with FAN-C!</p>
+</div>
 <p>Here are example commands for the different options.</p>
 <p>SAM/BAM files:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc pairs output/sam/SRR4271982_chr18_19_1_sort.bam <span class="se">\</span>
@@ -378,7 +384,7 @@ need to remove those endings before import.</p>
 <h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
 <dl class="option-list">
 <dt><kbd>input</kbd></dt>
-<dd><p>IMPORTANT: The last positional argument will be the output file, unless only a single Pairs object is provided. In that case, filtering and correcting will be done in place. Possible inputs are: two SAM/BAM files (paired-end reads, sorted by read name) and an output file; a HiC-Pro pairs file (format: name&lt;tab&gt;chr1&lt;tab&gt;pos1&lt;tab&gt;strand1&lt;tab&gt;chr2&lt;tab&gt;pos2&lt;tab&gt;strand2) and an output file; a pairs file in 4D Nucleome format (<a class="reference external" href="https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md">https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md</a>) and an output file, or an existing fanc Pairs object. In case of SAM/BAM, HiC-Pro, or 4D Nucleome you must also provide the –genome argument, and if –genome is not a file with restriction fragments (or Hi-C bins), you must also provide the –restriction-enzyme argument.</p>
+<dd><p>IMPORTANT: The last positional argument will be the output file, unless only a single Pairs object is provided. In that case, filtering and correcting will be done in place. Possible inputs are: two SAM/BAM files (paired-end reads, sorted by read name using “samtools sort -n” or equivalent) and an output file; a HiC-Pro pairs file (format: name&lt;tab&gt;chr1&lt;tab&gt;pos1&lt;tab&gt;strand1&lt;tab&gt;chr2&lt;tab&gt;pos2&lt;tab&gt;strand2) and an output file; a pairs file in 4D Nucleome format (<a class="reference external" href="https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md">https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md</a>) and an output file, or an existing fanc Pairs object. In case of SAM/BAM, HiC-Pro, or 4D Nucleome you must also provide the –genome argument, and if –genome is not a file with restriction fragments (or Hi-C bins), you must also provide the –restriction-enzyme argument.</p>
 </dd>
 </dl>
 </div>
