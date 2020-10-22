@@ -1847,7 +1847,7 @@ def from_cooler(argv, **kwargs):
             tmp = True
 
         with fanc.load(input_file, mode='r', tmpdir=tmp) as cool:
-            cool.deepcopy(fanc.Hic, mode='w')
+            cool.deepcopy(fanc.Hic, file_name=output_file, mode='w')
     finally:
         if tmp:
             shutil.copy(output_file, original_output_file)

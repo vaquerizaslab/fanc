@@ -1,3 +1,7 @@
+0.9.6
+
+- Fix from-cooler output file
+
 0.9.5
 
 - Option in fancplot and in config file to export txt in PDFs as actual text, not as paths
