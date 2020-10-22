@@ -257,6 +257,19 @@ pip install .
 </div>
 <p>FAN-C can now be accessed via command line (<code class="docutils literal notranslate"><span class="pre">fanc</span></code> for analysis, <code class="docutils literal notranslate"><span class="pre">fancplot</span></code> for plotting)
 or as a Python 3.6+ module (<code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">fanc</span></code>).</p>
+<div class="admonition note" id="conda-note">
+<p class="admonition-title">Note</p>
+<p>FAN-C is also available via <a class="reference external" href="https://bioconda.github.io/">Bioconda</a>, but due to an unresolved
+dependency issue it is currently limited to Python 3.7.X. Please refer to the
+<a class="reference external" href="https://github.com/bioconda/bioconda-recipes/pull/23911">pull request thread</a> for additional
+details.</p>
+<p>We recommend working from a clean conda environment using Python 3.7:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">create</span> <span class="o">-</span><span class="n">n</span> <span class="n">my_fanc_env</span> <span class="n">python</span><span class="o">=</span><span class="mf">3.7</span>
+<span class="n">conda</span> <span class="n">activate</span> <span class="n">my_fanc_env</span>
+<span class="n">conda</span> <span class="n">install</span> <span class="n">fanc</span>
+</pre></div>
+</div>
+</div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>On some systems the installation of FAN-C using the above method will fail with a Cython

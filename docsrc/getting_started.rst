@@ -104,6 +104,23 @@ The installation is then done via setup.py:
 FAN-C can now be accessed via command line (``fanc`` for analysis, ``fancplot`` for plotting)
 or as a Python 3.6+ module (``import fanc``).
 
+.. _conda_note:
+
+.. note::
+
+    FAN-C is also available via `Bioconda <https://bioconda.github.io/>`_, but due to an unresolved
+    dependency issue it is currently limited to Python 3.7.X. Please refer to the
+    `pull request thread <https://github.com/bioconda/bioconda-recipes/pull/23911>`_ for additional
+    details.
+
+    We recommend working from a clean conda environment using Python 3.7:
+
+    .. code::
+
+        conda create -n my_fanc_env python=3.7
+        conda activate my_fanc_env
+        conda install fanc
+
 
 .. warning::
 
