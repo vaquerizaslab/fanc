@@ -91,3 +91,21 @@ You can write the default config file to a location of your choice using ``fanc 
 
 An explanation of the different settings can be found as comments in the default config file.
 The file is written in `YAML <https://yaml.org/>`_
+
+
+.. _fanc-numexpr:
+
+********************************
+NumExpr ThreadPool configuration
+********************************
+
+FAN-C uses PyTables for fast querying of most of its storage classes. `Condition-based queries
+in PyTables <https://www.pytables.org/usersguide/libref/structured_storage.html#tables.Table.where>`_,
+which are used, for example, to find regions and pixels in certain matrix subsets,
+rely on the NumExpr package. NumExpr can be multi-threaded, and FAN-C uses the default NumExpr
+ThreadPool configuration (typically 8 threads). There is generally no need to change this
+preset, but if you want to optimise every single aspect of your pipeline, you may want to
+take a look at
+`this NumExpr help page
+<https://numexpr.readthedocs.io/projects/NumExpr3/en/latest/user_guide.html#threadpool-configuration>`_
+.

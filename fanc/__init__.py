@@ -11,6 +11,9 @@ Provides
 import logging
 import os
 
+# show only warnings for numexpr
+logging.getLogger("numexpr").setLevel(logging.WARNING)
+
 from genomic_regions import GenomicRegion
 from .architecture.domains import InsulationScore, InsulationScores, DirectionalityIndex, \
     DirectionalityIndexes, Boundaries
