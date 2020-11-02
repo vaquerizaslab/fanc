@@ -131,21 +131,22 @@ each domain:
     :start-after: start snippet compartments gcdomain
     :end-before: end snippet compartments gcdomain
 
-The output contains the domain type in the "name" field and the average eigenvector entry
-values of all bins in the domain in the "score" field.
+The domains BED file merges all consecutive bins in the same domain, which is why A and B
+are always alternating. It contains the domain type in the "name" field and the average
+eigenvector entry values of all bins in the domain in the "score" field:
 
 .. code::
 
-    chr18	1	1000000	B	-0.051104836165905	.
-    chr18	1000001	2000000	B	-0.08958033099770546	.
-    chr18	2000001	3000000	B	-0.08728895584742229	.
-    chr18	3000001	4000000	A	-0.04081033542752266	.
-    chr18	4000001	5000000	B	-0.060093003511428836	.
-    chr18	5000001	6000000	B	-0.06160238136847814	.
-    chr18	6000001	7000000	A	-0.04591525399259159	.
-    chr18	7000001	8000000	A	-0.028244723100215197	.
-    chr18	8000001	9000000	A	-0.010580475545591779	.
-    chr18	9000001	10000000	A	0.005653513595461845	.
+    chr18	1	3000000	B	-0.08663299058874448	.
+    chr18	3000001	4000000	A	0.09744158387184143	.
+    chr18	4000001	6000000	B	-0.1033548042178154	.
+    chr18	6000001	14000000	A	0.11616017390042543	.
+    chr18	14000001	16000000	B	-0.08352501317858696	.
+    chr18	16000001	24000000	A	0.08437945414334536	.
+    chr18	24000001	33000000	B	-0.10840386855933401	.
+    chr18	33000001	34000000	A	0.06491707265377045	.
+    chr18	34000001	43000000	B	-0.12647992662257618	.
+    chr18	43000001	49000000	A	0.09771443787030876	.
     ...
 
 

@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>AB compartment analysis &mdash; FAN-C 0.9.5-beta documentation</title>
+  <title>AB compartment analysis &mdash; FAN-C 0.9.6-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.9.5
+                0.9.6
               </div>
             
           
@@ -360,18 +360,19 @@ each domain:</p>
                   architecture/compartments/fanc_example_1mb.ab
 </pre></div>
 </div>
-<p>The output contains the domain type in the “name” field and the average eigenvector entry
-values of all bins in the domain in the “score” field.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chr18</span>       <span class="mi">1</span>       <span class="mi">1000000</span> <span class="n">B</span>       <span class="o">-</span><span class="mf">0.051104836165905</span>      <span class="o">.</span>
-<span class="n">chr18</span>       <span class="mi">1000001</span> <span class="mi">2000000</span> <span class="n">B</span>       <span class="o">-</span><span class="mf">0.08958033099770546</span>    <span class="o">.</span>
-<span class="n">chr18</span>       <span class="mi">2000001</span> <span class="mi">3000000</span> <span class="n">B</span>       <span class="o">-</span><span class="mf">0.08728895584742229</span>    <span class="o">.</span>
-<span class="n">chr18</span>       <span class="mi">3000001</span> <span class="mi">4000000</span> <span class="n">A</span>       <span class="o">-</span><span class="mf">0.04081033542752266</span>    <span class="o">.</span>
-<span class="n">chr18</span>       <span class="mi">4000001</span> <span class="mi">5000000</span> <span class="n">B</span>       <span class="o">-</span><span class="mf">0.060093003511428836</span>   <span class="o">.</span>
-<span class="n">chr18</span>       <span class="mi">5000001</span> <span class="mi">6000000</span> <span class="n">B</span>       <span class="o">-</span><span class="mf">0.06160238136847814</span>    <span class="o">.</span>
-<span class="n">chr18</span>       <span class="mi">6000001</span> <span class="mi">7000000</span> <span class="n">A</span>       <span class="o">-</span><span class="mf">0.04591525399259159</span>    <span class="o">.</span>
-<span class="n">chr18</span>       <span class="mi">7000001</span> <span class="mi">8000000</span> <span class="n">A</span>       <span class="o">-</span><span class="mf">0.028244723100215197</span>   <span class="o">.</span>
-<span class="n">chr18</span>       <span class="mi">8000001</span> <span class="mi">9000000</span> <span class="n">A</span>       <span class="o">-</span><span class="mf">0.010580475545591779</span>   <span class="o">.</span>
-<span class="n">chr18</span>       <span class="mi">9000001</span> <span class="mi">10000000</span>        <span class="n">A</span>       <span class="mf">0.005653513595461845</span>    <span class="o">.</span>
+<p>The domains BED file merges all consecutive bins in the same domain, which is why A and B
+are always alternating. It contains the domain type in the “name” field and the average
+eigenvector entry values of all bins in the domain in the “score” field:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chr18</span>       <span class="mi">1</span>       <span class="mi">3000000</span> <span class="n">B</span>       <span class="o">-</span><span class="mf">0.08663299058874448</span>    <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">3000001</span> <span class="mi">4000000</span> <span class="n">A</span>       <span class="mf">0.09744158387184143</span>     <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">4000001</span> <span class="mi">6000000</span> <span class="n">B</span>       <span class="o">-</span><span class="mf">0.1033548042178154</span>     <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">6000001</span> <span class="mi">14000000</span>        <span class="n">A</span>       <span class="mf">0.11616017390042543</span>     <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">14000001</span>        <span class="mi">16000000</span>        <span class="n">B</span>       <span class="o">-</span><span class="mf">0.08352501317858696</span>    <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">16000001</span>        <span class="mi">24000000</span>        <span class="n">A</span>       <span class="mf">0.08437945414334536</span>     <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">24000001</span>        <span class="mi">33000000</span>        <span class="n">B</span>       <span class="o">-</span><span class="mf">0.10840386855933401</span>    <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">33000001</span>        <span class="mi">34000000</span>        <span class="n">A</span>       <span class="mf">0.06491707265377045</span>     <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">34000001</span>        <span class="mi">43000000</span>        <span class="n">B</span>       <span class="o">-</span><span class="mf">0.12647992662257618</span>    <span class="o">.</span>
+<span class="n">chr18</span>       <span class="mi">43000001</span>        <span class="mi">49000000</span>        <span class="n">A</span>       <span class="mf">0.09771443787030876</span>     <span class="o">.</span>
 <span class="o">...</span>
 </pre></div>
 </div>
