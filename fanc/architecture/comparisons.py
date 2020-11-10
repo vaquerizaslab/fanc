@@ -231,7 +231,7 @@ class ComparisonMatrix(RegionMatrixTable):
                                   "'compare'")
 
     @classmethod
-    def from_matrices(cls, matrix1, matrix2, file_name=None, tmpdir=None,
+    def from_matrices(cls, matrix1, matrix2, file_name=None, tmpdir=None, mode='w',
                       log_cmp=False, ignore_infinite=True, ignore_zeros=False,
                       scale=True, **kwargs):
         """
@@ -246,6 +246,9 @@ class ComparisonMatrix(RegionMatrixTable):
         :param file_name: Path to the comparison output file
         :param tmpdir: Optional. If ``True``, will work in temporary
                        directory until file is closed
+        :param mode: Write mode of the output file. Only change this if you
+                     know what you are doing - setting this to 'a' could lead
+                     to unexpected consequences!
         :param log_cmp: If ``True``, log2-transform the comparison matrix
                         value after the comparison has been performed. Useful,
                         for example, for fold-change matrices
@@ -263,7 +266,7 @@ class ComparisonMatrix(RegionMatrixTable):
         """
         kwargs['lazy'] = True
 
-        comparison_matrix = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
+        comparison_matrix = cls(file_name=file_name, mode=mode, tmpdir=tmpdir)
         comparison_matrix.add_regions(matrix1.regions, preserve_attributes=False)
 
         sf = 1.0
