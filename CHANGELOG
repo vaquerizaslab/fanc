@@ -1,6 +1,7 @@
 0.9.8
 
 - Fix mode parameter for matrix comparisons
+- Fix explicit Cooler weight query
 
 0.9.7
 
