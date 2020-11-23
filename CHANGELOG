@@ -2,6 +2,7 @@
 
 - Fix mode parameter for matrix comparisons
 - Fix explicit Cooler weight query
+- Speed up region and edge iterators in Cooler objects
 
 0.9.7
 
