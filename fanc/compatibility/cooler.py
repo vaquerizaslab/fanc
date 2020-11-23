@@ -176,14 +176,14 @@ class LazyCoolerEdge(object):
         self.expected = None
 
     def __getattr__(self, item):
-        return self._row[item]
+        return getattr(self._series, item)
 
     @property
     def weight(self):
         if self.expected is None:
-            return float(self._series['count']) * self.bias
+            return float(self._series.count) * self.bias
         else:
-            return (float(self._series['count']) * self.bias) / self.expected
+            return (float(self._series.count) * self.bias) / self.expected
 
     def __getitem__(self, item):
         try:
@@ -230,11 +230,7 @@ class LazyCoolerRegion(GenomicRegion):
 
     @property
     def chromosome(self):
-        try:
-            return self._series.chrom
-        except Exception as e:
-            print(e)
-            raise
+        return self._series.chrom
 
     @property
     def start(self):
@@ -317,35 +313,35 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
         if self.tmp_file_name is not None and remove_tmp:
             os.remove(self.tmp_file_name)
 
-    def _series_to_region(self, series, ix=None, lazy_region=None):
+    def _tuple_to_region(self, t, lazy_region=None):
         if lazy_region is not None:
-            lazy_region._series = series
-            lazy_region.ix = ix
+            lazy_region._series = t
+            lazy_region.ix = t.Index
             return lazy_region
 
-        index = set(series.index)
+        index = set(a for a in dir(t) if not a.startswith('_'))
         index.remove('chrom')
+        index.remove('Index')
         try:
             index.remove('ix')
         except KeyError:
             pass
 
-        kwargs = {name: series[name] for name in index}
-        kwargs['chromosome'] = series.chrom
+        kwargs = {name: getattr(t, name) for name in index}
+        kwargs['chromosome'] = t.chrom
         try:
-            kwargs['bias'] = series.weight
+            kwargs['bias'] = t.weight
         except AttributeError:
             kwargs['bias'] = 1.
-        kwargs['start'] = series.start + 1
-        if ix is not None:
-            kwargs['ix'] = ix
+        kwargs['start'] = t.start + 1
+        kwargs['ix'] = t.Index
         return GenomicRegion(**kwargs)
 
     def _region_iter(self, lazy=False, *args, **kwargs):
         lazy_region = LazyCoolerRegion(None) if lazy else None
 
-        for df in self.bins():
-            yield self._series_to_region(df.iloc[0], ix=df.index[0], lazy_region=lazy_region)
+        for t in self.bins()[:].itertuples():
+            yield self._tuple_to_region(t, lazy_region=lazy_region)
 
     def _region_subset(self, region, lazy=False, *args, **kwargs):
         lazy_region = LazyCoolerRegion(None) if lazy else None
@@ -363,14 +359,14 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
             query = '{}:{}-{}'.format(region.chromosome, start - 1, end)
             df = self.bins().fetch(query)
 
-        for index, row in df.iterrows():
-            yield self._series_to_region(row, ix=index, lazy_region=lazy_region)
+        for t in df.itertuples():
+            yield self._tuple_to_region(t, lazy_region=lazy_region)
 
     def _get_regions(self, item, *args, **kwargs):
         regions = []
         df = self.bins()[item]
-        for index, row in df.iterrows():
-            regions.append(self._series_to_region(row, ix=index))
+        for t in df.itertuples():
+            regions.append(self._tuple_to_region(t))
 
         if isinstance(item, int):
             return regions[0]
@@ -395,48 +391,55 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
     def _chromosome_bins(self, *args, **kwargs):
         return RegionMatrixContainer._chromosome_bins(self, lazy=True)
 
-    def _series_to_edge(self, series, lazy_edge=None):
+    def _tuple_to_edge(self, t, lazy_edge=None):
         if lazy_edge is None:
-            index = set(series.index)
+            index = set(a for a in dir(t) if not a.startswith('_'))
+            index.remove('Index')
             index.remove('bin1_id')
             index.remove('bin2_id')
             index.remove('count')
 
-            kwargs = {name: series[name] for name in index}
-            kwargs['source'] = int(series['bin1_id'])
-            kwargs['sink'] = int(series['bin2_id'])
-            kwargs['weight'] = float(series['count'])
+            kwargs = {name: getattr(t, name) for name in index}
+            kwargs['ix'] = int(t.Index)
+            kwargs['source'] = int(t.bin1_id)
+            kwargs['sink'] = int(t.bin2_id)
+            kwargs['weight'] = float(t.count)
             kwargs['source_node'] = self.regions[kwargs['source']]
             kwargs['sink_node'] = self.regions[kwargs['sink']]
 
             return Edge(**kwargs)
         else:
-            lazy_edge._series = series
+            lazy_edge._series = t
             return lazy_edge
 
     def _edges_iter(self, lazy=False, *args, **kwargs):
         lazy_edge = LazyCoolerEdge(None, self) if lazy else None
-        selector = cooler.Cooler.matrix(self, as_pixels=True, balance=False)
-        for df in selector:
-            for index, row in df.iterrows():
-                yield self._series_to_edge(row, lazy_edge=lazy_edge)
+
+        chromosomes = self.chromosomes()
+        for i in range(len(chromosomes)):
+            for j in range(i, len(chromosomes)):
+                df = cooler.Cooler.matrix(self, as_pixels=True, balance=False).fetch(chromosomes[i],
+                                                                                     chromosomes[j])
+                for t in df.itertuples():
+                    yield self._tuple_to_edge(t, lazy_edge=lazy_edge)
 
     def _edges_subset(self, key=None, row_regions=None, col_regions=None,
                       lazy=False, *args, **kwargs):
         lazy_edge = LazyCoolerEdge(None, self) if lazy else None
+
         row_start, row_end = self._min_max_region_ix(row_regions)
         col_start, col_end = self._min_max_region_ix(col_regions)
 
         df = cooler.Cooler.matrix(self, as_pixels=True, balance=False)[row_start:row_end+1, col_start:col_end+1]
 
-        for index, row in df.iterrows():
-            yield self._series_to_edge(row, lazy_edge=lazy_edge, *args, **kwargs)
+        for t in df.itertuples():
+            yield self._tuple_to_edge(t, lazy_edge=lazy_edge, *args, **kwargs)
 
     def _edges_getitem(self, item, *args, **kwargs):
         edges = []
         df = self.pixels()[item]
-        for index, row in df.iterrows():
-            edges.append(self._series_to_edge(row))
+        for t in df.itertuples():
+            edges.append(self._tuple_to_edge(t))
 
         if isinstance(item, int):
             return edges[0]
