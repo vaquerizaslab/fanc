@@ -1046,7 +1046,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
     def __getitem__(self, item):
         return self.matrix(item)
 
-    def possible_contacts(self):
+    def possible_contacts(self, mappability=None):
         """
         Calculate the possible number of contacts in the genome.
 
@@ -1067,7 +1067,8 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         logger.debug("Setup for possible counts")
         chromosomes = self.chromosomes()
-        mappability = self.mappable()
+        if mappability is None:
+            mappability = self.mappable()
         cb = self.chromosome_bins
 
         max_distance = 0
@@ -1190,7 +1191,8 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                     chromosome_intra_sums[source_chromosome][distance] += weight
                 pb.update(i)
 
-        intra_total, chromosome_intra_total, inter_total = self.possible_contacts()
+        intra_total, chromosome_intra_total, \
+            inter_total = self.possible_contacts(mappability=np.array(valid))
 
         # expected values
         inter_expected = 0 if inter_total == 0 else inter_sums / inter_total
