@@ -2808,8 +2808,8 @@ class RegionMatrixWrapper(RegionWrapper, RegionMatrixContainer):
         row_start, row_end = self._min_max_region_ix(row_regions)
         col_start, col_end = self._min_max_region_ix(col_regions)
 
-        df_sub = df.loc[(df['source'].values >= row_start) & (df['source'].values < row_end) &
-                        (df['sink'].values >= col_start) & (df['sink'].values < col_end)]
+        df_sub = df.loc[(df['source'].values >= row_start) & (df['source'].values <= row_end) &
+                        (df['sink'].values >= col_start) & (df['sink'].values <= col_end)]
         seen = set()
         for t in df_sub.itertuples():
             seen.add(t.ix)
@@ -2821,8 +2821,8 @@ class RegionMatrixWrapper(RegionWrapper, RegionMatrixContainer):
             else:
                 yield MinimalEdge(t.source, t.sink, t.weight)
 
-        df_sub = df.loc[(df['sink'].values >= row_start) & (df['sink'].values < row_end) &
-                        (df['source'].values >= col_start) & (df['source'].values < col_end)]
+        df_sub = df.loc[(df['sink'].values >= row_start) & (df['sink'].values <= row_end) &
+                        (df['source'].values >= col_start) & (df['source'].values <= col_end)]
         for t in df_sub.itertuples():
             if t.ix in seen:
                 continue
