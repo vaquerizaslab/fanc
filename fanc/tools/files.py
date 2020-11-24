@@ -11,6 +11,7 @@ import sys
 import tempfile
 import threading
 from collections import defaultdict
+import io
 
 import numpy as np
 import pysam
@@ -580,3 +581,21 @@ def sort_natural_sam(sam_file, output_file=None, sambamba=True, threads=1, _samb
         output_file = sam_file
 
     return output_file
+
+
+def is_gzipped(file_name):
+    """
+    Check if a file ending indicates a gzipped file.
+
+    :param file_name: File name
+    :return: bool
+    """
+    if file_name.endswith('.gz') or file_name.endswith('.gzip'):
+        return True
+    return False
+
+
+def _open(file_name, mode='r'):
+    if is_gzipped(file_name):
+        return io.TextIOWrapper(gzip.open(file_name, mode=mode))
+    return open(file_name, mode=mode)
