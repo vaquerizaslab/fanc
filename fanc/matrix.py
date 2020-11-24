@@ -13,14 +13,16 @@ from collections import defaultdict
 import intervaltree
 import numpy as np
 import tables
+import pandas as pd
 from future.utils import string_types
 
-from genomic_regions import RegionBased, GenomicRegion
+from genomic_regions import RegionBased, GenomicRegion, RegionWrapper
 from .config import config
 from .general import Maskable, MaskedTable
 from .regions import LazyGenomicRegion, RegionsTable, RegionBasedWithBins
 from .tools.general import RareUpdateProgressBar, create_col_index, range_overlap, str_to_int
 from .tools.load import load
+from .tools.files import _open
 import datetime
 
 logger = logging.getLogger(__name__)
@@ -2570,6 +2572,256 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
         merged_matrix.flush()
         return merged_matrix
+
+
+class MinimalEdge(object):
+    def __init__(self, source, sink, weight, wrapper=None):
+        self.source = source
+        self.sink = sink
+        self.weight = weight
+        self.bias = 1
+        self.expected = 1
+        self._wrapper = wrapper
+
+    def __getattr__(self, item):
+        if self.expected is None:
+            return self.weight * self.bias
+        else:
+            return (self.weight * self.bias) / self.expected
+
+    def __getitem__(self, item):
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError("No such key: {}".format(item))
+
+    @property
+    def source_node(self):
+        if isinstance(self.source, GenomicRegion):
+            return self.source
+        elif self._wrapper is not None:
+            return self._wrapper.regions[self.source]
+        raise ValueError("Source not not provided during object initialization!")
+
+    @source_node.setter
+    def source_node(self, value):
+        self.source = value
+
+    @property
+    def source_region(self):
+        return self.source_node
+
+    @property
+    def sink_node(self):
+        if isinstance(self.sink, GenomicRegion):
+            return self.sink
+        elif self._wrapper is not None:
+            return self._wrapper.regions[self.sink]
+        raise ValueError("Sink not not provided during object initialization!")
+
+    @sink_node.setter
+    def sink_node(self, value):
+        self.sink = value
+
+    @property
+    def sink_region(self):
+        return self.sink_node
+
+
+class RegionMatrixWrapper(RegionWrapper, RegionMatrixContainer):
+    def __init__(self, regions, edges, ix_converter=None, sep="\t", ignore_ix=None):
+        # import regions
+        if isinstance(regions, string_types):
+            regions, ix_converter_load, ix2reg = RegionMatrixWrapper._load_regions(regions, sep=sep,
+                                                                                   ignore_ix=ignore_ix)
+            if ix_converter is None:
+                ix_converter = ix_converter_load
+        else:
+            ix_converter, ix2reg = None, None
+
+        RegionWrapper.__init__(self, regions)
+
+        region_ix_to_chromosome = dict()
+        for r in self.regions(lazy=True):
+            region_ix_to_chromosome[r.ix] = r.chromosome
+
+        # import edges
+        if isinstance(edges, string_types):
+            edges = RegionMatrixWrapper._load_edges(edges, ix_converter=ix_converter,
+                                                    sep=sep, lazy=True)
+
+        edges_by_chromosome_pair = dict()
+        chromosomes = self.chromosomes()
+        for i in range(len(chromosomes)):
+            for j in range(i, len(chromosomes)):
+                edges_by_chromosome_pair[chromosomes[i], chromosomes[j]] = [], [], [], []
+
+        for i, edge in enumerate(edges):
+            source, sink = edge.source, edge.sink
+            if source > sink:
+                source, sink = sink, source
+            chromosome_source = region_ix_to_chromosome[source]
+            chromosome_sink = region_ix_to_chromosome[sink]
+            try:
+                edges_by_pair = edges_by_chromosome_pair[chromosome_source, chromosome_sink]
+            except KeyError:
+                edges_by_pair = edges_by_chromosome_pair[chromosome_sink, chromosome_source]
+            edges_by_pair[0].append(i)
+            edges_by_pair[1].append(source)
+            edges_by_pair[2].append(sink)
+            edges_by_pair[3].append(edge.weight)
+
+        self._edges_by_chromosome_pair = dict()
+        self._n_edges = 0
+        for pair, (ixs, sources, sinks, weights) in edges_by_chromosome_pair.items():
+            self._edges_by_chromosome_pair[pair] = pd.DataFrame.from_dict({
+                'ix': ixs,
+                'source': sources,
+                'sink': sinks,
+                'weight': weights,
+            })
+            self._n_edges += self._edges_by_chromosome_pair[pair].shape[0]
+
+
+    @staticmethod
+    def _load_regions(file_name, sep=None, ignore_ix=False):
+        """
+        Load regions from regions bed file.
+        :param file_name: Path to regions bed file.
+        :param sep: Delimiter in regions bed, defaults to None (splits by tab)
+        :returns: Tuple:
+                    (
+                        List of :class:`~GenomicRegion` objects,
+                        ix_converter dict: {region_id: position_in_list},
+                        ix2region dict: {region_id: [chromosome, start, end]}
+                    (
+        """
+        regions = []
+        ix2reg = {}
+        ix_converter = None
+
+        with _open(file_name, 'r') as f:
+            for i, line in enumerate(f):
+                line = line.rstrip()
+                fields = line.split(sep)
+                if len(fields) > 2:
+                    chromosome = fields[0]
+                    start = int(fields[1])
+                    end = int(fields[2])
+                    ix = i
+                    ix2reg[ix] = [chromosome, int(fields[1]), int(fields[2])]
+                    if not ignore_ix and len(fields) > 3 and fields[3] != '.':  # HicPro
+                        if ix_converter is None:
+                            ix_converter = dict()
+                        if fields[3] in ix_converter:
+                            raise ValueError(
+                                "name column in region BED must "
+                                "only contain unique values! ({})".format(
+                                    fields[3]))
+                        ix_converter[fields[3]] = ix
+                    regions.append(
+                        GenomicRegion(
+                            chromosome=chromosome, start=start, end=end, ix=ix))
+
+        if ix_converter is not None:
+            ix_converter_rev = {str(v): int(k) for k, v in ix_converter.items()}
+            ix2reg = {ix_converter_rev[str(k)]: v for k, v in ix2reg.items()}
+        return regions, ix_converter, ix2reg
+
+    @staticmethod
+    def _load_edges(file_name, ix_converter=None, sep="\t", lazy=False, nan_limit=0.05):
+        lazy_edge = MinimalEdge(None, None, None) if lazy else None
+
+        nan_values = 0
+        total_values = 0
+
+        with _open(file_name, 'r') as f:
+            for line in f:
+                if line.startswith("#"):
+                    continue
+                total_values += 1
+
+                line = line.rstrip()
+                fields = line.split(sep)
+                if ix_converter is None:
+                    source, sink, weight = int(fields[0]), int(fields[1]), float(fields[2])
+                else:
+                    source = ix_converter[fields[0]]
+                    sink = ix_converter[fields[1]]
+                    weight = float(fields[2])
+
+                if not np.isfinite(weight):
+                    nan_values += 1
+                    continue
+
+                if source > sink:
+                    source, sink = sink, source
+
+                if lazy_edge is not None:
+                    lazy_edge.source = source
+                    lazy_edge.sink = sink
+                    lazy_edge.weight = weight
+                    yield lazy_edge
+                else:
+                    yield MinimalEdge(source, sink, weight)
+
+        if nan_values / total_values > nan_limit:
+            logger.warning("Could not import more than 5% of matrix entries ({}/{}), "
+                           "as they were not finite".format(nan_values, total_values))
+
+    def _edges_iter(self, lazy=False, *args, **kwargs):
+        lazy_edge = MinimalEdge(None, None, None, wrapper=self) if lazy else None
+
+        for pair, df in self._edges_by_chromosome_pair.items():
+            for t in df.itertuples():
+                if lazy_edge is not None:
+                    lazy_edge.source = t.source
+                    lazy_edge.sink = t.sink
+                    lazy_edge.weight = t.weight
+                    yield lazy_edge
+                else:
+                    yield MinimalEdge(t.source, t.sink, t.weight)
+
+    def _edges_subset(self, key=None, row_regions=None, col_regions=None,
+                      lazy=False, *args, **kwargs):
+        lazy_edge = MinimalEdge(None, None, None, wrapper=self) if lazy else None
+
+        try:
+            df = self._edges_by_chromosome_pair[row_regions[0].chromosome, col_regions[0].chromosome]
+        except KeyError:
+            df = self._edges_by_chromosome_pair[col_regions[0].chromosome, row_regions[0].chromosome]
+
+        row_start, row_end = self._min_max_region_ix(row_regions)
+        col_start, col_end = self._min_max_region_ix(col_regions)
+
+        df_sub = df.loc[(df['source'].values >= row_start) & (df['source'].values < row_end) &
+                        (df['sink'].values >= col_start) & (df['sink'].values < col_end)]
+        seen = set()
+        for t in df_sub.itertuples():
+            seen.add(t.ix)
+            if lazy_edge is not None:
+                lazy_edge.source = t.source
+                lazy_edge.sink = t.sink
+                lazy_edge.weight = t.weight
+                yield lazy_edge
+            else:
+                yield MinimalEdge(t.source, t.sink, t.weight)
+
+        df_sub = df.loc[(df['sink'].values >= row_start) & (df['sink'].values < row_end) &
+                        (df['source'].values >= col_start) & (df['source'].values < col_end)]
+        for t in df_sub.itertuples():
+            if t.ix in seen:
+                continue
+            if lazy_edge is not None:
+                lazy_edge.source = t.source
+                lazy_edge.sink = t.sink
+                lazy_edge.weight = t.weight
+                yield lazy_edge
+            else:
+                yield MinimalEdge(t.source, t.sink, t.weight)
+
+    def _edges_length(self):
+        return self._n_edges
 
 
 class RegionMatrix(np.ma.MaskedArray):
