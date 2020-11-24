@@ -2575,19 +2575,29 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
 
 
 class MinimalEdge(object):
-    def __init__(self, source, sink, weight, wrapper=None):
-        self.source = source
-        self.sink = sink
-        self.weight = weight
-        self.bias = 1
-        self.expected = 1
-        self._wrapper = wrapper
+    def __init__(self, source, sink, weight, wrapper=None, _weight_field='weight'):
+        object.__setattr__(self, '_source', source)
+        object.__setattr__(self, '_sink', sink)
+        object.__setattr__(self, 'bias', 1.)
+        object.__setattr__(self, 'expected', None)
+        object.__setattr__(self, '_weight_field', _weight_field)
+        object.__setattr__(self, '_weight', weight)
+        object.__setattr__(self, '_wrapper', wrapper)
 
     def __getattr__(self, item):
+        if item == '_weight_field' or item != self._weight_field:
+            return object.__getattribute__(self, item)
+
         if self.expected is None:
-            return self.weight * self.bias
+            return object.__getattribute__(self, '_weight') * self.bias
         else:
-            return (self.weight * self.bias) / self.expected
+            return (object.__getattribute__(self, '_weight') * self.bias) / self.expected
+
+    def __setattr__(self, key, value):
+        if key == object.__getattribute__(self, '_weight_field'):
+            object.__setattr__(self, '_weight', value)
+        else:
+            object.__setattr__(self, key, value)
 
     def __getitem__(self, item):
         try:
