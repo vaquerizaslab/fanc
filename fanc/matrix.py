@@ -2640,6 +2640,9 @@ class MinimalEdge(object):
 
 class RegionMatrixWrapper(RegionWrapper, RegionMatrixContainer):
     def __init__(self, regions, edges, ix_converter=None, sep="\t", ignore_ix=None):
+        self._default_value = 0
+        self._default_score_field = 'weight'
+
         # import regions
         if isinstance(regions, string_types):
             regions, ix_converter_load, ix2reg = RegionMatrixWrapper._load_regions(regions, sep=sep,
@@ -2692,6 +2695,7 @@ class RegionMatrixWrapper(RegionWrapper, RegionMatrixContainer):
             })
             self._n_edges += self._edges_by_chromosome_pair[pair].shape[0]
 
+        self._expected_value_and_marginals_cache = None
 
     @staticmethod
     def _load_regions(file_name, sep=None, ignore_ix=False):
@@ -2832,6 +2836,24 @@ class RegionMatrixWrapper(RegionWrapper, RegionMatrixContainer):
 
     def _edges_length(self):
         return self._n_edges
+
+    def expected_values_and_marginals(self, selected_chromosome=None, norm=True,
+                                      *args, **kwargs):
+        if self._expected_value_and_marginals_cache is not None:
+            logger.debug("Using cached expected values")
+            intra_expected, chromosome_intra_expected, \
+            inter_expected, marginals, valid = self._expected_value_and_marginals_cache
+        else:
+            intra_expected, chromosome_intra_expected, \
+            inter_expected, marginals, valid = RegionMatrixContainer.expected_values_and_marginals(self, norm=norm,
+                                                                                                   *args, **kwargs)
+            self._expected_value_and_marginals_cache = intra_expected, chromosome_intra_expected, \
+                                                       inter_expected, marginals, valid
+
+        if selected_chromosome is not None:
+            return chromosome_intra_expected[selected_chromosome], marginals, valid
+
+        return intra_expected, chromosome_intra_expected, inter_expected, marginals, valid
 
 
 class RegionMatrix(np.ma.MaskedArray):
