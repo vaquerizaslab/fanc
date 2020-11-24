@@ -25,7 +25,7 @@ from .config import config
 from .general import FileBased
 from .map import *
 from .hic import Hic
-from .matrix import Edge, RegionMatrix
+from .matrix import Edge, RegionMatrix, RegionMatrixWrapper
 from .pairs import ReadPairs
 from .peaks import RaoPeakInfo, RaoPeakCaller, RaoPeakFilter
 from .regions import Genome, Chromosome
