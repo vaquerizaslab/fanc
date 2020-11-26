@@ -38,6 +38,7 @@ _default_config_content = """\
 # MEMORY
 #
 edge_buffer_size: 3G
+matrix_chunk_limit: 100000000
 
 #
 # HDF5
