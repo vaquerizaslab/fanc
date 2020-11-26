@@ -3,6 +3,7 @@ import logging
 import os
 import h5py
 import numpy as np
+import scipy.sparse
 import pandas
 import cooler
 from genomic_regions import GenomicRegion
@@ -349,7 +350,7 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
 
         query = "{}".format(region.chromosome)
         if region.start is not None and region.end is not None:
-            query += ':{}-{}'.format(region.start - 1, region.end)
+            query += ':{}-{}'.format(int(region.start) - 1, int(region.end))
 
         try:
             df = self.bins().fetch(query)
@@ -357,7 +358,7 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
             start = region.start if region.start > 0 else 1
             chromosome_end = self.chromosome_lengths[region.chromosome]
             end = region.end if region.end <= chromosome_end else chromosome_end
-            query = '{}:{}-{}'.format(region.chromosome, start - 1, end)
+            query = '{}:{}-{}'.format(region.chromosome, int(start) - 1, int(end))
             df = self.bins().fetch(query)
 
         for t in df.itertuples():
@@ -374,7 +375,7 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
         return regions
 
     def _region_len(self):
-        return len(self.bins())
+        return len(self.bins()[:])
 
     def chromosomes(self):
         cs = []
@@ -448,6 +449,20 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
 
     def _edges_length(self):
         return len(self.pixels())
+
+    def _matrix_from_ranges(self, row_start, row_end, col_start, col_end, **kwargs):
+        n = len(self.regions)
+        col_start = max(0, col_start)
+        row_start = max(0, row_start)
+        col_end = min(n - 1, col_end)
+        row_end = min(n - 1, row_end)
+
+        m = cooler.Cooler.matrix(self, as_pixels=False, balance=False)[row_start:row_end + 1, col_start:col_end + 1]
+
+        ms = scipy.sparse.coo_matrix(m,
+                                     shape=(row_end - row_start + 1,
+                                            col_end - col_start + 1))
+        return ms
 
     def mappable(self, region=None):
         """
