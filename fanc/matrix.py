@@ -8,12 +8,14 @@ import logging
 import os
 import warnings
 from bisect import bisect_right
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 import intervaltree
 import numpy as np
+import scipy.sparse
 import tables
 from future.utils import string_types
+import functools
 
 from genomic_regions import RegionBased, GenomicRegion
 from .config import config
@@ -24,6 +26,15 @@ from .tools.load import load
 import datetime
 
 logger = logging.getLogger(__name__)
+
+
+class BasicEdge(object):
+    def __init__(self, source, sink, weight=None, **kwargs):
+        self.source = source
+        self.sink = sink
+        self.weight = weight
+        for key, value in kwargs.items():
+            setattr(self, key.decode() if isinstance(key, bytes) else key, value)
 
 
 class Edge(object):
@@ -242,6 +253,28 @@ class MutableLazyEdge(LazyEdge):
         self._row.update()
 
 
+class BasicLazyEdge(object):
+    def __init__(self, ij, m, row_regions, col_regions):
+        self.ij = ij
+        self.m = m
+        self.row_regions = row_regions
+        self.row_region_ixs = [r.ix for r in row_regions]
+        self.col_regions = col_regions
+        self.col_region_ixs = [r.ix for r in col_regions]
+
+    @property
+    def source(self):
+        return self.row_region_ixs[self.ij[0]]
+
+    @property
+    def sink(self):
+        return self.col_region_ixs[self.ij[1]]
+
+    @property
+    def weight(self):
+        return self.m[self.ij[0], self.ij[1]]
+
+
 def as_edge(edge):
     """
     Convert input to :class:`~Edge`.
@@ -387,6 +420,10 @@ class RegionPairsContainer(RegionBased):
                        *args, **kwargs):
         raise NotImplementedError("Subclass must implement _edges_getitem "
                                   "to enable getting specific edges!")
+
+    def _matrix_from_ranges(self, row_start, row_end, col_start, col_end, **kwargs):
+        raise NotImplementedError("Subclass must implement _matrix_from_ranges "
+                                  "to matrix and edge retrieval!")
 
     def _key_to_regions(self, key, *args, **kwargs):
         if isinstance(key, tuple):
@@ -986,65 +1023,421 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         return row_regions, col_regions, entry_iter
 
-    def matrix(self, key=None,
-               log=False,
-               default_value=None, mask=True, log_base=2,
-               *args, **kwargs):
-        """
-        Assemble a :class:`~RegionMatrix` from region pairs.
+    def _region_range(self, key):
+        if isinstance(key, string_types):
+            key = GenomicRegion.from_string(key)
 
-        :param key: Matrix selector. See :func:`~fanc.matrix.RegionPairsContainer.edges`
-                    for all supported key types
-        :param log: If True, log-transform the matrix entries. Also see log_base
+        if isinstance(key, GenomicRegion):
+            start = list(self.regions(GenomicRegion(key.chromosome, key.start, key.start + 1)))[0].ix
+            end = list(self.regions(GenomicRegion(key.chromosome, key.end, key.end + 1)))[0].ix
+        elif isinstance(key, slice):
+            start = key.start
+            end = key.stop
+        elif key is None:
+            start = 0
+            end = len(self.regions) - 1
+        else:
+            raise ValueError("Region key not supported! {}".format(key))
+
+        return start, end
+
+    def matrix(self, key=None, norm=True, oe=False, mask=True,
+               log=False, log_base=2, oe_per_chromosome=True,
+               default_value=None, region_matrix=True, **kwargs):
+        """
+        Assemble a :class:`~RegionMatrix` from matrix entries.
+
+        :param key: Matrix selector
+        :param norm: If False returns unnormalised matrices
+        :param oe: If True, returns an observed / expected matrix
+        :param oe_per_chromosome: Use intra-chromosomal expected values.
+                                  If False, uses genome-wide O/E values (not recommended)
+        :param log: If True, log-transform the matrix entries.
+                    Useful in conjunction with ``oe`` Also see log_base.
         :param log_base: Base of the log transformation. Default: 2; only used when
                          log=True
         :param default_value: (optional) set the default value of matrix entries
                               that have no associated edge/contact
         :param mask: If False, do not mask unmappable regions
-        :param args: Positional arguments passed to
-                     :func:`~fanc.matrix.RegionMatrixContainer.regions_and_matrix_entries`
+        :param region_matrix: If False, return a Numpy ndarray instead of a
+                              :class:`~fanc.matrix.RegionMatrix`
         :param kwargs: Keyword arguments passed to
-                       :func:`~fanc.matrix.RegionMatrixContainer.regions_and_matrix_entries`
+                       :func:`~fanc.matrix.RegionMatrixContainer._matrix_from_ranges`
         :return: :class:`~fanc.matrix.RegionMatrix`
         """
+        if isinstance(key, tuple) or isinstance(key, list):
+            row_key, col_key = key
+        else:
+            row_key, col_key = key, None
 
+        row_regions = list(self.regions(row_key))
+        col_regions = list(self.regions(col_key))
+
+        return self._matrix(row_regions, col_regions, norm=norm, oe=oe, mask=mask,
+                            log=log, log_base=log_base, oe_per_chromosome=oe_per_chromosome,
+                            default_value=default_value, region_matrix=region_matrix,
+                            **kwargs)
+
+    def _matrix(self, row_regions, col_regions,
+                norm=True, oe=False, mask=True,
+                log=False, log_base=2, oe_per_chromosome=True,
+                default_value=None, region_matrix=True, **kwargs):
         if default_value is None:
-            default_value = self._default_value
+            default_value = self._default_value if not oe else (0 if log else 1)
 
-        if kwargs.get('oe', False):
-            default_value = 1.0
+        row_start, row_end = row_regions[0].ix, row_regions[-1].ix
+        col_start, col_end = col_regions[0].ix, col_regions[-1].ix
 
-        kwargs['lazy'] = True
-        row_regions, col_regions, matrix_entries = self.regions_and_matrix_entries(key,
-                                                                                   *args,
-                                                                                   **kwargs)
+        m = self._matrix_from_ranges(row_start, row_end, col_start, col_end, **kwargs).toarray()
 
-        m = np.full((len(row_regions), len(col_regions)), default_value)
+        if norm and hasattr(self, 'bias_vector'):
+            bias = self.bias_vector()
+            m = m * bias[col_start:col_end + 1] * bias[row_start:row_end + 1, None]
 
-        for source, sink, weight in matrix_entries:
-            ir = source
-            jr = sink
-            if 0 <= ir < m.shape[0] and 0 <= jr < m.shape[1]:
-                m[ir, jr] = weight
+        if mask or oe:
+            col_ranges = []
+            col_valid = np.zeros(col_end - col_start + 1, dtype=bool)
+            range_start = col_start
+            current_chromosome = None
+            for j, col_region in enumerate(self.regions(slice(col_start, col_end + 1, 1), lazy=True)):
+                col_valid[j] = getattr(col_region, 'valid', True)
+                if current_chromosome is None:
+                    current_chromosome = col_region.chromosome
+                elif current_chromosome != col_region.chromosome:
+                    # inclusive
+                    col_ranges.append((current_chromosome, (range_start, j - 1)))
+                    range_start = j
+            if range_start != col_end:
+                col_ranges.append((current_chromosome, (range_start, col_end)))
+
+            row_ranges = []
+            range_start = row_start
+            current_chromosome = None
+            for i, row_region in enumerate(self.regions(slice(row_start, row_end + 1, 1), lazy=True)):
+                if current_chromosome is None:
+                    current_chromosome = row_region.chromosome
+                elif current_chromosome != row_region.chromosome:
+                    # inclusive
+                    row_ranges.append((current_chromosome, (range_start, i - 1)))
+                    range_start = i
+            if range_start != row_end:
+                row_ranges.append((current_chromosome, (range_start, row_end)))
+
+            if oe:
+                if not hasattr(self, 'expected_values'):
+                    raise ValueError("Cannot perform O/E transformation because this object does not "
+                                     "support the expected_values function!")
+                expected_genome, expected_intra, expected_inter = self.expected_values(norm=norm)
+
+                for row_chromosome, (row_range_start, row_range_end) in row_ranges:
+                    for col_chromosome, (col_range_start, col_range_end) in col_ranges:
+                        ex_shape = (row_range_end - row_range_start + 1, col_range_end - col_range_start + 1)
+
+                        m_exp = np.full(ex_shape, expected_inter, dtype='float')
+                        if row_chromosome == col_chromosome:
+                            if oe_per_chromosome:
+                                ex = expected_intra[row_chromosome]
+                            else:
+                                ex = expected_genome
+
+                            base_distance = abs(row_range_start - col_range_start)
+                            for i in range(m_exp.shape[0]):
+                                vector_len = min(m_exp.shape[1], m_exp.shape[0] - i)
+
+                                y = np.arange(0, vector_len)
+                                x = np.arange(i, vector_len + i)
+                                m_exp[x, y] = ex[abs(base_distance - i)]
+
+                            for j in range(m_exp.shape[1]):
+                                vector_len = min(m_exp.shape[0], m_exp.shape[1] - j)
+                                x = np.arange(0, vector_len)
+                                y = np.arange(j, vector_len + j)
+                                m_exp[x, y] = ex[abs(base_distance + j)]
+
+                        m[row_range_start - row_start:row_range_end - row_start + 1,
+                          col_range_start - col_start:col_range_end - col_start + 1] /= m_exp
+
+        if default_value != 0:
+            m[m == 0] = default_value
 
         if log:
             m = np.log(m) / np.log(log_base)
             m[~np.isfinite(m)] = default_value
 
-        if isinstance(key, tuple) and len(key) == 2:
-            if isinstance(key[0], int) and isinstance(key[1], int):
-                return m[0, 0]
-            elif isinstance(key[0], int):
-                m = m[0, :]
-            elif isinstance(key[1], int):
-                m = m[:, 0]
+        if region_matrix:
+            return RegionMatrix(m, row_regions, col_regions, mask=mask)
 
-        return RegionMatrix(m, row_regions=row_regions, col_regions=col_regions, mask=mask)
+        if mask:
+            m_mask = np.zeros(m.shape, dtype=bool)
+            row_valid = np.array([r.valid for r in row_regions])
+            col_valid = np.array([r.valid for r in col_regions])
+            m_mask[~row_valid] = True
+            m_mask[:, ~col_valid] = True
+
+            m = np.ma.masked_array(m, mask=m_mask)
+
+        return m
+
+    def edges(self, key=None, **kwargs):
+        if isinstance(key, tuple) or isinstance(key, list):
+            row_key, col_key = key
+        else:
+            row_key, col_key = key, None
+
+        row_regions = list(self.regions(row_key))
+        col_regions = list(self.regions(col_key))
+
+        return self._edges_by_region_lists(row_regions=row_regions, col_regions=col_regions,
+                                           **kwargs)
+
+    def _split_edge_query_chunk(self, row_regions, col_regions):
+        if len(row_regions) > len(col_regions):
+            row_middle = int(len(row_regions)/2)
+            row_regions_sub1, row_regions_sub2 = row_regions[:row_middle], row_regions[row_middle:]
+            col_regions_sub1, col_regions_sub2 = col_regions, col_regions
+        else:
+            col_middle = int(len(col_regions)/2)
+            col_regions_sub1, col_regions_sub2 = col_regions[:col_middle], col_regions[col_middle:]
+            row_regions_sub1, row_regions_sub2 = row_regions, row_regions
+
+        return (row_regions_sub1, col_regions_sub1), (row_regions_sub2, col_regions_sub2)
+
+    def _edges_by_region_lists(self, row_regions, col_regions, as_tuple=False,
+                               matrix_chunk_limit=config.matrix_chunk_limit,
+                               default_value=None, intra_chromosomal=True, inter_chromosomal=True,
+                               **kwargs):
+        kwargs['region_matrix'] = False
+
+        if default_value is None:
+            default_value = self._default_value
+
+        if not intra_chromosomal or not inter_chromosomal:
+            # split by chromosome(s)
+            row_chromosome_ranges = dict()
+            current_chromosome = None
+            current_range_start = 0
+            row_ixs = np.zeros(len(row_regions))
+            for i, region in enumerate(row_regions):
+                row_ixs[i] = region.ix
+                if current_chromosome is None:
+                    current_chromosome = region.chromosome
+                elif current_chromosome != region.chromosome:
+                    row_chromosome_ranges[current_chromosome] = current_range_start, i
+                    current_range_start = i
+                    current_chromosome = region.chromosome
+            row_chromosome_ranges[current_chromosome] = current_range_start, len(row_ixs)
+
+            col_chromosome_ranges = dict()
+            current_chromosome = None
+            current_range_start = 0
+            col_ixs = np.zeros(len(col_regions))
+            for i, region in enumerate(col_regions):
+                col_ixs[i] = region.ix
+                if current_chromosome is None:
+                    current_chromosome = region.chromosome
+                elif current_chromosome != region.chromosome:
+                    col_chromosome_ranges[current_chromosome] = current_range_start, i
+                    current_range_start = i
+                    current_chromosome = region.chromosome
+            col_chromosome_ranges[current_chromosome] = current_range_start, len(row_ixs)
+
+            if len(row_chromosome_ranges) > 1 or len(col_chromosome_ranges) > 1:
+                covered = set()
+                for row_chromosome, row_range in row_chromosome_ranges.items():
+                    row_chunk = row_regions[row_range[0]:row_range[1]]
+                    for col_chromosome, col_range in col_chromosome_ranges.items():
+                        col_chunk = col_regions[col_range[0]:col_range[1]]
+                        if (row_chromosome, col_chromosome) in covered:
+                            continue
+                        yield from self._edges_by_region_lists(row_chunk, col_chunk,
+                                                               as_tuple=as_tuple, matrix_chunk_limit=matrix_chunk_limit,
+                                                               intra_chromosomal=intra_chromosomal,
+                                                               inter_chromosomal=inter_chromosomal,
+                                                               **kwargs)
+                        covered.add((col_chromosome, row_chromosome))
+                return
+
+            if not intra_chromosomal and row_regions[0].chromosome == col_regions[0].chromosome:
+                return
+
+            if not inter_chromosomal and row_regions[0].chromosome != col_regions[0].chromosome:
+                return
+
+        row_ixs = np.array([r.ix for r in row_regions])
+        col_ixs = np.array([r.ix for r in col_regions])
+
+        # check intersection, submit complete intersection and unique chunks separately
+        intersection, row_intersect, col_intersect = np.intersect1d(row_ixs, col_ixs,
+                                                                    assume_unique=True,
+                                                                    return_indices=True)
+        chunk_too_large = len(row_regions) * len(col_regions) > matrix_chunk_limit
+        complete_intersect = len(intersection) == len(row_regions) == len(col_regions)
+
+        resubmission_chunks = []
+        # case 1: no intersect
+        if len(intersection) == 0 and chunk_too_large:
+            resubmission_chunks = self._split_edge_query_chunk(row_regions, col_regions)
+        # case 2: complete intersect
+        elif complete_intersect:
+            if chunk_too_large:
+                middle = int(len(row_regions) / 2)
+                resubmission_chunks = [
+                    (row_regions[:middle], col_regions[:middle]),
+                    (row_regions[:middle], col_regions[middle:]),
+                    (row_regions[middle:], col_regions[middle:])
+                ]
+        elif len(intersection) > 0:
+            row_chunks = []
+            if row_intersect[0] > 0:
+                row_chunks.append(row_regions[:row_intersect[0]])
+            row_chunks.append(row_regions[row_intersect[0]:row_intersect[-1] + 1])
+            if row_intersect[-1] < len(row_ixs) - 1:
+                row_chunks.append(row_regions[row_intersect[-1] + 1:])
+
+            col_chunks = []
+            if col_intersect[0] > 0:
+                col_chunks.append(col_regions[:col_intersect[0]])
+            col_chunks.append(col_regions[col_intersect[0]:col_intersect[-1] + 1])
+            if col_intersect[-1] < len(col_ixs) - 1:
+                col_chunks.append(col_regions[col_intersect[-1] + 1:])
+
+            for row_chunk in row_chunks:
+                for col_chunk in col_chunks:
+                    resubmission_chunks.append((row_chunk, col_chunk))
+
+        if len(resubmission_chunks) > 0:
+            for row_chunk, col_chunk in resubmission_chunks:
+                yield from self._edges_by_region_lists(row_chunk, col_chunk,
+                                                       as_tuple=as_tuple, matrix_chunk_limit=matrix_chunk_limit,
+                                                       intra_chromosomal=intra_chromosomal,
+                                                       inter_chromosomal=inter_chromosomal,
+                                                       **kwargs)
+            return
+
+        row_offset = row_ixs[0]
+        col_offset = col_ixs[0]
+
+        m = self._matrix(row_regions, col_regions, **kwargs)
+        if complete_intersect:
+            m[np.tril_indices(m.shape[0], k=-1)] = 0
+
+        if default_value != 0:
+            m[m == default_value] = 0
+
+        ms = scipy.sparse.coo_matrix(m)
+        sources, sinks, weights = ms.row, ms.col, ms.data
+        sources += row_offset
+        sinks += col_offset
+
+        if not as_tuple:
+            for source, sink, weight in zip(ms.row, ms.col, ms.data):
+                yield BasicEdge(source, sink, weight)
+        else:
+            for source, sink, weight in zip(ms.row, ms.col, ms.data):
+                yield source, sink, weight
+
+    def expected_values_and_marginals(self, selected_chromosome=None, norm=True,
+                                      inter_chromosomal=True, chunk_size=10000):
+        chunk_breaks = dict()
+        intra_expected = dict()
+        for chromosome, (start_bin, end_bin) in self.chromosome_bins.items():
+            intra_expected[chromosome] = np.zeros(end_bin - start_bin)
+            chunk_breaks[chromosome] = []
+            previous_stop = start_bin
+            for stop in range(start_bin + chunk_size, end_bin, chunk_size):
+                chunk_breaks[chromosome].append((previous_stop, stop - 1))
+                previous_stop = stop
+            if len(chunk_breaks[chromosome]) == 0 or chunk_breaks[chromosome][-1] != end_bin:
+                chunk_breaks[chromosome].append((previous_stop, end_bin))
+
+        marginals = np.zeros(len(self.regions))
+        expected_genome = np.zeros(max(len(ex) for ex in intra_expected.values()))
+
+        # intra-chromosomal
+        for chromosome, partitions in chunk_breaks.items():
+            ex = intra_expected[chromosome]
+            for i in range(len(partitions)):
+                for j in range(i, len(partitions)):
+                    row_start, row_stop = partitions[i]
+                    col_start, col_stop = partitions[j]
+
+                    m = self.fast_matrix((slice(row_start, row_stop, 1),
+                                          slice(col_start, col_stop)),
+                                         norm=norm, region_matrix=False)
+                    for col in range(m.shape[1]):
+                        if i == j:
+                            v = m[:col + 1, col]
+                            marginals[row_start:row_start + len(v)] += v
+                            marginals[col_start+col] += np.sum(v[:-1])
+                        else:
+                            v = m[:, col]
+                            marginals[row_start:row_start + len(v)] += v
+                            marginals[col_start+col] += np.sum(v)
+
+                        offset = col_start - row_start
+                        ex[offset + col + 1 - len(v):offset + col + 1] += v[::-1]
+
+            intra_expected[chromosome] = ex
+            expected_genome[:len(ex)] += ex
+
+        # inter-chromosomal
+        if inter_chromosomal:
+            inter_sums = 0
+            chromosomes = self.chromosomes()
+            for chr_i in range(len(chromosomes)):
+                chromosome1 = chromosomes[chr_i]
+                partitions1 = chunk_breaks[chromosome1]
+                for chr_j in range(chr_i+1, len(chromosomes)):
+                    chromosome2 = chromosomes[chr_j]
+                    partitions2 = chunk_breaks[chromosome2]
+
+                    for i in range(len(partitions1)):
+                        for j in range(i, len(partitions2)):
+                            row_start, row_stop = partitions1[i]
+                            col_start, col_stop = partitions2[j]
+
+                            m = self.fast_matrix((slice(row_start, row_stop + 1, 1),
+                                                  slice(col_start, col_stop + 1)),
+                                                 norm=norm, region_matrix=False)
+
+                            row_sum = np.sum(m, axis=0)
+                            inter_sums += np.sum(row_sum)
+
+                            marginals[row_start:row_start + len(row_sum)] += row_sum
+                            marginals[col_start:col_start + len(row_sum)] += row_sum
+        else:
+            inter_total = 0
+            inter_sums = 0
+
+        valid = np.logical_and(self.mappable(), marginals > 0)
+        intra_total, chromosome_intra_total, inter_total = self.possible_contacts(valid)
+
+        # expected values
+        inter_expected = 0 if inter_total == 0 else inter_sums / inter_total
+
+        for d in range(len(expected_genome)):
+            # whole genome
+            count = intra_total[d]
+            if count > 0:
+                expected_genome[d] /= count
+
+        # chromosomes
+        for chromosome in intra_expected:
+            for d in range(len(intra_expected[chromosome])):
+                chromosome_count = chromosome_intra_total[chromosome][d]
+                if chromosome_count > 0:
+                    intra_expected[chromosome][d] /= chromosome_count
+
+        if selected_chromosome is not None:
+            start, stop = self.chromosome_bins[selected_chromosome]
+            return intra_expected[selected_chromosome], marginals[start:stop], valid[start:stop]
+
+        return expected_genome, intra_expected, inter_expected if inter_chromosomal else None, marginals, valid
 
     def __getitem__(self, item):
         return self.matrix(item)
 
-    def possible_contacts(self):
+    def possible_contacts(self, mappability=None):
         """
         Calculate the possible number of contacts in the genome.
 
@@ -1065,7 +1458,8 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         logger.debug("Setup for possible counts")
         chromosomes = self.chromosomes()
-        mappability = self.mappable()
+        if mappability is None:
+            mappability = self.mappable()
         cb = self.chromosome_bins
 
         max_distance = 0
@@ -1856,6 +2250,91 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             return True
         return False
 
+    def _matrix_from_ranges(self, row_start=0, row_end=None, col_start=0, col_end=None, score_field=None):
+        if score_field is None:
+            score_field = 'weight'
+
+        if row_end is None:
+            row_end = len(self.regions) - 1
+        if col_end is None:
+            col_end = len(self.regions) - 1
+
+        row_partition_start = self._get_partition_ix(row_start)
+        row_partition_end = self._get_partition_ix(row_end)
+        col_partition_start = self._get_partition_ix(col_start)
+        col_partition_end = self._get_partition_ix(col_end)
+
+        m = None
+        for i in range(row_partition_start, row_partition_end + 1):
+            m_row = None
+            for j in range(col_partition_start, col_partition_end + 1):
+                try:
+                    if j < i:
+                        edge_table = self._edge_table(j, i, create_if_missing=False)
+                    else:
+                        edge_table = self._edge_table(i, j, create_if_missing=False)
+                except ValueError:
+                    continue
+
+                visible = edge_table.col('_mask') == 0
+                sources = edge_table.col('source')[visible]
+                sinks = edge_table.col('sink')[visible]
+                weights = edge_table.col(score_field)[visible]
+
+                if j < i:
+                    sources, sinks = sinks, sources
+
+                if i == j:
+                    # matrix is symmetrical
+                    not_diagonal = sources != sinks
+                    new_sources = np.concatenate((sources, sinks[not_diagonal]), axis=0)
+                    new_sinks = np.concatenate((sinks, sources[not_diagonal]), axis=0)
+                    sources = new_sources
+                    sinks = new_sinks
+                    weights = np.concatenate((weights, weights[not_diagonal]), axis=0)
+
+                edge_filters = []
+                if i == row_partition_start:
+                    edge_filters.append(sources >= row_start)
+                if i == row_partition_end:
+                    edge_filters.append(sources <= row_end)
+                if j == col_partition_start:
+                    edge_filters.append(sinks >= col_start)
+                if j == col_partition_end:
+                    edge_filters.append(sinks <= col_end)
+
+                if len(edge_filters) > 0:
+                    ix_mask = functools.reduce(np.logical_and, edge_filters)
+                    sources = sources[ix_mask]
+                    sinks = sinks[ix_mask]
+                    weights = weights[ix_mask]
+
+                row_partition_region_ix_start = self._partition_breaks[i - 1] if i > 0 else 0
+                min_row = max(row_partition_region_ix_start, row_start)
+                max_row = min(self._partition_breaks[i] - 1 if i < len(self._partition_breaks) else len(self.regions),
+                              row_end)
+                col_partition_region_ix_start = self._partition_breaks[j - 1] if j > 0 else 0
+                min_col = max(col_partition_region_ix_start, col_start)
+                max_col = min(self._partition_breaks[j] - 1 if j < len(self._partition_breaks) else len(self.regions),
+                              col_end)
+
+                m_sub = scipy.sparse.coo_matrix((weights,
+                                                 ((sources - min_row),
+                                                  (sinks - min_col))),
+                                                shape=(max_row - min_row + 1, max_col - min_col + 1))
+
+                if m_row is None:
+                    m_row = m_sub
+                else:
+                    m_row = scipy.sparse.hstack((m_row, m_sub))
+
+            if m is None:
+                m = m_row
+            else:
+                m = scipy.sparse.vstack((m, m_row))
+
+        return m
+
     def _edge_subset_rows(self, key=None, *args, **kwargs):
         row_regions, col_regions = self._key_to_regions(key, lazy=False)
 
@@ -1902,7 +2381,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
                 # otherwise only return the subset defined by the respective indices
                 else:
-                    condition = "(%d < source) & (source < %d) & (% d < sink) & (sink < %d)"
+                    condition = "(%d < source) & (source < %d) & (%d < sink) & (sink < %d)"
                     condition1 = condition % (row_start - 1, row_end + 1, col_start - 1, col_end + 1)
                     condition2 = condition % (col_start - 1, col_end + 1, row_start - 1, row_end + 1)
 
