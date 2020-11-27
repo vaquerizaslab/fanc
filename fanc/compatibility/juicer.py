@@ -3,6 +3,7 @@ import struct
 import zlib
 
 import numpy as np
+import scipy.sparse
 from genomic_regions import GenomicRegion
 
 from ..regions import Genome
@@ -877,8 +878,8 @@ class JuicerHic(RegionMatrixContainer):
                             weight = struct.unpack('<f', block[temp:(temp + 4)])[0]
                             temp += 4
                         yield x, y, weight
-
                         index += 1
+
             elif block_type == 2:
                 temp = 14
                 n_points = struct.unpack('<i', block[temp:(temp + 4)])[0]
@@ -901,7 +902,111 @@ class JuicerHic(RegionMatrixContainer):
                         temp += 4
                         if weight != 0x7fc00000:
                             yield x, y, weight
-                            index = index + 1
+                            index += 1
+
+    def _matrix_ranges_by_chromosome(self, row_chromosome, row_start, row_end,
+                                     col_chromosome, col_start, col_end,
+                                     **kwargs):
+        chromosomes = self._all_chromosomes()
+        chromosome1_ix = chromosomes.index(row_chromosome)
+        chromosome2_ix = chromosomes.index(col_chromosome)
+
+        switched = False
+        if chromosome1_ix > chromosome2_ix:
+            switched = True
+            row_start, row_end, col_start, col_end = col_start, col_end, row_start, row_end
+            chromosome1_ix, chromosome2_ix = chromosome2_ix, chromosome1_ix
+
+        try:
+            matrix_file_position = self._matrix_positions()[(str(chromosome1_ix), str(chromosome2_ix))]
+        except KeyError:
+            return
+
+        sources = []
+        sinks = []
+        weights = []
+        with open(self._hic_file, 'rb') as req:
+            req.seek(matrix_file_position)
+            req.read(8)  # skip chromosome index
+
+            block_bin_count = None
+            block_column_count = None
+            block_map = dict()
+            n_resolutions = struct.unpack('<i', req.read(4))[0]
+            for i in range(n_resolutions):
+                unit = _read_cstr(req)
+                req.read(20)  # skip reserved but unused fields
+
+                bin_size = struct.unpack('<i', req.read(4))[0]
+                if unit == self._unit and bin_size == self._resolution:
+                    block_bin_count = struct.unpack('<i', req.read(4))[0]
+                    block_column_count = struct.unpack('<i', req.read(4))[0]
+
+                    n_blocks = struct.unpack('<i', req.read(4))[0]
+                    for b in range(n_blocks):
+                        block_number = struct.unpack('<i', req.read(4))[0]
+                        file_position = struct.unpack('<q', req.read(8))[0]
+                        block_size_in_bytes = struct.unpack('<i', req.read(4))[0]
+                        block_map[block_number] = (file_position, block_size_in_bytes)
+                else:
+                    req.read(8)
+
+                    n_blocks = struct.unpack('<i', req.read(4))[0]
+                    for b in range(n_blocks):
+                        req.read(16)
+
+            if block_bin_count is None or block_column_count is None:
+                raise ValueError("Matrix data for {} {} not found!".format(self._resolution, self._unit))
+
+            row_chromosome_offset = self._chromosome_ix_offset(row_chromosome)
+            col_chromosome_offset = self._chromosome_ix_offset(col_chromosome)
+
+            col1, col2 = int(row_start / block_bin_count), int(row_end / block_bin_count)
+            row1, row2 = int(col_start / block_bin_count), int(col_end / block_bin_count)
+
+            blocks = set()
+            for r in range(row1, row2 + 1):
+                for c in range(col1, col2 + 1):
+                    block_number = r * block_column_count + c
+                    blocks.add(block_number)
+
+            if row_chromosome == col_chromosome:
+                for r in range(col1, col2 + 1):
+                    for c in range(row1, row2 + 1):
+                        block_number = r * block_column_count + c
+                        blocks.add(block_number)
+
+            for block_number in blocks:
+                try:
+                    file_position, block_size_in_bytes = block_map[block_number]
+
+                    for x, y, weight in self._read_block(req, file_position, block_size_in_bytes):
+                        source = x + row_chromosome_offset
+                        sink = y + col_chromosome_offset
+
+                        if row_start <= source <= row_end and col_start <= sink <= col_end:
+                            sources.append(source - row_start)
+                            sinks.append(sink - col_start)
+                            weights.append(weight)
+
+                        if row_start <= sink <= row_end and col_start <= source <= col_end:
+                            sources.append(sink - row_start)
+                            sinks.append(source - col_start)
+                            weights.append(weight)
+
+                except KeyError:
+                    logger.debug("Could not find block {}".format(block_number))
+
+        if switched:
+            return scipy.sparse.coo_matrix((weights, (sinks, sources)),
+                                           shape=(col_end - col_start + 1,
+                                                  row_end - row_start + 1))
+        return scipy.sparse.coo_matrix((weights, (sources, sinks)),
+                                       shape=(row_end - row_start + 1,
+                                              col_end - col_start + 1))
+
+    def _matrix_from_ranges(self, row_start, row_end, col_start, col_end, **kwargs):
+        return self._matrix_ranges_by_chromosome('chr18', row_start, row_end, 'chr18', col_start, col_end, **kwargs)
 
     def _read_matrix(self, region1, region2):
         region1 = self._convert_region(region1)
