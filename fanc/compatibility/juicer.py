@@ -724,24 +724,31 @@ class JuicerHic(RegionMatrixContainer):
             ixs = int(np.ceil(chromosome_length / self._resolution))
             offset_ix += ixs
 
-    def _region_start(self, region):
+    def _region_start_end(self, region):
         region = self._convert_region(region)
         offset_ix = self._chromosome_ix_offset(region.chromosome)
         region_start = region.start if region.start is not None else 1
-        ix = int((region_start - 1) / self._resolution)
-        start = self._resolution * ix + 1
-        return offset_ix + ix, start
+        region_end = region.end if region.end is not None else self.chromosome_lengths[region.chromosome]
+        ix_start = int((region_start - 1) / self._resolution)
+        ix_end = int((region_end - 1) / self._resolution)
+        start = self._resolution * ix_start + 1
+        end = self._resolution * ix_start + 1
+        return offset_ix + ix_start, offset_ix + ix_end, start, end
 
-    def _region_iter(self, *args, **kwargs):
+    def _region_iter(self, start_ix=None, end_ix=None, *args, **kwargs):
         chromosome_lengths = self.chromosome_lengths
 
         chromosomes = self.chromosomes()
-        for chromosome in chromosomes:
+        for chr_ix, chromosome in enumerate(chromosomes):
             chromosome_length = chromosome_lengths[chromosome]
             if chromosome.lower() == 'all':
                 continue
 
             offset_ix = self._chromosome_ix_offset(chromosome)
+
+            if start_ix is not None and chr_ix < len(chromosomes) - 1:
+                if start_ix > self._chromosome_ix_offset(chromosomes[chr_ix + 1]):
+                    continue
 
             try:
                 norm = self.normalisation_vector(chromosome)
@@ -753,6 +760,13 @@ class JuicerHic(RegionMatrixContainer):
                 norm = None
 
             for i, start in enumerate(range(1, chromosome_length, self._resolution)):
+                ix = int(offset_ix + i)
+
+                if start_ix is not None and start_ix > ix:
+                    continue
+                if end_ix is not None and end_ix < ix:
+                    return
+
                 if norm is None or np.isnan(norm[i]) or norm[i] == 0:
                     valid = False
                     bias = 1.0
@@ -773,31 +787,18 @@ class JuicerHic(RegionMatrixContainer):
                 yield region
 
     def _region_subset(self, region, *args, **kwargs):
-        subset_ix, subset_start = self._region_start(region)
+        if isinstance(region, slice):
+            start_ix = region.start
+            end_ix = region.stop - 1
+        elif isinstance(region, int):
+            start_ix = region
+            end_ix = region
+        else:
+            start_ix, end_ix, subset_start, subset_end = self._region_start_end(region)
+        return self._region_iter(start_ix=start_ix, end_ix=end_ix)
 
-        cl = self.chromosome_lengths[region.chromosome]
-        norm = self.normalisation_vector(region.chromosome)
-        for i, start in enumerate(range(subset_start, region.end, self._resolution)):
-            end = min(start + self._resolution - 1, cl, region.end)
-            bias_ix = int(start / self._resolution)
-
-            if np.isnan([i]) or norm[i] == 0:
-                valid = False
-                bias = 1.0
-            else:
-                valid = True
-                try:
-                    bias = 1/norm[bias_ix]
-                except IndexError:
-                    bias = 1.0
-
-            if np.isnan(bias):
-                bias = 1.0
-
-            r = GenomicRegion(chromosome=region.chromosome, start=start,
-                              end=end, bias=bias, valid=valid,
-                              ix=int(subset_ix + i))
-            yield r
+    def _get_regions(self, item, *args, **kwargs):
+        return self._region_subset(item)
 
     def _region_len(self):
         length = 0
