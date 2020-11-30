@@ -1055,6 +1055,8 @@ def pairs(argv, **kwargs):
             matplotlib.use('agg')
             import matplotlib.pyplot as plt
 
+            alignment_filter_keys = ['unmappable', 'multi-mapping', 'alignment score', 'MAPQ', 'contaminant']
+
             pairs = fanc.load(pairs_file, mode='r')
             if statistics_file is not None or statistics_plot_file is not None:
                 statistics = pairs.filter_statistics()
@@ -1068,8 +1070,13 @@ def pairs(argv, **kwargs):
                     logger.info("Saving statistics...")
                     from fanc.plotting.statistics import summary_statistics_plot
                     statistics_plot_file = os.path.expanduser(statistics_plot_file)
-                    fig, ax = plt.subplots()
-                    summary_statistics_plot(statistics)
+                    fig, axes = plt.subplots(1, 2)
+                    summary_statistics_plot(statistics, exclude=alignment_filter_keys, ax=axes[0])
+                    summary_statistics_plot(statistics, include=alignment_filter_keys, exclude=['total', 'valid'],
+                                            ax=axes[1])
+                    axes[1].set_ylabel("Number of filtered reads")
+                    axes[0].set_title("Read pair filter statistics")
+                    axes[1].set_title("Alignment filter statistics")
                     fig.savefig(statistics_plot_file)
                     plt.close(fig)
 

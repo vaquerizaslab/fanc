@@ -13,33 +13,46 @@ __all__ = ['summary_statistics_plot', 'ligation_bias_plot', 'restriction_site_di
            'pca_plot']
 
 
-def summary_statistics_plot(stats, ax=None, **kwargs):
+def summary_statistics_plot(stats, ax=None, exclude=None, include=None, **kwargs):
     """
     Barplot with filter statistics for FAN-C objects.
 
     :param stats: dictionary of the form {filter_name: int, ...}
     :param ax: (optional) axis in which to plot the bars.
                Will use :code:`plt.gca()` if not specified
+    :param exclude: Exclude this list of mask keys from the plot
     :param kwargs: Keyword options passed to Seaborn :code:`barplot`
     :return: Matplotlib axis
     """
     if ax is None:
         ax = plt.gca()
 
+    if exclude is None:
+        exclude = set()
+    else:
+        exclude = set(exclude)
+
+    if include is None:
+        include = set(stats.keys())
+    else:
+        include = set(include)
+
     palette = kwargs.pop('palette', 'colorblind')
     labels = []
     values = []
 
-    if 'total' in stats:
+    if 'total' in stats and 'total' not in exclude:
         labels.append('total')
         values.append(stats['total'])
 
-    if 'valid' in stats:
+    if 'valid' in stats and 'valid' not in exclude:
         labels.append('valid')
         values.append(stats['valid'])
 
     for key, value in sorted(stats.items()):
-        if key in ('total', 'valid'):
+        if key in ('total', 'valid') or key in exclude:
+            continue
+        if key not in include:
             continue
         labels.append(key)
         values.append(value)
