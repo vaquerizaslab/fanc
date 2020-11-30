@@ -222,11 +222,12 @@ class LazyCoolerRegion(GenomicRegion):
 
     @property
     def attributes(self):
-        base_attributes = self._series.index.tolist()
-        for a in ['chromosome', 'bias', 'strand', 'start', 'end', 'weight']:
-            if a not in base_attributes:
-                base_attributes.append(a)
-        return base_attributes
+        try:
+            base_attributes = self._series.index.tolist()
+        except AttributeError:
+            base_attributes = [a for a in dir(self._series) if not a.startswith('_')]
+
+        return list(set(base_attributes + ['chromosome', 'bias', 'strand', 'start', 'end', 'weight']))
 
     @property
     def chromosome(self):
