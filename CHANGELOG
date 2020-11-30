@@ -1,3 +1,9 @@
+0.9.9
+
+- Report number of pairs as total in stats and split stats plot in alignment and pairs plots
+- Fix Cooler bias vector compatibility (fixes expected values)
+- Fix Cooler attributes list
+
 0.9.8
 
 - Fix mode parameter for matrix comparisons
