@@ -2030,6 +2030,8 @@ class ReadPairs(RegionPairsTable):
         if 'valid' in pair_stats:
             read_stats['valid'] = pair_stats['valid']
         pair_stats.update(read_stats)
+
+        pair_stats['total'] = sum(t._original_len() for t in self._pairs)
         return pair_stats
 
 
