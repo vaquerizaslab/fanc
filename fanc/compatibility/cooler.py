@@ -464,7 +464,7 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
         return mappable
 
     def bias_vector(self):
-        return np.array([r.bias for r in self.regions(lazy=True)])
+        return np.array([r.bias if np.isfinite(r.bias) else 0 for r in self.regions(lazy=True)])
 
     def expected_values_and_marginals(self, selected_chromosome=None, norm=True,
                                       *args, **kwargs):
