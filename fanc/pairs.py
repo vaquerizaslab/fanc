@@ -1778,8 +1778,7 @@ class ReadPairs(RegionPairsTable):
                       along with other queued filters using
                       run_queued_filters
         """
-        mask = self.add_mask_description('PCR duplicates', 'Mask read pairs that are '
-                                                           'considered PCR duplicates')
+        mask = self.add_mask_description('PCR duplicates', 'Mask read pairs that are considered PCR duplicates')
         pcr_duplicate_filter = PCRDuplicateFilter(pairs=self, threshold=threshold, mask=mask)
         self.filter(pcr_duplicate_filter, queue)
 
