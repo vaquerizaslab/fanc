@@ -1329,7 +1329,8 @@ class ReadPairs(RegionPairsTable):
                     left_fragment_start=f_start1, right_fragment_start=f_start2,
                     left_fragment_end=f_end1, right_fragment_end=f_end2,
                     left_fragment_chromosome=f_chromosome_ix1,
-                    right_fragment_chromosome=f_chromosome_ix2)
+                    right_fragment_chromosome=f_chromosome_ix2,
+                    regions_object=self)
 
         self._add_pair(edge)
 
