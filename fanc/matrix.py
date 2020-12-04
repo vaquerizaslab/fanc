@@ -28,15 +28,6 @@ import datetime
 logger = logging.getLogger(__name__)
 
 
-class BasicEdge(object):
-    def __init__(self, source, sink, weight=None, **kwargs):
-        self.source = source
-        self.sink = sink
-        self.weight = weight
-        for key, value in kwargs.items():
-            setattr(self, key.decode() if isinstance(key, bytes) else key, value)
-
-
 class Edge(object):
     """
     A contact / an Edge between two genomic regions.
@@ -62,87 +53,26 @@ class Edge(object):
 
         The second :class:`~fanc.GenomicRegion` in this contact
     """
-    def __init__(self, source, sink, _weight_field='weight', **kwargs):
-        """
-        :param source: The index of the "source" genomic region
-                       or :class:`~fanc.GenomicRegion` object.
-        :param sink: The index of the "sink" genomic region
-                     or :class:`~fanc.GenomicRegion` object.
-        :param kwargs: Other key, value pairs to be stored as
-                       :class:`~Edge` attributes
-        """
-        object.__setattr__(self, '_source', source)
-        object.__setattr__(self, '_sink', sink)
-        object.__setattr__(self, 'bias', 1.)
-        object.__setattr__(self, 'expected', None)
-        object.__setattr__(self, '_weight_field', _weight_field)
-        object.__setattr__(self, '_weight', None)
 
+    def __init__(self, source, sink, weight=None, regions_object=None, **kwargs):
+        self.source = source
+        self.sink = sink
+        self.weight = weight
+        self._regions_object = regions_object
         for key, value in kwargs.items():
             setattr(self, key.decode() if isinstance(key, bytes) else key, value)
 
-    def __getattr__(self, item):
-        if item == '_weight_field' or item != self._weight_field:
-            return object.__getattribute__(self, item)
-
-        if self.expected is None:
-            return object.__getattribute__(self, '_weight') * self.bias
-        else:
-            return (object.__getattribute__(self, '_weight') * self.bias) / self.expected
-
-    def __setattr__(self, key, value):
-        if key == object.__getattribute__(self, '_weight_field'):
-            object.__setattr__(self, '_weight', value)
-        else:
-            object.__setattr__(self, key, value)
-
-    def __getitem__(self, item):
-        try:
-            return getattr(self, item)
-        except AttributeError:
-            raise KeyError("No such key: {}".format(item))
-
-    @property
-    def source(self):
-        try:
-            return self._source.ix
-        except AttributeError:
-            return self._source
-
-    @property
-    def sink(self):
-        try:
-            return self._sink.ix
-        except AttributeError:
-            return self._sink
-
     @property
     def source_node(self):
-        if isinstance(self._source, GenomicRegion):
-            return self._source
-        raise ValueError("Source not not provided during object initialization!")
-
-    @source_node.setter
-    def source_node(self, value):
-        self._source = value
-
-    @property
-    def source_region(self):
-        return self.source_node
+        if self._regions_object is not None:
+            return self._regions_object.regions[self.source]
+        raise ValueError("Regions not not provided during object initialization!")
 
     @property
     def sink_node(self):
-        if isinstance(self._sink, GenomicRegion):
-            return self._sink
-        raise ValueError("Sink not not provided during object initialization!")
-
-    @sink_node.setter
-    def sink_node(self, value):
-        self._sink = value
-
-    @property
-    def sink_region(self):
-        return self.sink_node
+        if self._regions_object is not None:
+            return self._regions_object.regions[self.sink]
+        raise ValueError("Regions not not provided during object initialization!")
 
     def __repr__(self):
         base_info = "{}--{}".format(self.source, self.sink)
@@ -187,6 +117,7 @@ class LazyEdge(object):
         self.bias = 1.
         self.expected = None
         self._weight_field = _weight_field
+        self._weight = None
 
     def __getattr__(self, item):
         try:
@@ -196,10 +127,13 @@ class LazyEdge(object):
 
     @property
     def weight(self):
-        if self.expected is None:
-            return self._row[self._weight_field] * self.bias
-        else:
-            return (self._row[self._weight_field] * self.bias) / self.expected
+        if self._weight is not None:
+            return self._weight
+        return self._row[self._weight_field]
+
+    @weight.setter
+    def weight(self, weight):
+        self._weight = weight
 
     @property
     def source_node(self):
@@ -719,7 +653,7 @@ class RegionPairsContainer(RegionBased):
             def __iter__(self):
                 return self()
 
-            def __call__(self, key=None, *args, **kwargs):
+            def __call__(self, key=None, as_tuple=False, *args, **kwargs):
                 norm = kwargs.pop("norm", True)
                 intra_chromosomal = kwargs.pop("intra_chromosomal", True)
                 inter_chromosomal = kwargs.pop("inter_chromosomal", True)
@@ -775,7 +709,7 @@ class RegionPairsContainer(RegionBased):
                             if oe:
                                 ex = expected_intra[row_chromosome] if oe_per_chromosome else expected_genome
                             else:
-                                ex = np.repeat(None, len(self._regions_pairs.regions))
+                                ex = np.repeat(1, len(self._regions_pairs.regions))
                         else:
                             if not inter_chromosomal and row_chromosome != col_chromosome:
                                 continue
@@ -793,9 +727,16 @@ class RegionPairsContainer(RegionBased):
                             source, sink = edge.source, edge.sink
                             if check_valid and (not valid[source] or not valid[sink]):
                                 continue
-                            edge.bias = bias[source] * bias[sink]
-                            edge.expected = ex[abs(sink - source)]
-                            yield edge
+
+                            if edge.weight is not None:
+                                edge.weight *= bias[source] * bias[sink]
+                            if oe:
+                                edge.weight /= ex[abs(sink - source)]
+
+                            if as_tuple:
+                                yield source, sink, edge.weight
+                            else:
+                                yield edge
 
             def __len__(self):
                 return self._regions_pairs._edges_length()
@@ -881,7 +822,6 @@ class RegionPairsContainer(RegionBased):
         :param kwargs: Keyword arguments passed to :func:`~RegionPairsContainer.edges`
         :return: iterator over edge attribute
         """
-        kwargs.setdefault('lazy', True)
         for edge in self.edges(*args, **kwargs):
             yield getattr(edge, attribute)
 
@@ -1041,6 +981,9 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         return start, end
 
+    def _matrix_from_ranges(self, row_start, row_end, col_start, col_end, **kwargs):
+        raise NotImplementedError("Subclasses of {} must implement _matrix_from_ranges!".format(self.__class__))
+
     def matrix(self, key=None, norm=True, oe=False, mask=True,
                log=False, log_base=2, oe_per_chromosome=True,
                default_value=None, region_matrix=True, **kwargs):
@@ -1178,17 +1121,177 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         return m
 
-    def edges(self, key=None, **kwargs):
-        if isinstance(key, tuple) or isinstance(key, list):
-            row_key, col_key = key
-        else:
-            row_key, col_key = key, None
+    @property
+    def edges(self):
+        """
+        Iterate over contacts / edges.
 
-        row_regions = list(self.regions(row_key))
-        col_regions = list(self.regions(col_key))
+        :func:`~RegionPairsContainer.edges` is the central function of
+        :class:`~RegionPairsContainer`. Here, we will use the
+        :class:`~fanc.Hic` implementation for demonstration purposes,
+        but the usage is exactly the same for all compatible
+        objects implementing :class:`~RegionPairsContainer`, including
+        :class:`~fanc.compatibility.juicer.JuicerHic` and
+        :class:`~fanc.compatibility.cooler.CoolerHic`.
 
-        return self._edges_by_region_lists(row_regions=row_regions, col_regions=col_regions,
-                                           **kwargs)
+        .. code ::
+
+            import fanc
+
+            # file from FAN-C examples
+            hic = fanc.load("output/hic/binned/fanc_example_1mb.hic")
+
+        We can easily find the number of edges in the sample
+        :class:`~fanc.Hic` object:
+
+        .. code ::
+
+            len(hic.edges)  # 8695
+
+        When used in an iterator context, :func:`~RegionPairsContainer.edges`
+        iterates over all edges in the :class:`~RegionPairsContainer`:
+
+        .. code ::
+
+            for edge in hic.edges:
+                # do something with edge
+                print(edge)
+                # 42--42; bias: 5.797788472650082e-05; sink_node: chr18:42000001-43000000; source_node: chr18:42000001-43000000; weight: 0.12291311562018173
+                # 24--28; bias: 6.496381719803623e-05; sink_node: chr18:28000001-29000000; source_node: chr18:24000001-25000000; weight: 0.025205961072838057
+                # 5--76; bias: 0.00010230955745211447; sink_node: chr18:76000001-77000000; source_node: chr18:5000001-6000000; weight: 0.00961709840049876
+                # 66--68; bias: 8.248432587969082e-05; sink_node: chr18:68000001-69000000; source_node: chr18:66000001-67000000; weight: 0.03876763316345468
+                # ...
+
+        Calling :func:`~RegionPairsContainer.edges` as a method has the
+        same effect:
+
+        .. code ::
+
+            # note the '()'
+            for edge in hic.edges():
+                # do something with edge
+                print(edge)
+                # 42--42; bias: 5.797788472650082e-05; sink_node: chr18:42000001-43000000; source_node: chr18:42000001-43000000; weight: 0.12291311562018173
+                # 24--28; bias: 6.496381719803623e-05; sink_node: chr18:28000001-29000000; source_node: chr18:24000001-25000000; weight: 0.025205961072838057
+                # 5--76; bias: 0.00010230955745211447; sink_node: chr18:76000001-77000000; source_node: chr18:5000001-6000000; weight: 0.00961709840049876
+                # 66--68; bias: 8.248432587969082e-05; sink_node: chr18:68000001-69000000; source_node: chr18:66000001-67000000; weight: 0.03876763316345468
+                # ...
+
+        Rather than iterate over all edges in the object, we can select only a subset.
+        If the key is a string or a :class:`~fanc.GenomicRegion`, all non-zero edges connecting
+        the region described by the key to any other region are returned. If the key is a
+        tuple of strings or :class:`~fanc.GenomicRegion`, only edges between the two regions
+        are returned.
+
+        .. code ::
+
+            # select all edges between chromosome 19
+            # and any other region:
+            for edge in hic.edges("chr19"):
+                print(edge)
+                # 49--106; bias: 0.00026372303696871666; sink_node: chr19:27000001-28000000; source_node: chr18:49000001-50000000; weight: 0.003692122517562033
+                # 6--82; bias: 0.00021923129703834945; sink_node: chr19:3000001-4000000; source_node: chr18:6000001-7000000; weight: 0.0008769251881533978
+                # 47--107; bias: 0.00012820949175399097; sink_node: chr19:28000001-29000000; source_node: chr18:47000001-48000000; weight: 0.0015385139010478917
+                # 38--112; bias: 0.0001493344481069762; sink_node: chr19:33000001-34000000; source_node: chr18:38000001-39000000; weight: 0.0005973377924279048
+                # ...
+
+            # select all edges that are only on
+            # chromosome 19
+            for edge in hic.edges(('chr19', 'chr19')):
+                print(edge)
+                # 90--116; bias: 0.00021173151730025176; sink_node: chr19:37000001-38000000; source_node: chr19:11000001-12000000; weight: 0.009104455243910825
+                # 135--135; bias: 0.00018003890596887822; sink_node: chr19:56000001-57000000; source_node: chr19:56000001-57000000; weight: 0.10028167062466517
+                # 123--123; bias: 0.00011063368998965993; sink_node: chr19:44000001-45000000; source_node: chr19:44000001-45000000; weight: 0.1386240135570439
+                # 92--93; bias: 0.00040851066434864896; sink_node: chr19:14000001-15000000; source_node: chr19:13000001-14000000; weight: 0.10090213409411629
+                # ...
+
+            # select inter-chromosomal edges
+            # between chromosomes 18 and 19
+            for edge in hic.edges(('chr18', 'chr19')):
+                print(edge)
+                # 49--106; bias: 0.00026372303696871666; sink_node: chr19:27000001-28000000; source_node: chr18:49000001-50000000; weight: 0.003692122517562033
+                # 6--82; bias: 0.00021923129703834945; sink_node: chr19:3000001-4000000; source_node: chr18:6000001-7000000; weight: 0.0008769251881533978
+                # 47--107; bias: 0.00012820949175399097; sink_node: chr19:28000001-29000000; source_node: chr18:47000001-48000000; weight: 0.0015385139010478917
+                # 38--112; bias: 0.0001493344481069762; sink_node: chr19:33000001-34000000; source_node: chr18:38000001-39000000; weight: 0.0005973377924279048
+                # ...
+
+        By default, :func:`~RegionPairsContainer.edges` will retrieve all edge attributes,
+        which can be slow when iterating over a lot of edges. This is why all file-based FAN-C
+        :class:`~RegionPairsContainer` objects support lazy loading, where attributes
+        are only read on demand.
+
+        .. code ::
+
+            for edge in hic.edges('chr18', lazy=True):
+                print(edge.source, edge.sink, edge.weight, edge)
+                # 42 42 0.12291311562018173 <fanc.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #0>
+                # 24 28 0.025205961072838057 <fanc.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #1>
+                # 5 76 0.00961709840049876 <fanc.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #2>
+                # 66 68 0.03876763316345468 <fanc.matrix.LazyEdge for row /edges/chrpair_0_0.row (Row), pointing to row #3>
+                # ...
+
+        .. warning :: The lazy iterator reuses the :class:`~LazyEdge` object in every iteration,
+                      and overwrites the :class:`~LazyEdge` attributes. Therefore **do not** use
+                      lazy iterators if you need to store edge objects for later access.
+                      For example, the following code works as expected
+                      :code:`list(hic.edges())`, with all :class:`~Edge` objects stored in the
+                      list, while this code :code:`list(hic.edges(lazy=True))`
+                      will result in a list of identical :class:`~LazyEdge` objects. Always ensure
+                      you do all edge processing in the loop when working with lazy iterators!
+
+        When working with normalised contact frequencies, such as obtained through
+        matrix balancing in the example above, :func:`~RegionPairsContainer.edges`
+        automatically returns normalised edge weights. In addition, the :code:`bias`
+        attribute will (typically) have a value different from 1.
+
+        When you are interested in the raw contact frequency, use the :code:`norm=False`
+        parameter:
+
+        .. code ::
+
+            for edge in hic.edges('chr18', lazy=True, norm=False):
+                print(edge.source, edge.sink, edge.weight)
+                # 42 42 2120.0
+                # 24 28 388.0
+                # 5 76 94.0
+                # 66 68 470.0
+                # ...
+
+        You can also choose to omit all intra- or inter-chromosomal edges using
+        :code:`intra_chromosomal=False` or :code:`inter_chromosomal=False`, respectively.
+
+        :return: Iterator over :class:`~Edge` or equivalent.
+        """
+
+        class EdgeIter(object):
+            def __init__(self, this):
+                self._regions_pairs = this
+
+            def __getitem__(self, item):
+                return self.__call__(item)
+
+            def __iter__(self):
+                return self()
+
+            def __call__(self, key=None, basic=False, *args, **kwargs):
+                if basic:
+                    if isinstance(key, tuple) or isinstance(key, list):
+                        row_key, col_key = key
+                    else:
+                        row_key, col_key = key, None
+
+                    row_regions = list(self._regions_pairs.regions(row_key))
+                    col_regions = list(self._regions_pairs.regions(col_key))
+
+                    return self._regions_pairs._edges_by_region_lists(row_regions=row_regions, col_regions=col_regions,
+                                                                      **kwargs)
+                else:
+                    return RegionPairsTable.edges.fget(self._regions_pairs)(key, *args, **kwargs)
+
+            def __len__(self):
+                return self._regions_pairs._edges_length()
+
+        return EdgeIter(self)
 
     def _split_edge_query_chunk(self, row_regions, col_regions):
         if len(row_regions) > len(col_regions):
@@ -1331,7 +1434,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         if not as_tuple:
             for source, sink, weight in zip(ms.row, ms.col, ms.data):
-                yield BasicEdge(source, sink, weight)
+                yield Edge(source, sink, weight, regions_object=self)
         else:
             for source, sink, weight in zip(ms.row, ms.col, ms.data):
                 yield source, sink, weight
@@ -1502,115 +1605,6 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         return intra_total, chromosome_intra_total, inter_total
 
-    def expected_values_and_marginals(self, selected_chromosome=None, norm=True,
-                                      *args, **kwargs):
-        """
-        Calculate the expected values for genomic contacts at all distances
-        and the whole matrix marginals.
-
-        This calculates the expected values between genomic regions
-        separated by a specific distance. Expected values are calculated
-        as the average weight of edges between region pairs with the same
-        genomic separation, taking into account unmappable regions.
-
-        It will return a tuple with three values: a list of genome-wide
-        intra-chromosomal expected values (list index corresponds to number
-        of separating bins), a dict with chromosome names as keys and
-        intra-chromosomal expected values specific to each chromosome, and
-        a float for inter-chromosomal expected value.
-
-        :param selected_chromosome: (optional) Chromosome name. If provided,
-                                    will only return expected values for this
-                                    chromosome.
-        :param norm: If False, will calculate the expected values on the
-                     unnormalised matrix.
-        :param args: Not used in this context
-        :param kwargs: Not used in this context
-        :return: list of intra-chromosomal expected values,
-                 dict of intra-chromosomal expected values by chromosome,
-                 inter-chromosomal expected value
-        """
-        weight_field = getattr(self, '_default_score_field', None)
-        default_value = getattr(self, '_default_value', 1.)
-
-        # get all the bins of the different chromosomes
-        chromosome_bins = self.chromosome_bins
-        chromosome_dict = defaultdict(list)
-
-        chromosome_max_distance = defaultdict(int)
-        max_distance = 0
-        for chromosome, (start, stop) in chromosome_bins.items():
-            max_distance = max(max_distance, stop - start)
-            chromosome_max_distance[chromosome] = max(chromosome_max_distance[chromosome], stop - start)
-
-            for i in range(start, stop):
-                chromosome_dict[i] = chromosome
-
-        chromosome_intra_sums = dict()
-        chromosome_intra_expected = dict()
-        for chromosome, d in chromosome_max_distance.items():
-            chromosome_intra_sums[chromosome] = [0.0] * d
-            chromosome_intra_expected[chromosome] = [0.0] * d
-
-        # get the sums of edges at any given distance
-        marginals = [0.0] * len(self.regions)
-        valid = [False] * len(self.regions)
-        inter_sums = 0.0
-        intra_sums = [0.0] * max_distance
-        with RareUpdateProgressBar(max_value=len(self.edges), prefix='Expected') as pb:
-            for i, edge in enumerate(self.edges(lazy=True, norm=norm, check_valid=False)):
-                source, sink = edge.source, edge.sink
-                try:
-                    weight = getattr(edge, weight_field)
-                except AttributeError:
-                    weight = default_value
-
-                source_chromosome = chromosome_dict[source]
-                sink_chromosome = chromosome_dict[sink]
-
-                marginals[source] += weight
-                marginals[sink] += weight
-                if weight != self._default_value:
-                    valid[source] = True
-                    valid[sink] = True
-
-                if sink_chromosome != source_chromosome:
-                    inter_sums += weight
-                else:
-                    distance = sink - source
-                    intra_sums[distance] += weight
-                    chromosome_intra_sums[source_chromosome][distance] += weight
-                pb.update(i)
-
-        intra_total, chromosome_intra_total, inter_total = self.possible_contacts()
-
-        # expected values
-        inter_expected = 0 if inter_total == 0 else inter_sums / inter_total
-
-        intra_expected = [0.0] * max_distance
-        bin_size = self.bin_size
-        distances = []
-        for d in range(max_distance):
-            distances.append(bin_size * d)
-
-            # whole genome
-            count = intra_total[d]
-            if count > 0:
-                intra_expected[d] = intra_sums[d] / count
-
-        # chromosomes
-        for chromosome in chromosome_intra_expected:
-            for d in range(chromosome_max_distance[chromosome]):
-                chromosome_count = chromosome_intra_total[chromosome][d]
-                if chromosome_count > 0:
-                    chromosome_intra_expected[chromosome][d] = chromosome_intra_sums[chromosome][
-                                                                   d] / chromosome_count
-
-        if selected_chromosome is not None:
-            return chromosome_intra_expected[selected_chromosome], marginals, valid
-
-        return intra_expected, chromosome_intra_expected, inter_expected, marginals, valid
-
     def expected_values(self, selected_chromosome=None, norm=True, *args, **kwargs):
         """
         Calculate the expected values for genomic contacts at all distances.
@@ -1698,12 +1692,12 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         logger.info("Calculating scaling factor...")
         m1_sum = 0
-        for v1 in self.edge_data(weight_column, lazy=True):
+        for v1 in self.edge_data(weight_column):
             if np.isfinite(v1):
                 m1_sum += v1
 
         m2_sum = 0
-        for v2 in matrix.edge_data(weight_column, lazy=True):
+        for v2 in matrix.edge_data(weight_column):
             if np.isfinite(v2):
                 m2_sum += v2
 
@@ -2250,91 +2244,6 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             return True
         return False
 
-    def _matrix_from_ranges(self, row_start=0, row_end=None, col_start=0, col_end=None, score_field=None):
-        if score_field is None:
-            score_field = 'weight'
-
-        if row_end is None:
-            row_end = len(self.regions) - 1
-        if col_end is None:
-            col_end = len(self.regions) - 1
-
-        row_partition_start = self._get_partition_ix(row_start)
-        row_partition_end = self._get_partition_ix(row_end)
-        col_partition_start = self._get_partition_ix(col_start)
-        col_partition_end = self._get_partition_ix(col_end)
-
-        m = None
-        for i in range(row_partition_start, row_partition_end + 1):
-            m_row = None
-            for j in range(col_partition_start, col_partition_end + 1):
-                try:
-                    if j < i:
-                        edge_table = self._edge_table(j, i, create_if_missing=False)
-                    else:
-                        edge_table = self._edge_table(i, j, create_if_missing=False)
-                except ValueError:
-                    continue
-
-                visible = edge_table.col('_mask') == 0
-                sources = edge_table.col('source')[visible]
-                sinks = edge_table.col('sink')[visible]
-                weights = edge_table.col(score_field)[visible]
-
-                if j < i:
-                    sources, sinks = sinks, sources
-
-                if i == j:
-                    # matrix is symmetrical
-                    not_diagonal = sources != sinks
-                    new_sources = np.concatenate((sources, sinks[not_diagonal]), axis=0)
-                    new_sinks = np.concatenate((sinks, sources[not_diagonal]), axis=0)
-                    sources = new_sources
-                    sinks = new_sinks
-                    weights = np.concatenate((weights, weights[not_diagonal]), axis=0)
-
-                edge_filters = []
-                if i == row_partition_start:
-                    edge_filters.append(sources >= row_start)
-                if i == row_partition_end:
-                    edge_filters.append(sources <= row_end)
-                if j == col_partition_start:
-                    edge_filters.append(sinks >= col_start)
-                if j == col_partition_end:
-                    edge_filters.append(sinks <= col_end)
-
-                if len(edge_filters) > 0:
-                    ix_mask = functools.reduce(np.logical_and, edge_filters)
-                    sources = sources[ix_mask]
-                    sinks = sinks[ix_mask]
-                    weights = weights[ix_mask]
-
-                row_partition_region_ix_start = self._partition_breaks[i - 1] if i > 0 else 0
-                min_row = max(row_partition_region_ix_start, row_start)
-                max_row = min(self._partition_breaks[i] - 1 if i < len(self._partition_breaks) else len(self.regions),
-                              row_end)
-                col_partition_region_ix_start = self._partition_breaks[j - 1] if j > 0 else 0
-                min_col = max(col_partition_region_ix_start, col_start)
-                max_col = min(self._partition_breaks[j] - 1 if j < len(self._partition_breaks) else len(self.regions),
-                              col_end)
-
-                m_sub = scipy.sparse.coo_matrix((weights,
-                                                 ((sources - min_row),
-                                                  (sinks - min_col))),
-                                                shape=(max_row - min_row + 1, max_col - min_col + 1))
-
-                if m_row is None:
-                    m_row = m_sub
-                else:
-                    m_row = scipy.sparse.hstack((m_row, m_sub))
-
-            if m is None:
-                m = m_row
-            else:
-                m = scipy.sparse.vstack((m, m_row))
-
-        return m
-
     def _edge_subset_rows(self, key=None, *args, **kwargs):
         row_regions, col_regions = self._key_to_regions(key, lazy=False)
 
@@ -2422,9 +2331,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                     value = value.decode() if isinstance(value, bytes) else value
                     d[field] = value
 
-            source_node = self.regions[source]
-            sink_node = self.regions[sink]
-            return Edge(source_node, sink_node, **d)
+            return Edge(source, sink, regions_object=self, **d)
 
         lazy_edge._row = row
         return lazy_edge
@@ -2477,24 +2384,24 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
     def _update_mappability(self):
         logger.info("Updating region mappability")
-        mappable = [False] * len(self.regions)
+        mappable = np.repeat(False, len(self.regions))
         weight_field = getattr(self, '_default_score_field', None)
         default_value = getattr(self, '_default_value', 1.)
 
         with RareUpdateProgressBar(max_value=len(self.edges), prefix='Mappability',
                                    silent=config.hide_progressbars) as pb:
-            for i, edge in enumerate(self.edges_dict(lazy=True)):
+            for i, edge in enumerate(self.edges(as_tuple=True)):
                 try:
                     if weight_field is not None:
-                        weight = edge[weight_field]
+                        weight = edge[2]
                     else:
                         weight = default_value
                 except KeyError:
                     weight = default_value
 
                 if weight != 0:
-                    mappable[edge['source']] = True
-                    mappable[edge['sink']] = True
+                    mappable[edge[0]] = True
+                    mappable[edge[1]] = True
                 pb.update(i)
 
         self.region_data('valid', mappable)
@@ -2579,14 +2486,14 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         :return: :class:`~RegionPairsTable`
         """
         logger.info("Collecting valid pairs")
-        total = int(sum(e.weight for e in self.edges(lazy=True, norm=False)))
+        total = int(sum(e[2] for e in self.edges(norm=False, as_tuple=True)))
 
         if isinstance(n, string_types) and os.path.exists(os.path.expanduser(n)):
             with load(n) as ref:
-                n = sum(e.weight for e in ref.edges(lazy=True, norm=False))
+                n = sum(e[2] for e in ref.edges(norm=False, as_tuple=True))
         elif isinstance(n, RegionPairsContainer):
             logger.info("Using reference Hi-C object to downsample")
-            n = sum(e.weight for e in n.edges(lazy=True, norm=False))
+            n = sum(e[2] for e in n.edges(norm=False, as_tuple=True))
         else:
             n = float(n)
             if n < 1:
@@ -2609,9 +2516,9 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
             choice_counter = 0
             pairs_counter = 0
             try:
-                for edge in self.edges(lazy=True, norm=False):
+                for edge in self.edges(norm=False, as_tuple=True):
                     new_weight = 0
-                    for i in range(int(edge.weight)):
+                    for i in range(int(edge[2])):
                         while pairs_counter == choice[choice_counter]:
                             new_weight += 1
                             choice_counter += 1
@@ -2621,7 +2528,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
                         pb.update(pairs_counter)
 
                     if new_weight > 0:
-                        new_pairs.add_edge_simple(edge.source, edge.sink, new_weight)
+                        new_pairs.add_edge_simple(edge[0], edge[1], new_weight)
             except IndexError:
                 pass
 
@@ -2740,10 +2647,10 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
         for i, region_string1 in enumerate(regions):
             for j in range(i, len(regions)):
                 region_string2 = regions[j]
-                for edge in self.edges((region_string1, region_string2), lazy=True, norm=norm, **kwargs):
-                    source = ix_converter[edge.source]
-                    sink = ix_converter[edge.sink]
-                    new_pairs.add_edge([source, sink, edge.weight])
+                for edge in self.edges((region_string1, region_string2), as_tuple=True, norm=norm, **kwargs):
+                    source = ix_converter[edge[0]]
+                    sink = ix_converter[edge[1]]
+                    new_pairs.add_edge([source, sink, edge[2]])
         new_pairs.flush(update_mappability=False)
 
         logger.debug("Adding subset bias vector")
@@ -3041,8 +2948,8 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                     edges = defaultdict(int)
                     for matrix_object in matrices:
                         for edge in matrix_object.edges((chromosome1, chromosome2),
-                                                        lazy=True, norm=False):
-                            edges[edge.source, edge.sink] += getattr(edge, default_field)
+                                                        as_tuple=True, norm=False):
+                            edges[edge[0], edge[1]] += edge[2]
 
                     merged_matrix.add_edges(edges, flush=False)
                     pb.update(chromosome_pair_ix)
