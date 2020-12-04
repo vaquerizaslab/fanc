@@ -131,11 +131,11 @@ def _bin_hic_partition_worker(hic_file, qin, qout,
                     _weight_field = hic._default_score_field
                     all_edges = []
                     key = slice(partition1[0], partition1[1], 1), slice(partition2[0], partition2[1], 1)
-                    for edge in hic.edges_dict(key, lazy=True):
+                    for edge in hic.edges(key, basic=True, as_tuple=True):
                         try:
-                            all_edges.append([edge['source'], edge['sink'], edge[_weight_field]])
+                            all_edges.append([edge[0], edge[1], edge[2]])
                         except KeyError:
-                            all_edges.append([edge['source'], edge['sink'], edge['weight']])
+                            all_edges.append([edge[0], edge[1], edge[2]])
 
                 finally:
                     if hic is not None:
@@ -234,10 +234,11 @@ class Hic(RegionMatrixTable):
                         for j in range(i, len(chromosomes)):
                             logger.debug("Chromosomes: {}-{}".format(chromosomes[i], chromosomes[j]))
                             edges = defaultdict(int)
-                            for edge in hic.edges_dict((chromosomes[i], chromosomes[j]), lazy=True, norm=False):
-                                old_source, old_sink = edge['source'], edge['sink']
+                            for edge in hic.edges((chromosomes[i], chromosomes[j]), basic=True,
+                                                  as_tuple=True, norm=False):
+                                old_source, old_sink = edge[0], edge[1]
                                 try:
-                                    old_weight = edge[hic._default_score_field]
+                                    old_weight = edge[2]
                                 except KeyError:
                                     old_weight = edge['weight']
 
@@ -727,8 +728,8 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
 
             total_weight = 0
             edges = []
-            for e in hic.edges_dict((chromosome, chromosome), lazy=True, norm=False):
-                source, sink, weight = e['source'], e['sink'], e['weight']
+            for e in hic.edges((chromosome, chromosome), basic=True, as_tuple=True, norm=False):
+                source, sink, weight = e[0], e[1], e[2]
                 edges.append([source, sink, weight])
                 total_weight += weight
                 if source != sink:
@@ -790,10 +791,10 @@ def ice_balancing(hic, tolerance=1e-2, max_iterations=500, whole_matrix=True,
 
         total_weight = 0
         edges = []
-        for e in hic.edges(norm=False, lazy=True,
+        for e in hic.edges(norm=False, basic=True, as_tuple=True,
                            intra_chromosomal=intra_chromosomal,
                            inter_chromosomal=inter_chromosomal):
-            source, sink, weight = e.source, e.sink, e.weight
+            source, sink, weight = e[0], e[1], e[2]
             edges.append([source, sink, weight])
             total_weight += weight
             if source != sink:
@@ -872,13 +873,13 @@ def kr_balancing(hic, whole_matrix=True, intra_chromosomal=True, inter_chromosom
     if not whole_matrix:
         bias_vectors = []
         for chromosome in hic.chromosomes():
-            m = hic.matrix((chromosome, chromosome), norm=False)
+            m = hic.matrix((chromosome, chromosome), norm=False, region_matrix=False)
             m_corrected, bias_vector_chromosome = correct_matrix(m, restore_coverage=restore_coverage)
             bias_vectors.append(bias_vector_chromosome)
         bias_vector = np.concatenate(bias_vectors)
     else:
         logger.debug("Fetching whole genome matrix")
-        m = hic.matrix(norm=False)
+        m = hic.matrix(norm=False, region_matrix=False)
         cb = hic.chromosome_bins
         if not intra_chromosomal:
             for chromosome, bins in cb.items():
