@@ -1440,7 +1440,10 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                 yield source, sink, weight
 
     def expected_values_and_marginals(self, selected_chromosome=None, norm=True,
-                                      inter_chromosomal=True, chunk_size=10000):
+                                      inter_chromosomal=True, chunk_size=10000,
+                                      use_existing_mappability=False):
+        logger.info("Calculating expected values")
+
         chunk_breaks = dict()
         intra_expected = dict()
         for chromosome, (start_bin, end_bin) in self.chromosome_bins.items():
@@ -1457,62 +1460,71 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         expected_genome = np.zeros(max(len(ex) for ex in intra_expected.values()))
 
         # intra-chromosomal
-        for chromosome, partitions in chunk_breaks.items():
-            ex = intra_expected[chromosome]
-            for i in range(len(partitions)):
-                for j in range(i, len(partitions)):
-                    row_start, row_stop = partitions[i]
-                    col_start, col_stop = partitions[j]
+        with RareUpdateProgressBar(max_value=len(chunk_breaks), prefix="Exp. intra") as pb:
+            for chunk_ix, (chromosome, partitions) in enumerate(chunk_breaks.items()):
+                ex = intra_expected[chromosome]
+                for i in range(len(partitions)):
+                    for j in range(i, len(partitions)):
+                        row_start, row_stop = partitions[i]
+                        col_start, col_stop = partitions[j]
 
-                    m = self.fast_matrix((slice(row_start, row_stop, 1),
-                                          slice(col_start, col_stop)),
-                                         norm=norm, region_matrix=False)
-                    for col in range(m.shape[1]):
-                        if i == j:
-                            v = m[:col + 1, col]
-                            marginals[row_start:row_start + len(v)] += v
-                            marginals[col_start+col] += np.sum(v[:-1])
-                        else:
-                            v = m[:, col]
-                            marginals[row_start:row_start + len(v)] += v
-                            marginals[col_start+col] += np.sum(v)
+                        m = self.matrix((slice(row_start, row_stop, 1),
+                                         slice(col_start, col_stop)),
+                                        norm=norm, region_matrix=False)
+                        for col in range(m.shape[1]):
+                            if i == j:
+                                v = m[:col + 1, col]
+                                marginals[row_start:row_start + len(v)] += v
+                                marginals[col_start+col] += np.sum(v[:-1])
+                            else:
+                                v = m[:, col]
+                                marginals[row_start:row_start + len(v)] += v
+                                marginals[col_start+col] += np.sum(v)
 
-                        offset = col_start - row_start
-                        ex[offset + col + 1 - len(v):offset + col + 1] += v[::-1]
+                            offset = col_start - row_start
+                            ex[offset + col + 1 - len(v):offset + col + 1] += v[::-1]
 
-            intra_expected[chromosome] = ex
-            expected_genome[:len(ex)] += ex
+                intra_expected[chromosome] = ex
+                expected_genome[:len(ex)] += ex
+                pb.update(chunk_ix)
 
         # inter-chromosomal
         if inter_chromosomal:
             inter_sums = 0
             chromosomes = self.chromosomes()
-            for chr_i in range(len(chromosomes)):
-                chromosome1 = chromosomes[chr_i]
-                partitions1 = chunk_breaks[chromosome1]
-                for chr_j in range(chr_i+1, len(chromosomes)):
-                    chromosome2 = chromosomes[chr_j]
-                    partitions2 = chunk_breaks[chromosome2]
 
-                    for i in range(len(partitions1)):
-                        for j in range(i, len(partitions2)):
-                            row_start, row_stop = partitions1[i]
-                            col_start, col_stop = partitions2[j]
+            chr_pair_counter = 0
+            with RareUpdateProgressBar(max_value=int(len(chromosomes)/2+len(chromosomes)/2), prefix="Exp. inter") as pb:
+                for chr_i in range(len(chromosomes)):
+                    chromosome1 = chromosomes[chr_i]
+                    partitions1 = chunk_breaks[chromosome1]
+                    for chr_j in range(chr_i+1, len(chromosomes)):
+                        chromosome2 = chromosomes[chr_j]
+                        partitions2 = chunk_breaks[chromosome2]
 
-                            m = self.fast_matrix((slice(row_start, row_stop + 1, 1),
-                                                  slice(col_start, col_stop + 1)),
-                                                 norm=norm, region_matrix=False)
+                        for i in range(len(partitions1)):
+                            for j in range(i, len(partitions2)):
+                                row_start, row_stop = partitions1[i]
+                                col_start, col_stop = partitions2[j]
 
-                            row_sum = np.sum(m, axis=0)
-                            inter_sums += np.sum(row_sum)
+                                m = self.matrix((slice(row_start, row_stop + 1, 1),
+                                                 slice(col_start, col_stop + 1)),
+                                                norm=norm, region_matrix=False)
 
-                            marginals[row_start:row_start + len(row_sum)] += row_sum
-                            marginals[col_start:col_start + len(row_sum)] += row_sum
+                                row_sum = np.sum(m, axis=0)
+                                inter_sums += np.sum(row_sum)
+
+                                marginals[row_start:row_start + len(row_sum)] += row_sum
+                                marginals[col_start:col_start + len(row_sum)] += row_sum
+                        chr_pair_counter += 1
+                        pb.update(chr_pair_counter)
         else:
-            inter_total = 0
             inter_sums = 0
 
-        valid = np.logical_and(self.mappable(), marginals > 0)
+        if use_existing_mappability:
+            valid = np.logical_and(self.mappable(), marginals > 0)
+        else:
+            valid = marginals > 0
         intra_total, chromosome_intra_total, inter_total = self.possible_contacts(valid)
 
         # expected values
@@ -1641,37 +1653,23 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         Get the marginals vector of this Hic matrix.
 
         Sums up all contacts for each bin of the Hi-C matrix.
-        Unmappable regoins will be masked in the returned vector unless
+        Unmappable regions will be masked in the returned vector unless
         the :code:`masked` parameter is set to :code:`False`.
 
         By default, corrected matrix entries are summed up.
         To get uncorrected matrix marginals use :code:`norm=False`.
-        Generally, all parameters accepted by :func:`~RegionMatrixContainer.edges`
+        Generally, all parameters accepted by :func:`~RegionMatrixContainer.matrix`
         are supported.
 
         :param masked: Use a numpy masked array to mask entries
                        corresponding to unmappable regions
-        :param kwargs: Keyword arguments passed to :func:`~RegionPairsContainer.edges`
+        :param kwargs: Keyword arguments passed to :func:`~RegionPairsContainer.matrix`
         """
-        kwargs.setdefault('lazy', True)
-        row_regions, col_regions, edges_iter = self.regions_and_matrix_entries(*args, **kwargs)
-        min_ix = min(row_regions[0].ix, col_regions[0].ix)
-        max_ix = max(row_regions[-1].ix, col_regions[-1].ix)
-
-        marginals = np.zeros(max_ix - min_ix + 1)
-
-        logger.debug("Calculating marginals...")
-        for i, (source, sink, weight) in enumerate(edges_iter):
-            if source <= sink:
-                marginals[source] += weight
-            if source < sink:
-                marginals[sink] += weight
+        result = self.expected_values_and_marginals(*args, **kwargs)
+        marginals, valid = result[-2], result[-1]
 
         if masked:
-            mask = np.zeros(len(marginals), dtype=bool)
-            for r in row_regions + col_regions:
-                mask[r.ix - min_ix] = not r.valid
-            marginals = np.ma.masked_where(mask, marginals)
+            marginals = np.ma.masked_where(valid, marginals)
 
         return marginals
 
@@ -2735,7 +2733,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
         self._remove_expected_values()
 
     def expected_values_and_marginals(self, selected_chromosome=None, norm=True,
-                                      force=False, *args, **kwargs):
+                                      inter_chromosomal=True, force=False, *args, **kwargs):
         group_name = 'corrected' if norm else 'uncorrected'
 
         if not force and self._expected_value_group is not None:
@@ -2762,14 +2760,18 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                                 chromosome = node.name[1:]
                                 chromosome_intra_expected[chromosome] = node[:]
                     valid = self.region_data('valid')
-                    if intra_expected is not None and inter_expected is not None and marginals is not None \
-                            and len(chromosome_intra_expected) > 0:
-                        return intra_expected, chromosome_intra_expected, inter_expected, marginals, valid
+                    if intra_expected is not None and marginals is not None and len(chromosome_intra_expected) > 0:
+                        if not inter_chromosomal or inter_expected is not None:
+                            return intra_expected, chromosome_intra_expected, inter_expected, marginals, valid
+                        warnings.warn("Inter-chromosomal expected values have not been previously calculated. "
+                                      "Calculating now and trying to save to object.")
             except tables.NoSuchNodeError:
                 pass
 
         (intra_expected, chromosome_intra_expected,
-         inter_expected, marginals, valid) = RegionMatrixContainer.expected_values_and_marginals(self, norm=norm, *args,
+         inter_expected, marginals, valid) = RegionMatrixContainer.expected_values_and_marginals(self, norm=norm,
+                                                                                                 inter_chromosomal=inter_chromosomal,
+                                                                                                 *args,
                                                                                                  **kwargs)
 
         # try saving to object
@@ -2788,9 +2790,10 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
                 logger.debug("Saving intra-chromosomal expected values")
                 self.file.create_array(group, '__intra__',
                                        np.array(intra_expected), "Intra-chromosomal expected values")
-                logger.debug("Saving inter-chromosomal expected values")
-                self.file.create_array(group, '__inter__',
-                                       np.array([inter_expected]), "Inter-chromosomal expected value")
+                if inter_chromosomal:
+                    logger.debug("Saving inter-chromosomal expected values")
+                    self.file.create_array(group, '__inter__',
+                                           np.array([inter_expected]), "Inter-chromosomal expected value")
                 logger.debug("Saving marginals")
                 self.file.create_array(group, '__marginals__',
                                        np.array(marginals), "Marginals")
@@ -2821,7 +2824,7 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
         return intra_expected, chromosome_intra_expected, inter_expected, marginals, valid
 
     def _update_mappability(self):
-        _ = self.expected_values_and_marginals(force=True)
+        self.expected_values_and_marginals(force=True)
 
     def region_data(self, key, value=None):
         data = RegionPairsTable.region_data(self, key, value)
