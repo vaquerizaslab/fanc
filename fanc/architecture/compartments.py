@@ -104,7 +104,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
                 for chr_ix, chromosome in enumerate(chromosomes):
                     m = hic.matrix((chromosome, chromosome), oe=True, oe_per_chromosome=oe_per_chromosome)
                     with np.errstate(divide='ignore', invalid='ignore'):
-                        corr_m = np.corrcoef(m)
+                        corr_m = np.ma.corrcoef(m)
 
                     logger.debug("Chromosome {}".format(chromosome))
                     for i, row_region in enumerate(m.row_regions):
