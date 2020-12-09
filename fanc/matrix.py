@@ -1309,15 +1309,23 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         return (row_regions_sub1, col_regions_sub1), (row_regions_sub2, col_regions_sub2)
 
-    def _edges_by_region_lists(self, row_regions, col_regions, as_tuple=False,
-                               matrix_chunk_limit=config.matrix_chunk_limit,
-                               default_value=None, intra_chromosomal=True, inter_chromosomal=True,
-                               **kwargs):
-        kwargs['region_matrix'] = False
+    def iter_matrix_tiles(self, key=None, **kwargs):
+        if isinstance(key, tuple) or isinstance(key, list):
+            row_key, col_key = key
+        else:
+            row_key, col_key = key, None
 
-        if default_value is None:
-            default_value = self._default_value
+        row_regions = list(self.regions(row_key))
+        col_regions = list(self.regions(col_key))
 
+        for sub_row_regions, sub_col_regions, m in self._iter_matrix_tiles(row_regions, col_regions, **kwargs):
+            yield sub_row_regions, sub_col_regions, m
+
+    def _iter_matrix_tiles(self, row_regions, col_regions,
+                           intra_chromosomal=True, inter_chromosomal=True,
+                           matrix_chunk_limit=config.matrix_chunk_limit,
+                           only_upper=True,
+                           **kwargs):
         if not intra_chromosomal or not inter_chromosomal:
             # split by chromosome(s)
             row_chromosome_ranges = dict()
@@ -1356,11 +1364,11 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                         col_chunk = col_regions[col_range[0]:col_range[1]]
                         if (row_chromosome, col_chromosome) in covered:
                             continue
-                        yield from self._edges_by_region_lists(row_chunk, col_chunk,
-                                                               as_tuple=as_tuple, matrix_chunk_limit=matrix_chunk_limit,
-                                                               intra_chromosomal=intra_chromosomal,
-                                                               inter_chromosomal=inter_chromosomal,
-                                                               **kwargs)
+                        yield from self._iter_matrix_tiles(row_chunk, col_chunk,
+                                                           matrix_chunk_limit=matrix_chunk_limit,
+                                                           intra_chromosomal=intra_chromosomal,
+                                                           inter_chromosomal=inter_chromosomal,
+                                                           **kwargs)
                         covered.add((col_chromosome, row_chromosome))
                 return
 
@@ -1414,34 +1422,61 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         if len(resubmission_chunks) > 0:
             for row_chunk, col_chunk in resubmission_chunks:
-                yield from self._edges_by_region_lists(row_chunk, col_chunk,
-                                                       as_tuple=as_tuple, matrix_chunk_limit=matrix_chunk_limit,
-                                                       intra_chromosomal=intra_chromosomal,
-                                                       inter_chromosomal=inter_chromosomal,
-                                                       **kwargs)
+                yield from self._iter_matrix_tiles(row_chunk, col_chunk,
+                                                   matrix_chunk_limit=matrix_chunk_limit,
+                                                   intra_chromosomal=intra_chromosomal,
+                                                   inter_chromosomal=inter_chromosomal,
+                                                   **kwargs)
             return
 
-        row_offset = row_ixs[0]
-        col_offset = col_ixs[0]
-
         m = self._matrix(row_regions, col_regions, **kwargs)
-        if complete_intersect:
+        if complete_intersect and only_upper:
             m[np.tril_indices(m.shape[0], k=-1)] = 0
 
-        if default_value != 0:
-            m[m == default_value] = 0
+        yield row_regions, col_regions, m
 
-        ms = scipy.sparse.coo_matrix(m)
-        sources, sinks, weights = ms.row, ms.col, ms.data
+        if not only_upper and not complete_intersect:
+            m_t = self._matrix(col_regions, row_regions, **kwargs)
+            yield col_regions, row_regions, m_t
+
+    def _matrix_to_edges(self, matrix, row_regions=None, col_regions=None, as_tuple=False,
+                         default_value=None):
+        if row_regions is None or col_regions is None:
+            row_regions, col_regions = matrix.row_regions, matrix.col_regions
+
+        row_offset = row_regions[0].ix
+        col_offset = col_regions[0].ix
+
+        if default_value is None:
+            default_value = getattr(self, '_default_value', 0)
+
+        if hasattr(matrix, 'mask'):
+            ixs = np.where(
+                np.logical_and(matrix != default_value,
+                               ~matrix.mask)
+            )
+        else:
+            ixs = np.where(matrix != default_value)
+
+        sources, sinks, weights = ixs[0], ixs[1], matrix[ixs]
         sources += row_offset
         sinks += col_offset
 
         if not as_tuple:
-            for source, sink, weight in zip(ms.row, ms.col, ms.data):
+            for source, sink, weight in zip(sources, sinks, weights):
                 yield Edge(source, sink, weight, regions_object=self)
         else:
-            for source, sink, weight in zip(ms.row, ms.col, ms.data):
+            for source, sink, weight in zip(sources, sinks, weights):
                 yield source, sink, weight
+
+    def _edges_by_region_lists(self, row_regions, col_regions, as_tuple=True, **kwargs):
+        kwargs['region_matrix'] = False
+
+        for sub_row_regions, sub_col_regions, m in self._iter_matrix_tiles(row_regions, col_regions,
+                                                                           **kwargs):
+
+            yield from self._matrix_to_edges(m, row_regions=sub_row_regions, col_regions=sub_col_regions,
+                                             as_tuple=as_tuple)
 
     def expected_values_and_marginals(self, selected_chromosome=None, norm=True,
                                       inter_chromosomal=True, chunk_size=10000,
