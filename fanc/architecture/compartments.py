@@ -118,7 +118,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
                             try:
                                 if np.isnan(corr_m[i, j]):
                                     continue
-                                ab_matrix.add_edge(Edge(source=source, sink=sink, weight=corr_m[i, j]))
+                                ab_matrix.add_edge_simple(source=source, sink=sink, weight=corr_m[i, j])
                             except IndexError:
                                 pass
                     pb.update(chr_ix)
@@ -136,7 +136,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
                         col_region = m.row_regions[j]
                         source = row_region.ix
                         sink = col_region.ix
-                        ab_matrix.add_edge(Edge(source=source, sink=sink, weight=corr_m[i, j]))
+                        ab_matrix.add_edge_simple(source=source, sink=sink, weight=corr_m[i, j])
                     pb.update(i)
 
         ab_matrix.flush()
