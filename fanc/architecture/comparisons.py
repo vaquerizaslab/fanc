@@ -232,7 +232,7 @@ class ComparisonMatrix(RegionMatrixTable):
 
     @classmethod
     def from_matrices(cls, matrix1, matrix2, file_name=None, tmpdir=None, mode='w',
-                      log_cmp=False, ignore_infinite=True, ignore_zeros=False,
+                      ignore_infinite=True, ignore_zeros=False,
                       scale=True, **kwargs):
         """
         Create a comparison matrix from two compatible matrix objects.
@@ -249,9 +249,6 @@ class ComparisonMatrix(RegionMatrixTable):
         :param mode: Write mode of the output file. Only change this if you
                      know what you are doing - setting this to 'a' could lead
                      to unexpected consequences!
-        :param log_cmp: If ``True``, log2-transform the comparison matrix
-                        value after the comparison has been performed. Useful,
-                        for example, for fold-change matrices
         :param ignore_infinite: If ``True``, will remove infinite values from
                                 the final comparison matrix
         :param ignore_zeros: If ``True``, will only compare edge weights when
@@ -260,11 +257,10 @@ class ComparisonMatrix(RegionMatrixTable):
                       edge weights) before the comparison. You can set this
                       to ``False`` if you know the type of normalisation you
                       performed already takes care of this.
-        :param kwargs: Keyword arguments passed to
-                       :func:`~fanc.matrix.RegionPairsContainer.edges`
+        :param kwargs: Keyword arguments passed to :func:`~RegionMatrixContainer.iter_matrix_tiles`
         :return: :class:`~fanc.architecture.comparisons.ComparisonMatrix`
         """
-        kwargs['lazy'] = True
+        kwargs['region_matrix'] = False
 
         comparison_matrix = cls(file_name=file_name, mode=mode, tmpdir=tmpdir)
         comparison_matrix.add_regions(matrix1.regions, preserve_attributes=False)
@@ -276,58 +272,26 @@ class ComparisonMatrix(RegionMatrixTable):
             else:
                 sf = matrix2.scaling_factor(matrix1)
 
-        compare = comparison_matrix.compare
-        chromosomes = matrix1.chromosomes()
-        n_chromosome_pairs = int(np.round(len(chromosomes)**2/2 + len(chromosomes)/2))
-        current_chromosome_pair = 0
-        with RareUpdateProgressBar(max_value=n_chromosome_pairs, prefix='Compare') as pb:
-            for chr_i in range(len(chromosomes)):
-                chromosome1 = chromosomes[chr_i]
-                for chr_j in range(chr_i, len(chromosomes)):
-                    chromosome2 = chromosomes[chr_j]
+        default_value = getattr(comparison_matrix, '_default_value', 0)
 
-                    edges1 = dict()
-                    for edge in matrix1.edges((chromosome1, chromosome2), **kwargs):
-                        edges1[(edge.source, edge.sink)] = edge.weight
+        for row_regions, col_regions, m1 in matrix1.iter_matrix_tiles(**kwargs):
+            m2 = matrix2._matrix(row_regions, col_regions)
+            m2 *= sf
 
-                    edges2 = dict()
-                    for edge in matrix2.edges((chromosome1, chromosome2), **kwargs):
-                        edges2[(edge.source, edge.sink)] = edge.weight * sf
+            d = comparison_matrix.compare(m1, m2)
 
-                    for key, w1 in edges1.items():
-                        try:
-                            w2 = edges2[key]
-                        except KeyError:
-                            w2 = matrix2._default_value
+            if ignore_zeros:
+                d[m1 == 0] = default_value
+                d[m2 == 0] = default_value
+            if ignore_infinite:
+                d[~np.isfinite(d)] = default_value
 
-                        if ignore_zeros and (w1 == 0 or w2 == 0):
-                            continue
-                        weight = compare(w1, w2)
-                        if log_cmp:
-                            weight = np.log2(weight)
-                        if ignore_infinite and not np.isfinite(weight):
-                            continue
+            for source, sink, weight in comparison_matrix._matrix_to_edges(d, row_regions, col_regions,
+                                                                           as_tuple=True, default_value=default_value):
+                if source <= sink:
+                    comparison_matrix.add_edge_simple(source, sink, weight=weight)
 
-                        comparison_matrix.add_edge_simple(key[0], key[1], weight=weight)
-
-                    for key, w2 in edges2.items():
-                        if key not in edges1:
-                            w1 = matrix1._default_value
-
-                            if ignore_zeros and (w1 == 0 or w2 == 0):
-                                continue
-                            weight = compare(w1, w2)
-                            if log_cmp:
-                                weight = np.log2(weight)
-                            if ignore_infinite and not np.isfinite(weight):
-                                continue
-
-                            comparison_matrix.add_edge_simple(key[0], key[1], weight=weight)
-
-                    current_chromosome_pair += 1
-                    pb.update(current_chromosome_pair)
-
-        comparison_matrix.flush()
+        comparison_matrix.flush(update_mappability=True)
         return comparison_matrix
 
 
@@ -337,12 +301,22 @@ class FoldChangeMatrix(ComparisonMatrix):
 
     def __init__(self, *args, **kwargs):
         ComparisonMatrix.__init__(self, *args, **kwargs)
+        self._default_value = 1
 
-    def compare(self, weight1, weight2):
-        try:
-            return weight1 / weight2
-        except ZeroDivisionError:
-            return np.nan
+    def compare(self, matrix1, matrix2):
+        return matrix1 / matrix2
+
+
+class Log2FoldChangeMatrix(ComparisonMatrix):
+
+    _classid = 'LOG2FOLDCHANGEMATRIX'
+
+    def __init__(self, *args, **kwargs):
+        ComparisonMatrix.__init__(self, *args, **kwargs)
+        self._default_value = 0
+
+    def compare(self, matrix1, matrix2):
+        return np.log2(matrix1 / matrix2)
 
 
 class DifferenceMatrix(ComparisonMatrix):
@@ -351,9 +325,22 @@ class DifferenceMatrix(ComparisonMatrix):
 
     def __init__(self, *args, **kwargs):
         ComparisonMatrix.__init__(self, *args, **kwargs)
+        self._default_value = 0
 
-    def compare(self, weight1, weight2):
-        return weight1 - weight2
+    def compare(self, matrix1, matrix2):
+        return matrix1 - matrix2
+
+
+class Log2DifferenceMatrix(ComparisonMatrix):
+
+    _classid = 'LOG2DIFFERENCEMATRIX'
+
+    def __init__(self, *args, **kwargs):
+        ComparisonMatrix.__init__(self, *args, **kwargs)
+        self._default_value = 0
+
+    def compare(self, matrix1, matrix2):
+        return np.log2(matrix1 - matrix2)
 
 
 class ComparisonScores(RegionScoreParameterTable):
