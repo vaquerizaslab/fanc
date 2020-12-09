@@ -1113,8 +1113,8 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         if mask:
             m_mask = np.zeros(m.shape, dtype=bool)
-            row_valid = np.array([r.valid for r in row_regions])
-            col_valid = np.array([r.valid for r in col_regions])
+            row_valid = np.array([getattr(r, 'valid', True) for r in row_regions])
+            col_valid = np.array([getattr(r, 'valid', True) for r in col_regions])
             m_mask[~row_valid] = True
             m_mask[:, ~col_valid] = True
 
