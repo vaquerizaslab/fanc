@@ -202,6 +202,15 @@ class InsulationScores(RegionScoreParameterTable):
         """
         return self._parameters
 
+    # @classmethod
+    # def from_hic_matrix(cls, hic, window_sizes, window_offset=0,
+    #                     file_name=None, tmpdir=None, impute_missing=False,
+    #                     na_threshold=0.5, normalise=True, normalisation_window=None,
+    #                     trim_mean_proportion=0.0, geometric_mean=False,
+    #                     subtract_mean=False, log=True):
+
+
+
     @classmethod
     def from_hic(cls, hic, window_sizes, window_offset=0,
                  file_name=None, tmpdir=None, impute_missing=False,
@@ -286,16 +295,15 @@ class InsulationScores(RegionScoreParameterTable):
             values_by_chromosome = [[0 for _ in range(chromosome_start, chromosome_stop)] for _ in bin_window_sizes]
 
             # add each edge weight to every insulation window that contains it
-            for edge in hic.edges((chromosome, chromosome), lazy=True):
-                i = edge.source - chromosome_start + window_offset
-                j = edge.sink - chromosome_start - window_offset
+            for edge in hic.edges((chromosome, chromosome), basic=True, as_tuple=True):
+                i = edge[0] - chromosome_start + window_offset
+                j = edge[1] - chromosome_start - window_offset
 
                 for w_ix, bin_window_size in enumerate(bin_window_sizes):
                     start = max(i, j - bin_window_size + 1)
                     stop = min(j + 1, i + bin_window_size)
                     for ii_bin in range(start, stop):
-                        weight = getattr(edge, hic._default_score_field)
-                        values_by_chromosome[w_ix][ii_bin] += weight
+                        values_by_chromosome[w_ix][ii_bin] += edge[2]
 
             # add imputed values, if requested
             if impute_missing:
