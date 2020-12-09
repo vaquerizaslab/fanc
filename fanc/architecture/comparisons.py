@@ -69,25 +69,22 @@ def _edge_collection(*hics, region=None, scale=True,
 
     edges = defaultdict(list)
     j = 0
-    with RareUpdateProgressBar(max_value=total_edges, prefix='Edge collection') as pb:
-        for i, hic in enumerate(hics):
-            logger.debug("Adding Hic {} ({}) to edge collection".format(i, region))
+    for i, hic in enumerate(hics):
+        logger.debug("Adding Hic {} ({}) to edge collection".format(i, region))
 
-            for region_pair in region_pairs:
-                for edge in hic.edges(region_pair, lazy=True,
-                                      inter_chromosomal=inter_chromosomal, **kwargs):
-                    weight = edge.weight * scaling_factors[i]
-                    source, sink = edge.source, edge.sink
+        for region_pair in region_pairs:
+            for edge in hic.edges(region_pair, basic=True, as_tuple=True,
+                                  inter_chromosomal=inter_chromosomal, **kwargs):
+                source, sink, weight = edge[0], edge[1], edge[2] * scaling_factors[i]
 
-                    weight_list = edges[(source, sink)]
-                    while len(weight_list) < i:
-                        weight_list.append(0)
+                weight_list = edges[(source, sink)]
+                while len(weight_list) < i:
+                    weight_list.append(0)
 
-                    if len(weight_list) <= i:
-                        weight_list.append(weight)
+                if len(weight_list) <= i:
+                    weight_list.append(weight)
 
-                    pb.update(j)
-                    j += 1
+                j += 1
 
     total = len(hics)
     for _, weights in edges.items():
