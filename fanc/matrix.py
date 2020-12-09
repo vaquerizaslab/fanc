@@ -1024,7 +1024,8 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
     def _matrix(self, row_regions, col_regions,
                 norm=True, oe=False, mask=True,
                 log=False, log_base=2, oe_per_chromosome=True,
-                default_value=None, region_matrix=True, **kwargs):
+                default_value=None, region_matrix=True, mask_nan_and_inf=True,
+                **kwargs):
         if default_value is None:
             default_value = self._default_value if not oe else (0 if log else 1)
 
@@ -1116,6 +1117,9 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
             col_valid = np.array([r.valid for r in col_regions])
             m_mask[~row_valid] = True
             m_mask[:, ~col_valid] = True
+
+            if mask_nan_and_inf:
+                m_mask[~np.isfinite(m)] = True
 
             m = np.ma.masked_array(m, mask=m_mask)
 
@@ -3081,7 +3085,7 @@ class RegionMatrix(np.ma.MaskedArray):
         A list of regions matching the second matrix dimension
     """
     def __new__(cls, input_matrix, row_regions=None, col_regions=None,
-                mask=True, *args, **kwargs):
+                mask=True, mask_nan_and_inf=True, *args, **kwargs):
         obj = np.asarray(input_matrix).view(cls, *args, **kwargs)
         obj._row_region_trees = None
         obj._col_region_trees = None
@@ -3090,6 +3094,7 @@ class RegionMatrix(np.ma.MaskedArray):
         obj.set_row_regions(row_regions)
         obj.set_col_regions(col_regions)
         obj._do_mask = mask
+        obj._mask_nan_and_inf = mask_nan_and_inf
         if mask:
             obj._apply_mask()
         return obj
@@ -3115,6 +3120,9 @@ class RegionMatrix(np.ma.MaskedArray):
                         col_ix = region.ix - col_offset
                         if 0 <= col_ix < self.shape[1]:
                             mask[:, col_ix] = True
+
+            if self._mask_nan_and_inf:
+                mask[~np.isfinite(np.ma.MaskedArray.__getitem__(self, slice(0, None)))] = True
 
             self.mask = mask
 
@@ -3154,6 +3162,9 @@ class RegionMatrix(np.ma.MaskedArray):
         self.set_col_regions(getattr(obj, 'col_regions', None))
         mask = getattr(obj, '_do_mask', True)
         self._do_mask = mask
+        mask_nan_and_inf = getattr(obj, '_mask_nan_and_inf', True)
+        self._mask_nan_and_inf = mask_nan_and_inf
+
         if mask:
             self._apply_mask()
 
