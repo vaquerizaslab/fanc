@@ -3336,7 +3336,8 @@ def compare(argv, **kwargs):
 
     import fanc
     from fanc.architecture.comparisons import FoldChangeMatrix, DifferenceMatrix, NonzeroFilter, \
-        FoldChangeScores, DifferenceScores, FoldChangeRegions, DifferenceRegions
+        FoldChangeScores, DifferenceScores, FoldChangeRegions, DifferenceRegions, Log2FoldChangeMatrix, \
+        Log2DifferenceMatrix
     from fanc.matrix import RegionMatrixContainer
     from fanc.architecture.domains import RegionScoreParameterTable
     from genomic_regions import RegionBased
@@ -3350,16 +3351,15 @@ def compare(argv, **kwargs):
 
         ComparisonMatrix = None
         if comparison == 'fold-change' or comparison == 'fc':
-            ComparisonMatrix = FoldChangeMatrix
+            ComparisonMatrix = Log2FoldChangeMatrix if log else FoldChangeMatrix
         elif comparison == 'difference' or comparison == 'diff':
-            ComparisonMatrix = DifferenceMatrix
+            ComparisonMatrix = Log2DifferenceMatrix if log else DifferenceMatrix
         else:
             parser.error("Comparison type -c {} not recognised!".format(comparison))
 
         cmp = ComparisonMatrix.from_matrices(matrix1, matrix2, file_name=output_file,
                                              tmpdir=tmp, mode='w',
                                              scale=scale,
-                                             log_cmp=log,
                                              ignore_infinite=filter_infinite,
                                              ignore_zeros=filter_zero,
                                              oe=oe, norm=norm, log=log_matrix)
