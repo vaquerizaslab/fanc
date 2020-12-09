@@ -1509,7 +1509,9 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
                         m = self.matrix((slice(row_start, row_stop, 1),
                                          slice(col_start, col_stop)),
-                                        norm=norm, region_matrix=False)
+                                        norm=norm, region_matrix=False,
+                                        mask=False)
+
                         for col in range(m.shape[1]):
                             if i == j:
                                 v = m[:col + 1, col]
@@ -1548,7 +1550,8 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
                                 m = self.matrix((slice(row_start, row_stop + 1, 1),
                                                  slice(col_start, col_stop + 1)),
-                                                norm=norm, region_matrix=False)
+                                                norm=norm, region_matrix=False,
+                                                mask=False)
 
                                 row_sum = np.sum(m, axis=0)
                                 inter_sums += np.sum(row_sum)
