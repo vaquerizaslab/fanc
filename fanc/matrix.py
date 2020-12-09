@@ -1715,7 +1715,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         return marginals
 
-    def scaling_factor(self, matrix, weight_column=None):
+    def scaling_factor(self, matrix, weight_column=None, **kwargs):
         """
         Compute the scaling factor to another matrix.
 
@@ -1731,15 +1731,16 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
             weight_column = self._default_score_field
 
         logger.info("Calculating scaling factor...")
-        m1_sum = 0
-        for v1 in self.edge_data(weight_column):
-            if np.isfinite(v1):
-                m1_sum += v1
 
+        logger.debug("Summing up matrix 1 values...")
+        m1_sum = 0
+        for row_regions, col_regions, m in self.iter_matrix_tiles(**kwargs):
+            m1_sum += np.sum(m[np.isfinite(m)])
+
+        logger.debug("Summing up matrix 2 values...")
         m2_sum = 0
-        for v2 in matrix.edge_data(weight_column):
-            if np.isfinite(v2):
-                m2_sum += v2
+        for row_regions, col_regions, m in matrix.iter_matrix_tiles(**kwargs):
+            m2_sum += np.sum(m[np.isfinite(m)])
 
         scaling_factor = m1_sum / m2_sum
         logger.debug("Scaling factor: {}/{} = {}".format(m1_sum, m2_sum, scaling_factor))
