@@ -3017,64 +3017,70 @@ class RegionMatrixTable(RegionMatrixContainer, RegionPairsTable):
         col_partition_start = self._get_partition_ix(col_start)
         col_partition_end = self._get_partition_ix(col_end)
 
+        n_regions = len(self.regions)
+
         m = None
         for i in range(row_partition_start, row_partition_end + 1):
             m_row = None
             for j in range(col_partition_start, col_partition_end + 1):
+                row_partition_region_ix_start = self._partition_breaks[i - 1] if i > 0 else 0
+                col_partition_region_ix_start = self._partition_breaks[j - 1] if j > 0 else 0
+
+                min_row = max(row_partition_region_ix_start, row_start)
+                max_row = min(self._partition_breaks[i] - 1 if i < len(self._partition_breaks) else n_regions,
+                              row_end)
+
+                min_col = max(col_partition_region_ix_start, col_start)
+                max_col = min(self._partition_breaks[j] - 1 if j < len(self._partition_breaks) else n_regions,
+                              col_end)
+
                 try:
                     if j < i:
                         edge_table = self._edge_table(j, i, create_if_missing=False)
                     else:
                         edge_table = self._edge_table(i, j, create_if_missing=False)
                 except ValueError:
-                    continue
+                    m_sub = scipy.sparse.coo_matrix(([], ([], [])),
+                                                    shape=(max_row - min_row + 1, max_col - min_col + 1))
+                else:
 
-                visible = edge_table.col('_mask') == 0
-                sources = edge_table.col('source')[visible]
-                sinks = edge_table.col('sink')[visible]
-                weights = edge_table.col(score_field)[visible]
+                    visible = edge_table.col('_mask') == 0
+                    sources = edge_table.col('source')[visible]
+                    sinks = edge_table.col('sink')[visible]
+                    weights = edge_table.col(score_field)[visible]
 
-                if j < i:
-                    sources, sinks = sinks, sources
+                    if j < i:
+                        sources, sinks = sinks, sources
 
-                if i == j:
-                    # matrix is symmetrical
-                    not_diagonal = sources != sinks
-                    new_sources = np.concatenate((sources, sinks[not_diagonal]), axis=0)
-                    new_sinks = np.concatenate((sinks, sources[not_diagonal]), axis=0)
-                    sources = new_sources
-                    sinks = new_sinks
-                    weights = np.concatenate((weights, weights[not_diagonal]), axis=0)
+                    if i == j:
+                        # matrix is symmetrical
+                        not_diagonal = sources != sinks
+                        new_sources = np.concatenate((sources, sinks[not_diagonal]), axis=0)
+                        new_sinks = np.concatenate((sinks, sources[not_diagonal]), axis=0)
+                        sources = new_sources
+                        sinks = new_sinks
+                        weights = np.concatenate((weights, weights[not_diagonal]), axis=0)
 
-                edge_filters = []
-                if i == row_partition_start:
-                    edge_filters.append(sources >= row_start)
-                if i == row_partition_end:
-                    edge_filters.append(sources <= row_end)
-                if j == col_partition_start:
-                    edge_filters.append(sinks >= col_start)
-                if j == col_partition_end:
-                    edge_filters.append(sinks <= col_end)
+                    edge_filters = []
+                    if i == row_partition_start:
+                        edge_filters.append(sources >= row_start)
+                    if i == row_partition_end:
+                        edge_filters.append(sources <= row_end)
+                    if j == col_partition_start:
+                        edge_filters.append(sinks >= col_start)
+                    if j == col_partition_end:
+                        edge_filters.append(sinks <= col_end)
 
-                if len(edge_filters) > 0:
-                    ix_mask = functools.reduce(np.logical_and, edge_filters)
-                    sources = sources[ix_mask]
-                    sinks = sinks[ix_mask]
-                    weights = weights[ix_mask]
+                    if len(edge_filters) > 0:
+                        ix_mask = functools.reduce(np.logical_and, edge_filters)
+                        sources = sources[ix_mask]
+                        sinks = sinks[ix_mask]
+                        weights = weights[ix_mask]
 
-                row_partition_region_ix_start = self._partition_breaks[i - 1] if i > 0 else 0
-                min_row = max(row_partition_region_ix_start, row_start)
-                max_row = min(self._partition_breaks[i] - 1 if i < len(self._partition_breaks) else len(self.regions),
-                              row_end)
-                col_partition_region_ix_start = self._partition_breaks[j - 1] if j > 0 else 0
-                min_col = max(col_partition_region_ix_start, col_start)
-                max_col = min(self._partition_breaks[j] - 1 if j < len(self._partition_breaks) else len(self.regions),
-                              col_end)
-
-                m_sub = scipy.sparse.coo_matrix((weights,
-                                                 ((sources - min_row),
-                                                  (sinks - min_col))),
-                                                shape=(max_row - min_row + 1, max_col - min_col + 1))
+                    m_sub = scipy.sparse.coo_matrix((weights,
+                                                     ((sources - min_row),
+                                                      (sinks - min_col))),
+                                                    shape=(max_row - min_row + 1, max_col - min_col + 1))
 
                 if m_row is None:
                     m_row = m_sub
