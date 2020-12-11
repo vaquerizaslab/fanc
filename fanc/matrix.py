@@ -1548,8 +1548,8 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                                 row_start, row_stop = partitions1[i]
                                 col_start, col_stop = partitions2[j]
 
-                                m = self.matrix((slice(row_start, row_stop + 1, 1),
-                                                 slice(col_start, col_stop + 1)),
+                                m = self.matrix((slice(row_start, row_stop, 1),
+                                                 slice(col_start, col_stop)),
                                                 norm=norm, region_matrix=False,
                                                 mask=False)
 
