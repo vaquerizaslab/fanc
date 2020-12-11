@@ -1535,7 +1535,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
             chromosomes = self.chromosomes()
 
             chr_pair_counter = 0
-            with RareUpdateProgressBar(max_value=int(len(chromosomes)/2+len(chromosomes)/2), prefix="Exp. inter") as pb:
+            with RareUpdateProgressBar(max_value=int(len(chromosomes)**2/2), prefix="Exp. inter") as pb:
                 for chr_i in range(len(chromosomes)):
                     chromosome1 = chromosomes[chr_i]
                     partitions1 = chunk_breaks[chromosome1]
