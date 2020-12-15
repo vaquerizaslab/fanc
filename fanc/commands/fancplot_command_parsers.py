@@ -682,7 +682,6 @@ def line_parser():
 
     parser.add_argument(
         '-b', '--bin-size', dest='bin_size',
-        type=int,
         help='Bin size. Specify if you want to bin scores into '
              'larger regions (using weighted mean).'
     )
@@ -750,6 +749,12 @@ def bar_parser():
         '-a', '--attribute', dest='attribute',
         default='score',
         help='Attribute to plot. Default: score'
+    )
+
+    parser.add_argument(
+        '-b', '--bin-size', dest='bin_size',
+        help='Bin size. Specify if you want to bin scores into '
+             'larger regions (using weighted mean).'
     )
 
     parser.add_argument(

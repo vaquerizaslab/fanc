@@ -144,8 +144,11 @@ def line(parameters):
     args = parser.parse_args(parameters)
 
     regions = [fanc.load(file_name) for file_name in args.regions]
+
+    from fanc.tools.general import str_to_int
+
     attribute = args.attribute
-    bin_size = args.bin_size
+    bin_size = str_to_int(args.bin_size)
     labels = args.labels
     colors = args.colors
     fill = args.fill
@@ -169,7 +172,10 @@ def bar(parameters):
     args = parser.parse_args(parameters)
 
     regions = [fanc.load(file_name) for file_name in args.regions]
+    from fanc.tools.general import str_to_int
+
     attribute = args.attribute
+    bin_size = str_to_int(args.bin_size)
     labels = args.labels
     ylim = args.ylim
     colors = args.colors
@@ -183,9 +189,8 @@ def bar(parameters):
 
     p = kplt.BarPlot(regions, attribute=attribute, labels=labels,
                      ylim=ylim, plot_kwargs={'alpha': alpha}, colors=colors,
-                     legend_location=legend_location)
+                     legend_location=legend_location, bin_size=bin_size)
     return p, args
-
 
 
 def gene(parameters):

@@ -858,7 +858,8 @@ class RegionPlotBase(ScalarDataPlot):
     Base class for region panels.
     """
 
-    def __init__(self, data, plot_kwargs=None, labels=None, exclude=None, include=None, **kwargs):
+    def __init__(self, data, plot_kwargs=None, labels=None, exclude=None, include=None,
+                 bin_size=None, bins=None, **kwargs):
         """
         :param data: Data or list of data. Or dictionary, where keys represent
                      data labels. Data can be paths to files on the disk or anthing
@@ -898,6 +899,8 @@ class RegionPlotBase(ScalarDataPlot):
         self.plot_kwargs = {} if plot_kwargs is None else plot_kwargs
         self.exclude = exclude
         self.include = include
+        self.bin_size = bin_size
+        self.bins = bins
 
     def _region_valid(self, region):
         if self.exclude is not None:
@@ -923,9 +926,14 @@ class RegionPlotBase(ScalarDataPlot):
     def _region_iter(self, data, region=None, **kwargs):
         kwargs.setdefault('lazy', False)
         region_valid = self._region_valid
-        for region in data.regions(region, **kwargs):
-            if region_valid(region):
-                yield region
+        if self.bin_size is not None or self.bins is not None:
+            for region in data.binned_regions(region, bins=self.bins, bin_size=self.bin_size, **kwargs):
+                if region_valid(region):
+                    yield region
+        else:
+            for region in data.regions(region, **kwargs):
+                if region_valid(region):
+                    yield region
 
     def _data_iter(self, region, **kwargs):
         kwargs.setdefault('lazy', False)
@@ -938,7 +946,7 @@ class LinePlot(RegionPlotBase):
     Plot data as line. Data must be :class:`~genomic_regions.RegionBased`
     """
 
-    def __init__(self, data, bin_size=None, fill=True, attribute='score',
+    def __init__(self, data, fill=True, attribute='score',
                  colors=None, show_legend=None, legend_location='best', **kwargs):
         """
         :param data: Data or list of data. Or dictionary, where keys represent
@@ -957,7 +965,6 @@ class LinePlot(RegionPlotBase):
         :param plot_kwargs: Dictionary of additional keyword arguments passed to the plot function
         """
         super(LinePlot, self).__init__(data, **kwargs)
-        self.bin_size = bin_size
         self.lines = []
         self.fills = []
         self.fill = fill
