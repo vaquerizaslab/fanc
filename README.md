@@ -17,7 +17,7 @@ Genome Biol 21, 303 (2020).
 https://doi.org/10.1186/s13059-020-02215-9
 ```
 
-If you like FAN-C, come and say "Hi" on Twitter! @kaukrise @vaquerizaslab
+If you like FAN-C, come and say "Hi" on Twitter! [@kaukrise](https://twitter.com/kaukrise) (@vaquerizas_lab)[https://twitter.com/vaquerizas_lab]
 
 
 ## News
