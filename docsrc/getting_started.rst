@@ -104,6 +104,24 @@ The installation is then done via setup.py:
 FAN-C can now be accessed via command line (``fanc`` for analysis, ``fancplot`` for plotting)
 or as a Python 3.6+ module (``import fanc``).
 
+.. _dev_version:
+
+~~~~~~~~~~~
+Dev version
+~~~~~~~~~~~
+
+If you want the latest improvements, and can live with a higher likelihood of unresolved issues,
+you can become a beta tester and check out the ``dev`` channel! We would appreciate feedback on
+GitHub for any issue that you encounter.
+
+.. code:: bash
+
+   git clone http://www.github.com/vaquerizaslab/fanc
+   git checkout dev
+   cd fanc
+   pip install -e .
+
+
 .. _conda_note:
 
 .. note::
