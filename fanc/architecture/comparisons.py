@@ -73,8 +73,7 @@ def _edge_collection(*hics, region=None, scale=True,
         logger.debug("Adding Hic {} ({}) to edge collection".format(i, region))
 
         for region_pair in region_pairs:
-            for edge in hic.edges(region_pair, basic=True, as_tuple=True,
-                                  inter_chromosomal=inter_chromosomal, **kwargs):
+            for edge in hic.edges(region_pair, lazy=True, inter_chromosomal=inter_chromosomal, **kwargs):
                 source, sink, weight = edge[0], edge[1], edge[2] * scaling_factors[i]
 
                 weight_list = edges[(source, sink)]
