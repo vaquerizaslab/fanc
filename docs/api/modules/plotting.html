@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Plotting API &mdash; FAN-C 0.9.6-beta documentation</title>
+  <title>Plotting API &mdash; FAN-C 0.9.10-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.9.6
+                0.9.10
               </div>
             
           
@@ -206,7 +206,7 @@
 <tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.SplitMatrixPlot" title="fanc.plotting.SplitMatrixPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SplitMatrixPlot</span></code></a>(hic_top, hic_bottom[, …])</p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.LinePlot" title="fanc.plotting.LinePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LinePlot</span></code></a>(data[, bin_size, fill, attribute, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.LinePlot" title="fanc.plotting.LinePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LinePlot</span></code></a>(data[, fill, attribute, colors, …])</p></td>
 <td><p>Plot data as line.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.BigWigPlot" title="fanc.plotting.BigWigPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BigWigPlot</span></code></a>(bigwigs[, names, bin_size, fill, …])</p></td>
@@ -1176,11 +1176,11 @@ plot. Default: None</p></li>
 
 <dl class="class">
 <dt id="fanc.plotting.LinePlot">
-<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">LinePlot</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">bin_size=None</em>, <em class="sig-param">fill=True</em>, <em class="sig-param">attribute='score'</em>, <em class="sig-param">colors=None</em>, <em class="sig-param">show_legend=None</em>, <em class="sig-param">legend_location='best'</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.LinePlot" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">LinePlot</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">fill=True</em>, <em class="sig-param">attribute='score'</em>, <em class="sig-param">colors=None</em>, <em class="sig-param">show_legend=None</em>, <em class="sig-param">legend_location='best'</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.LinePlot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot data as line. Data must be <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionBased</span></code></p>
 <dl class="method">
 <dt id="fanc.plotting.LinePlot.__init__">
-<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">bin_size=None</em>, <em class="sig-param">fill=True</em>, <em class="sig-param">attribute='score'</em>, <em class="sig-param">colors=None</em>, <em class="sig-param">show_legend=None</em>, <em class="sig-param">legend_location='best'</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.LinePlot.__init__" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">fill=True</em>, <em class="sig-param">attribute='score'</em>, <em class="sig-param">colors=None</em>, <em class="sig-param">show_legend=None</em>, <em class="sig-param">legend_location='best'</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.LinePlot.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">

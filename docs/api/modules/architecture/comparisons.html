@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Comparisons module &mdash; FAN-C 0.9.6-beta documentation</title>
+  <title>Comparisons module &mdash; FAN-C 0.9.10-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.9.6
+                0.9.10
               </div>
             
           
@@ -864,7 +864,7 @@ query region</p>
 
 <dl class="method">
 <dt id="fanc.architecture.comparisons.ComparisonMatrix.from_matrices">
-<em class="property">classmethod </em><code class="sig-name descname">from_matrices</code><span class="sig-paren">(</span><em class="sig-param">matrix1</em>, <em class="sig-param">matrix2</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">log_cmp=False</em>, <em class="sig-param">ignore_infinite=True</em>, <em class="sig-param">ignore_zeros=False</em>, <em class="sig-param">scale=True</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.comparisons.ComparisonMatrix.from_matrices" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">from_matrices</code><span class="sig-paren">(</span><em class="sig-param">matrix1</em>, <em class="sig-param">matrix2</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">mode='w'</em>, <em class="sig-param">log_cmp=False</em>, <em class="sig-param">ignore_infinite=True</em>, <em class="sig-param">ignore_zeros=False</em>, <em class="sig-param">scale=True</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.comparisons.ComparisonMatrix.from_matrices" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a comparison matrix from two compatible matrix objects.</p>
 <p>The resulting object can be treated like any other matrix in
 FAN-C, offering the same convenience functions for regions and
@@ -877,6 +877,9 @@ edges.</p>
 <li><p><strong>file_name</strong> – Path to the comparison output file</p></li>
 <li><p><strong>tmpdir</strong> – Optional. If <code class="docutils literal notranslate"><span class="pre">True</span></code>, will work in temporary
 directory until file is closed</p></li>
+<li><p><strong>mode</strong> – Write mode of the output file. Only change this if you
+know what you are doing - setting this to ‘a’ could lead
+to unexpected consequences!</p></li>
 <li><p><strong>log_cmp</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, log2-transform the comparison matrix
 value after the comparison has been performed. Useful,
 for example, for fold-change matrices</p></li>
@@ -2860,7 +2863,7 @@ query region</p>
 
 <dl class="method">
 <dt id="fanc.architecture.comparisons.DifferenceMatrix.from_matrices">
-<em class="property">classmethod </em><code class="sig-name descname">from_matrices</code><span class="sig-paren">(</span><em class="sig-param">matrix1</em>, <em class="sig-param">matrix2</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">log_cmp=False</em>, <em class="sig-param">ignore_infinite=True</em>, <em class="sig-param">ignore_zeros=False</em>, <em class="sig-param">scale=True</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.comparisons.DifferenceMatrix.from_matrices" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">from_matrices</code><span class="sig-paren">(</span><em class="sig-param">matrix1</em>, <em class="sig-param">matrix2</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">mode='w'</em>, <em class="sig-param">log_cmp=False</em>, <em class="sig-param">ignore_infinite=True</em>, <em class="sig-param">ignore_zeros=False</em>, <em class="sig-param">scale=True</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.comparisons.DifferenceMatrix.from_matrices" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a comparison matrix from two compatible matrix objects.</p>
 <p>The resulting object can be treated like any other matrix in
 FAN-C, offering the same convenience functions for regions and
@@ -2873,6 +2876,9 @@ edges.</p>
 <li><p><strong>file_name</strong> – Path to the comparison output file</p></li>
 <li><p><strong>tmpdir</strong> – Optional. If <code class="docutils literal notranslate"><span class="pre">True</span></code>, will work in temporary
 directory until file is closed</p></li>
+<li><p><strong>mode</strong> – Write mode of the output file. Only change this if you
+know what you are doing - setting this to ‘a’ could lead
+to unexpected consequences!</p></li>
 <li><p><strong>log_cmp</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, log2-transform the comparison matrix
 value after the comparison has been performed. Useful,
 for example, for fold-change matrices</p></li>
@@ -4856,7 +4862,7 @@ query region</p>
 
 <dl class="method">
 <dt id="fanc.architecture.comparisons.FoldChangeMatrix.from_matrices">
-<em class="property">classmethod </em><code class="sig-name descname">from_matrices</code><span class="sig-paren">(</span><em class="sig-param">matrix1</em>, <em class="sig-param">matrix2</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">log_cmp=False</em>, <em class="sig-param">ignore_infinite=True</em>, <em class="sig-param">ignore_zeros=False</em>, <em class="sig-param">scale=True</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.comparisons.FoldChangeMatrix.from_matrices" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">from_matrices</code><span class="sig-paren">(</span><em class="sig-param">matrix1</em>, <em class="sig-param">matrix2</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">mode='w'</em>, <em class="sig-param">log_cmp=False</em>, <em class="sig-param">ignore_infinite=True</em>, <em class="sig-param">ignore_zeros=False</em>, <em class="sig-param">scale=True</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.comparisons.FoldChangeMatrix.from_matrices" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a comparison matrix from two compatible matrix objects.</p>
 <p>The resulting object can be treated like any other matrix in
 FAN-C, offering the same convenience functions for regions and
@@ -4869,6 +4875,9 @@ edges.</p>
 <li><p><strong>file_name</strong> – Path to the comparison output file</p></li>
 <li><p><strong>tmpdir</strong> – Optional. If <code class="docutils literal notranslate"><span class="pre">True</span></code>, will work in temporary
 directory until file is closed</p></li>
+<li><p><strong>mode</strong> – Write mode of the output file. Only change this if you
+know what you are doing - setting this to ‘a’ could lead
+to unexpected consequences!</p></li>
 <li><p><strong>log_cmp</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, log2-transform the comparison matrix
 value after the comparison has been performed. Useful,
 for example, for fold-change matrices</p></li>
