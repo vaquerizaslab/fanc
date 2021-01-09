@@ -429,6 +429,18 @@ class JuicerHic(RegionMatrixContainer):
 
         return chromosome_lengths
 
+    def _chromosome_bins(self, *args, **kwargs):
+        chromosome_lengths = self.chromosome_lengths
+        bin_size = self.bin_size
+        current_chromosome_start_bin = 0
+        chromosome_bins = {}
+        for chromosome in self.chromosomes():
+            chromosome_length = chromosome_lengths[chromosome]
+            end = int(np.ceil(chromosome_length / bin_size))
+            chromosome_bins[chromosome] = [current_chromosome_start_bin, current_chromosome_start_bin + end]
+            current_chromosome_start_bin += end
+        return chromosome_bins
+
     def _all_chromosomes(self):
         with open(self._hic_file, 'rb') as req:
             JuicerHic._skip_to_chromosome_lengths(req)
