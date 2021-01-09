@@ -631,18 +631,34 @@ class JuicerHic(RegionMatrixContainer):
             return JuicerHic._expected_value_vectors_from_pos(req, normalisation=normalisation)
 
     def expected_values(self, selected_chromosome=None, norm=True, *args, **kwargs):
+        def _fill_norm_vector(v, n, fill):
+            if len(v) < n:
+                v = np.append(v, [fill for _ in range(n - len(v))])
+            return v
+
+        cb = self.chromosome_bins
         if selected_chromosome is not None:
             if norm:
-                return self.expected_value_vector(selected_chromosome, self._normalisation)
+                expected_chromosome = self.expected_value_vector(selected_chromosome, self._normalisation)
             else:
-                return self.expected_value_vector(selected_chromosome, 'NONE')
+                expected_chromosome = self.expected_value_vector(selected_chromosome, 'NONE')
+
+            chromosome_size_in_bins = cb[selected_chromosome][1] - cb[selected_chromosome][0]
+            expected_chromosome = _fill_norm_vector(expected_chromosome, chromosome_size_in_bins, 0)
+
+            return expected_chromosome
 
         intra_expected = dict()
         for chromosome in self.chromosomes():
             if norm:
-                intra_expected[chromosome] = self.expected_value_vector(chromosome, self._normalisation)
+                expected_chromosome = self.expected_value_vector(chromosome, self._normalisation)
             else:
-                intra_expected[chromosome] = self.expected_value_vector(chromosome, 'NONE')
+                expected_chromosome = self.expected_value_vector(chromosome, 'NONE')
+
+            chromosome_size_in_bins = cb[chromosome][1] - cb[chromosome][0]
+            expected_chromosome = _fill_norm_vector(expected_chromosome, chromosome_size_in_bins, 0)
+
+            intra_expected[chromosome] = expected_chromosome
 
         return None, intra_expected, None
 
