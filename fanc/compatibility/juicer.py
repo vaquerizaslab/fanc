@@ -805,7 +805,7 @@ class JuicerHic(RegionMatrixContainer):
 
         cl = self.chromosome_lengths[region.chromosome]
         norm = self.normalisation_vector(region.chromosome)
-        for i, start in enumerate(range(subset_start, region.end, self._resolution)):
+        for i, start in enumerate(range(subset_start, int(region.end), self._resolution)):
             end = min(start + self._resolution - 1, cl, region.end)
             bias_ix = int(start / self._resolution)
 
@@ -822,8 +822,8 @@ class JuicerHic(RegionMatrixContainer):
             if np.isnan(bias):
                 bias = 1.0
 
-            r = GenomicRegion(chromosome=region.chromosome, start=start,
-                              end=end, bias=bias, valid=valid,
+            r = GenomicRegion(chromosome=region.chromosome, start=int(start),
+                              end=int(end), bias=bias, valid=valid,
                               ix=int(subset_ix + i))
             yield r
 
