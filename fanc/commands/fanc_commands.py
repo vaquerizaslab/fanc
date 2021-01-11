@@ -4221,7 +4221,7 @@ def expected(argv, **kwargs):
         hics = [fanc.load(file_name) for file_name in input_files]
 
         fig, ax = plt.subplots(figsize=(4, 3), dpi=300)
-        distance_decay_plot(*hics, ax=ax, labels=labels)
+        distance_decay_plot(*hics, chromosome=chromosome, ax=ax, labels=labels)
         fig.savefig(plot_file)
         plt.close(fig)
 
