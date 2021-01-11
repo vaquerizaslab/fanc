@@ -989,7 +989,7 @@ class JuicerHic(RegionMatrixContainer):
                             sinks.append(sink - col_start)
                             weights.append(weight)
 
-                        if row_start <= sink <= row_end and col_start <= source <= col_end:
+                        if row_start <= sink <= row_end and col_start <= source <= col_end and source != sink:
                             sources.append(sink - row_start)
                             sinks.append(source - col_start)
                             weights.append(weight)
