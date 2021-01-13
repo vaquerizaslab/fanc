@@ -961,8 +961,10 @@ class JuicerHic(RegionMatrixContainer):
             row_chromosome_offset = self._chromosome_ix_offset(row_chromosome)
             col_chromosome_offset = self._chromosome_ix_offset(col_chromosome)
 
-            col1, col2 = int(row_start / block_bin_count), int(row_end / block_bin_count)
-            row1, row2 = int(col_start / block_bin_count), int(col_end / block_bin_count)
+            col1, col2 = int((row_start - row_chromosome_offset) / block_bin_count), \
+                         int((row_end - row_chromosome_offset) / block_bin_count)
+            row1, row2 = int((col_start - col_chromosome_offset) / block_bin_count), \
+                         int((col_end - col_chromosome_offset) / block_bin_count)
 
             blocks = set()
             for r in range(row1, row2 + 1):
@@ -1005,8 +1007,26 @@ class JuicerHic(RegionMatrixContainer):
                                        shape=(row_end - row_start + 1,
                                               col_end - col_start + 1))
 
+    def _chromosomes_from_range(self, start, end, cb=None):
+        overlapping_chromosomes = []
+        if cb is None:
+            cb = self.chromosome_bins
+        for chromosome in self.chromosomes():
+            chromosome_start, chromosome_end = cb[chromosome]
+            if chromosome_start <= end and chromosome_end > start:
+                overlapping_chromosomes.append((chromosome, max(chromosome_start, start), min(chromosome_end - 1, end)))
+        return overlapping_chromosomes
+
     def _matrix_from_ranges(self, row_start, row_end, col_start, col_end, **kwargs):
-        return self._matrix_ranges_by_chromosome('chr18', row_start, row_end, 'chr18', col_start, col_end, **kwargs)
+        cb = self.chromosome_bins
+        row_chromosomes = self._chromosomes_from_range(row_start, row_end, cb=cb)
+        col_chromosomes = self._chromosomes_from_range(col_start, col_end, cb=cb)
+
+        for i, (row_chromosome, row_chromosome_start, row_chromosome_end) in enumerate(row_chromosomes):
+            for j, (col_chromosome, col_chromosome_start, col_chromosome_end) in enumerate(col_chromosomes):
+                return self._matrix_ranges_by_chromosome(row_chromosome, row_chromosome_start, row_chromosome_end,
+                                                         col_chromosome, col_chromosome_start, col_chromosome_end,
+                                                         **kwargs)
 
     def _read_matrix(self, region1, region2):
         region1 = self._convert_region(region1)
