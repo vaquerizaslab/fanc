@@ -296,8 +296,8 @@ class InsulationScores(RegionScoreParameterTable):
 
             # add each edge weight to every insulation window that contains it
             for edge in hic.edges((chromosome, chromosome), lazy=True):
-                i = edge[0] - chromosome_start + window_offset
-                j = edge[1] - chromosome_start - window_offset
+                i = edge.source - chromosome_start + window_offset
+                j = edge.sink - chromosome_start - window_offset
 
                 for w_ix, bin_window_size in enumerate(bin_window_sizes):
                     start = max(i, j - bin_window_size + 1)
