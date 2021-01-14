@@ -134,7 +134,7 @@ class Monitor(WorkerMonitor):
     """
     def __init__(self, value=0, manager=None):
         WorkerMonitor.__init__(self, value=value, manager=manager)
-        self.generating_pairs_lock = manager.Lock()
+        self.generating_pairs_lock = self.manager.Lock()
 
         with self.generating_pairs_lock:
             self.generating_pairs = True
