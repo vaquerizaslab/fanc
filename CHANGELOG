@@ -1,6 +1,7 @@
 0.9.11
 
 - Fix Juicer expected value vector length
+- Fix pairs import issue due to missing multiprocessing manager
 
 0.9.10
 
