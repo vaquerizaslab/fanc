@@ -1672,9 +1672,26 @@ class GenomicDataFramePlot(ScalarDataPlot):
 
 
 class Virtual4CPlot(BasePlotter1D):
+    """
+    Plot a 'virtual 4C' plot of the interactions of a specific genomic viewpoint as a 
+    line plot. Extracts interactions from regions which overlap the viewpoint and 
+    plots the mean of these interactions. 
+    """
     def __init__(self, hic, viewpoint, color='blue', alpha=1.0,
                  norm=True, oe=False, check_valid=True, excluded_filters=0, mask=True,
                  *args, **kwargs):
+        """
+        :param hic: :class:`~fanc.Hic` or :class:`~fanc.RegionMatrix`.
+        :param viewpoint: Viewpoint to use for virtual 4C. String, e.g. 
+                "2L:1000000-1500000" or :class:`~fanc.GenomicRegion`.
+        :param color: Line colour to use for plotting. Default: blue.
+        :param alpha: Transparency to use for plotting. Default: 1.0.
+        :param norm: Use normalised values from Hi-C matrix. Default: True.
+        :param oe: Use observed/expected values. Default: False.
+        :param mask: Use values from masked Hi-C matrix. Default: True.
+        :param check_valid: Parameter for Hi-C matrix extraction. Default: True.
+        :param excluded_filters: Parameter for Hi-C matrix extraction. Default: 0.
+        """
         BasePlotter1D.__init__(self, *args, **kwargs)
         self.hic = hic
 
