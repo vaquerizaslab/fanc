@@ -1288,7 +1288,10 @@ def hic_parser():
         '--deepcopy', dest='deepcopy',
         action='store_true',
         default=False,
-        help='Deep copy Hi-C file. Can be used '
+        help='Deep copy Hi-C file. Copies a Hi-C file to FAN-C format '
+             'by duplicating individual bins, pixels, and bias information. '
+             'Can be used to upgrade an existing FAN-C file with an older '
+             'version or to convert Cooler or Juicer files to FAN-C format. '
     )
 
     parser.add_argument(
