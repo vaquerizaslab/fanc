@@ -31,48 +31,99 @@ logger = logging.getLogger(__name__)
 class Edge(object):
     """
     A contact / an Edge between two genomic regions.
-
     .. attribute:: source
-
         The index of the "source" genomic region. By convention,
         source <= sink.
-
     .. attribute:: sink
-
         The index of the "sink" genomic region.
-
     .. attribute:: bias
-
         Bias factor obtained via normalisation of the Hi-C matrix
-
     .. attribute:: source_node
-
         The first :class:`~fanc.GenomicRegion` in this contact
-
     .. attribute:: sink_node
-
         The second :class:`~fanc.GenomicRegion` in this contact
     """
+    def __init__(self, source, sink, _weight_field='weight', **kwargs):
+        """
+        :param source: The index of the "source" genomic region
+                       or :class:`~fanc.GenomicRegion` object.
+        :param sink: The index of the "sink" genomic region
+                     or :class:`~fanc.GenomicRegion` object.
+        :param kwargs: Other key, value pairs to be stored as
+                       :class:`~Edge` attributes
+        """
+        object.__setattr__(self, '_source', source)
+        object.__setattr__(self, '_sink', sink)
+        object.__setattr__(self, 'bias', 1.)
+        object.__setattr__(self, 'expected', None)
+        object.__setattr__(self, '_weight_field', _weight_field)
+        object.__setattr__(self, '_weight', None)
 
-    def __init__(self, source, sink, weight=None, regions_object=None, **kwargs):
-        self.source = source
-        self.sink = sink
-        self.weight = weight
-        self._regions_object = regions_object
         for key, value in kwargs.items():
             setattr(self, key.decode() if isinstance(key, bytes) else key, value)
 
+    def __getattr__(self, item):
+        if item == '_weight_field' or item != self._weight_field:
+            return object.__getattribute__(self, item)
+
+        if self.expected is None:
+            return object.__getattribute__(self, '_weight') * self.bias
+        else:
+            return (object.__getattribute__(self, '_weight') * self.bias) / self.expected
+
+    def __setattr__(self, key, value):
+        if key == object.__getattribute__(self, '_weight_field'):
+            object.__setattr__(self, '_weight', value)
+        else:
+            object.__setattr__(self, key, value)
+
+    def __getitem__(self, item):
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError("No such key: {}".format(item))
+
+    @property
+    def source(self):
+        try:
+            return self._source.ix
+        except AttributeError:
+            return self._source
+
+    @property
+    def sink(self):
+        try:
+            return self._sink.ix
+        except AttributeError:
+            return self._sink
+
     @property
     def source_node(self):
-        if self._regions_object is not None:
-            return self._regions_object.regions[self.source]
-        raise ValueError("Regions not not provided during object initialization!")
+        if isinstance(self._source, GenomicRegion):
+            return self._source
+        raise ValueError("Source not not provided during object initialization!")
+
+    @source_node.setter
+    def source_node(self, value):
+        self._source = value
+
+    @property
+    def source_region(self):
+        return self.source_node
 
     @property
     def sink_node(self):
-        if self._regions_object is not None:
-            return self._regions_object.regions[self.sink]
-        raise ValueError("Regions not not provided during object initialization!")
+        if isinstance(self._sink, GenomicRegion):
+            return self._sink
+        raise ValueError("Sink not not provided during object initialization!")
+
+    @sink_node.setter
+    def sink_node(self, value):
+        self._sink = value
+
+    @property
+    def sink_region(self):
+        return self.sink_node
 
     def __repr__(self):
         base_info = "{}--{}".format(self.source, self.sink)
@@ -89,26 +140,16 @@ class Edge(object):
 class LazyEdge(object):
     """
     An :class:`~Edge` equivalent supporting lazy loading.
-
     .. attribute:: source
-
         The index of the "source" genomic region. By convention,
         source <= sink.
-
     .. attribute:: sink
-
         The index of the "sink" genomic region.
-
     .. attribute:: bias
-
         Bias factor obtained via normalisation of the Hi-C matrix
-
     .. attribute:: source_node
-
         The first :class:`~fanc.GenomicRegion` in this contact
-
     .. attribute:: sink_node
-
         The second :class:`~fanc.GenomicRegion` in this contact
     """
     def __init__(self, row, regions_table=None, _weight_field='weight'):
@@ -117,7 +158,6 @@ class LazyEdge(object):
         self.bias = 1.
         self.expected = None
         self._weight_field = _weight_field
-        self._weight = None
 
     def __getattr__(self, item):
         try:
@@ -127,13 +167,10 @@ class LazyEdge(object):
 
     @property
     def weight(self):
-        if self._weight is not None:
-            return self._weight
-        return self._row[self._weight_field]
-
-    @weight.setter
-    def weight(self, weight):
-        self._weight = weight
+        if self.expected is None:
+            return self._row[self._weight_field] * self.bias
+        else:
+            return (self._row[self._weight_field] * self.bias) / self.expected
 
     @property
     def source_node(self):
@@ -727,16 +764,9 @@ class RegionPairsContainer(RegionBased):
                             source, sink = edge.source, edge.sink
                             if check_valid and (not valid[source] or not valid[sink]):
                                 continue
-
-                            if edge.weight is not None:
-                                edge.weight *= bias[source] * bias[sink]
-                            if oe:
-                                edge.weight /= ex[abs(sink - source)]
-
-                            if as_tuple:
-                                yield source, sink, edge.weight
-                            else:
-                                yield edge
+                            edge.bias = bias[source] * bias[sink]
+                            edge.expected = ex[abs(sink - source)]
+                            yield edge
 
             def __len__(self):
                 return self._regions_pairs._edges_length()
