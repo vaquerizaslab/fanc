@@ -1330,14 +1330,18 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
                 pb.update(i)
         copy.flush(update_mappability=False)
 
+        needs_update = True
         try:
             if bias and hasattr(self, 'bias_vector') and hasattr(copy, 'bias_vector'):
                 copy.bias_vector(self.bias_vector())
+                needs_update = False
             copy.flush(update_mappability=False)
         except IndexError:
             warnings.warn("Could not copy index vector. Hic version may be too old. "
                           "Please run matrix balancing again after deepcopy!")
-        copy._update_mappability()
+
+        if needs_update:
+            copy._update_mappability()
 
         return copy
 
