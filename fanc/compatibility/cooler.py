@@ -434,7 +434,7 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
         df = cooler.Cooler.matrix(self, as_pixels=True, balance=False)[row_start:row_end+1, col_start:col_end+1]
 
         for t in df.itertuples():
-            yield self._tuple_to_edge(t, lazy_edge=lazy_edge, *args, **kwargs)
+            yield self._tuple_to_edge(t, lazy_edge=lazy_edge)
 
     def _edges_getitem(self, item, *args, **kwargs):
         edges = []
