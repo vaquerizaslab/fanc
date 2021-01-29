@@ -1,3 +1,7 @@
+0.9.13
+
+- Fix bug with retrieving off-diagonal, lower triangular matrices from Cooler
+
 0.9.12
 
 - Fix Cooler problem with Virtual4CPlot
