@@ -431,10 +431,42 @@ class CoolerHic(RegionMatrixContainer, cooler.Cooler):
         row_start, row_end = self._min_max_region_ix(row_regions)
         col_start, col_end = self._min_max_region_ix(col_regions)
 
-        df = cooler.Cooler.matrix(self, as_pixels=True, balance=False)[row_start:row_end+1, col_start:col_end+1]
+        dfs = []
+        if col_start > row_end:  # no overlap, upper triangular
+            df = cooler.Cooler.matrix(self, as_pixels=True, balance=False)[row_start:row_end + 1, col_start:col_end + 1]
+            dfs.append(df)
+        elif row_start > col_end:  # no overlap, lower triangular
+            df = cooler.Cooler.matrix(self, as_pixels=True, balance=False)[col_start:col_end + 1, row_start:row_end + 1]
+            dfs.append(df)
+        else:  # overlapping
+            overlap_start, overlap_end = max(row_start, col_start), min(row_end, col_end)
+            df = cooler.Cooler.matrix(self, as_pixels=True,
+                                      balance=False)[overlap_start:overlap_end + 1, overlap_start:overlap_end + 1]
+            dfs.append(df)
 
-        for t in df.itertuples():
-            yield self._tuple_to_edge(t, lazy_edge=lazy_edge)
+            if col_start < overlap_start:  # lower triangular
+                df = cooler.Cooler.matrix(self, as_pixels=True,
+                                          balance=False)[col_start:overlap_start, row_start:row_end + 1]
+                dfs.append(df)
+
+            if col_end > overlap_end:  # upper triangular
+                df = cooler.Cooler.matrix(self, as_pixels=True,
+                                          balance=False)[row_start:row_end + 1, overlap_end + 1:col_end + 1]
+                dfs.append(df)
+
+            if row_start < overlap_start:  # upper triangular
+                df = cooler.Cooler.matrix(self, as_pixels=True,
+                                          balance=False)[row_start: overlap_start, overlap_start:overlap_end + 1]
+                dfs.append(df)
+
+            if row_end > overlap_end:  # lower triangular
+                df = cooler.Cooler.matrix(self, as_pixels=True,
+                                          balance=False)[overlap_start:overlap_end + 1, overlap_end + 1: row_end + 1]
+                dfs.append(df)
+
+        for i, df in enumerate(dfs):
+            for t in df.itertuples():
+                yield self._tuple_to_edge(t, lazy_edge=lazy_edge)
 
     def _edges_getitem(self, item, *args, **kwargs):
         edges = []
