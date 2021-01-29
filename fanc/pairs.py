@@ -133,8 +133,10 @@ class Monitor(WorkerMonitor):
     Class to monitor fragment info worker threads.
     """
     def __init__(self, value=0, manager=None):
+        if manager is None:
+            manager = mp.Manager()
         WorkerMonitor.__init__(self, value=value, manager=manager)
-        self.generating_pairs_lock = self.manager.Lock()
+        self.generating_pairs_lock = manager.Lock()
 
         with self.generating_pairs_lock:
             self.generating_pairs = True

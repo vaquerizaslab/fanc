@@ -491,12 +491,10 @@ def pairwise(iterable):
 class WorkerMonitor(object):
     def __init__(self, value=0, manager=None):
         if manager is None:
-            self.manager = mp.Manager()
-        else:
-            self.manager = manager
+            manager = mp.Manager()
 
-        self.counter_lock = self.manager.Lock()
-        self.worker_lock = self.manager.Lock()
+        self.counter_lock = manager.Lock()
+        self.worker_lock = manager.Lock()
 
         with self.counter_lock:
             self.val = value

@@ -23,6 +23,7 @@ import os
 import io
 import subprocess
 import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor
 from queue import Empty, Full
 import traceback
 import gzip
@@ -76,6 +77,8 @@ class Monitor(WorkerMonitor):
         Counter used to track worker progress.
     """
     def __init__(self, value=0, manager=None):
+        if manager is None:
+            manager = mp.Manager()
         WorkerMonitor.__init__(self, value=value, manager=manager)
 
         self.resubmitting_lock = manager.Lock()
@@ -924,7 +927,7 @@ def iterative_mapping(fastq_file, sam_file, mapper, tmp_folder=None, threads=1, 
         resubmission_queue = mp_manager.Queue()
         output_queue = mp_manager.Queue()
         exception_queue = mp_manager.Queue()
-        monitor = Monitor(manager=mp_manager)
+        monitor = Monitor()
 
         monitor.set_submitting(True)
 
