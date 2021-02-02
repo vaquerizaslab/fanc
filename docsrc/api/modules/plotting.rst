@@ -38,6 +38,7 @@ Index of plot classes
     aggregate_plot
     saddle_plot
     pca_plot
+    Virtual4CPlot
 
 Description and examples
 ''''''''''''''''''''''''
