@@ -23,6 +23,7 @@ Index of plot classes
     GenomicFeaturePlot
     HicComparisonPlot2D
     HicSlicePlot
+    Virtual4CPlot
     HicPeakPlot
     VerticalSplitPlot
     GenomicVectorArrayPlot
@@ -38,7 +39,7 @@ Index of plot classes
     aggregate_plot
     saddle_plot
     pca_plot
-    Virtual4CPlot
+
 
 Description and examples
 ''''''''''''''''''''''''
@@ -46,7 +47,7 @@ Description and examples
 .. automodule:: fanc.plotting
     :members:
         TriangularMatrixPlot, SquareMatrixPlot, SplitMatrixPlot, HicComparisonPlot2D,
-        HicSlicePlot, HicPeakPlot, VerticalSplitPlot, GenomicVectorArrayPlot,
+        HicSlicePlot, Virtual4CPlot, HicPeakPlot, VerticalSplitPlot, GenomicVectorArrayPlot,
         GenomicFeaturePlot, GenomicRegionsPlot, GenomicFeatureScorePlot,
         GenomicFigure, BigWigPlot, LinePlot,
         GenePlot, FeatureLayerPlot, GenomicDataFramePlot, HighlightAnnotation,

@@ -1675,7 +1675,10 @@ class Virtual4CPlot(BasePlotter1D):
     """
     Plot a 'virtual 4C' plot of the interactions of a specific genomic viewpoint as a 
     line plot. Extracts interactions from regions which overlap the viewpoint and 
-    plots the mean of these interactions. 
+    plots the mean of these interactions.
+
+    This plot is an alternative to the :class:`~fanc.plotting.HicSlicePlot` with
+    slightly different usage.
     """
     def __init__(self, hic, viewpoint, color='blue', alpha=1.0,
                  norm=True, oe=False, check_valid=True, excluded_filters=0, mask=True,
