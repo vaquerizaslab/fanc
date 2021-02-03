@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Plotting API &mdash; FAN-C 0.9.10-beta documentation</title>
+  <title>Plotting API &mdash; FAN-C 0.9.14-beta documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.9.10
+                0.9.14
               </div>
             
           
@@ -224,49 +224,52 @@
 <tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.HicSlicePlot" title="fanc.plotting.HicSlicePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicSlicePlot</span></code></a>(hic_data, slice_region[, …])</p></td>
 <td><p>Draw Hi-C data as virtual 4C-plot.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.HicPeakPlot" title="fanc.plotting.HicPeakPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicPeakPlot</span></code></a>(peaks[, radius, circle_props])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.Virtual4CPlot" title="fanc.plotting.Virtual4CPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Virtual4CPlot</span></code></a>(hic, viewpoint[, color, …])</p></td>
+<td><p>Plot a ‘virtual 4C’ plot of the interactions of a specific genomic viewpoint as a line plot.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.HicPeakPlot" title="fanc.plotting.HicPeakPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HicPeakPlot</span></code></a>(peaks[, radius, circle_props])</p></td>
 <td><p>Overlay peaks onto Hicplot or HicPlot2D.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.VerticalSplitPlot" title="fanc.plotting.VerticalSplitPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VerticalSplitPlot</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.VerticalSplitPlot" title="fanc.plotting.VerticalSplitPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VerticalSplitPlot</span></code></a></p></td>
 <td><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.plotting.plotter.MirrorMatrixPlot</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicVectorArrayPlot" title="fanc.plotting.GenomicVectorArrayPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicVectorArrayPlot</span></code></a>(array[, parameters, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenomicVectorArrayPlot" title="fanc.plotting.GenomicVectorArrayPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicVectorArrayPlot</span></code></a>(array[, parameters, …])</p></td>
 <td><p>Plot matrix from a <code class="xref py py-class docutils literal notranslate"><span class="pre">MultiVectorArchitecturalRegionFeature</span></code> object.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenomicRegionsPlot" title="fanc.plotting.GenomicRegionsPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicRegionsPlot</span></code></a>(regions[, attributes, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicRegionsPlot" title="fanc.plotting.GenomicRegionsPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicRegionsPlot</span></code></a>(regions[, attributes, …])</p></td>
 <td><p>Plot scalar values from one or more <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegions</span></code> objects</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicFeatureScorePlot" title="fanc.plotting.GenomicFeatureScorePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicFeatureScorePlot</span></code></a>(regions[, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenomicFeatureScorePlot" title="fanc.plotting.GenomicFeatureScorePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicFeatureScorePlot</span></code></a>(regions[, …])</p></td>
 <td><p>Plot discrete genomic regions from BED, GTF files or similar.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.FeatureLayerPlot" title="fanc.plotting.FeatureLayerPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FeatureLayerPlot</span></code></a>(features[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.FeatureLayerPlot" title="fanc.plotting.FeatureLayerPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FeatureLayerPlot</span></code></a>(features[, …])</p></td>
 <td><p>Plot genomic features in layers grouped by name/type..</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.GenomicDataFramePlot" title="fanc.plotting.GenomicDataFramePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicDataFramePlot</span></code></a>(genomic_data_frame[, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.GenomicDataFramePlot" title="fanc.plotting.GenomicDataFramePlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GenomicDataFramePlot</span></code></a>(genomic_data_frame[, …])</p></td>
 <td><p>Plot data from a table.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.HighlightAnnotation" title="fanc.plotting.HighlightAnnotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HighlightAnnotation</span></code></a>(bed[, plot1, plot2, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.HighlightAnnotation" title="fanc.plotting.HighlightAnnotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HighlightAnnotation</span></code></a>(bed[, plot1, plot2, …])</p></td>
 <td><p>Vertical lines or rectangles (shaded regions) which can be positioned at specific genomic coordinates from a BED file and can span multiple panels of the GenomicFigure.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.SymmetricNorm" title="fanc.plotting.SymmetricNorm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SymmetricNorm</span></code></a>([vmin, vmax, percentile])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.SymmetricNorm" title="fanc.plotting.SymmetricNorm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SymmetricNorm</span></code></a>([vmin, vmax, percentile])</p></td>
 <td><p>Normalizes data for plotting on a divergent colormap.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.LimitGroup" title="fanc.plotting.LimitGroup"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LimitGroup</span></code></a>([limit, sig])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.LimitGroup" title="fanc.plotting.LimitGroup"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LimitGroup</span></code></a>([limit, sig])</p></td>
 <td><p>Can be used for synchronizing axis limits across multiple plots.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.MirrorMatrixPlot" title="fanc.plotting.MirrorMatrixPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MirrorMatrixPlot</span></code></a>(top_plot, bottom_plot[, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.MirrorMatrixPlot" title="fanc.plotting.MirrorMatrixPlot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MirrorMatrixPlot</span></code></a>(top_plot, bottom_plot[, …])</p></td>
 <td><p>Stack two plots on top of each other, bottom plot inverted.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.distance_decay_plot" title="fanc.plotting.distance_decay_plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distance_decay_plot</span></code></a>(*matrices[, ax, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.distance_decay_plot" title="fanc.plotting.distance_decay_plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distance_decay_plot</span></code></a>(*matrices[, ax, …])</p></td>
 <td><p>An distance decay (expected values) plot.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">aggregate_plot</span></code>(aggregate_matrix[, labels, …])</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">aggregate_plot</span></code>(aggregate_matrix[, labels, …])</p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">saddle_plot</span></code>(ab_enrichment_matrix, cutoffs[, …])</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">saddle_plot</span></code>(ab_enrichment_matrix, cutoffs[, …])</p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#fanc.plotting.pca_plot" title="fanc.plotting.pca_plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pca_plot</span></code></a>(pca_res[, variance, eigenvectors, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#fanc.plotting.pca_plot" title="fanc.plotting.pca_plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pca_plot</span></code></a>(pca_res[, variance, eigenvectors, …])</p></td>
 <td><p>Plot the results of a Hi-C PCA analysis from <a class="reference internal" href="architecture/comparisons.html#fanc.architecture.comparisons.hic_pca" title="fanc.architecture.comparisons.hic_pca"><code class="xref py py-func docutils literal notranslate"><span class="pre">hic_pca()</span></code></a>.</p></td>
 </tr>
 </tbody>
@@ -310,27 +313,27 @@ example_data dictionary:</p>
 </pre></div>
 </div>
 </div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">kplot</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">fancplot</span>
 
 <span class="c1"># Create Hic plot</span>
-<span class="n">hplot</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">HicPlot</span><span class="p">(</span><span class="s2">&quot;fanc/test/data/test_network/rao2014.chr11_77400000_78600000.hic&quot;</span><span class="p">)</span>
+<span class="n">hplot</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">HicPlot</span><span class="p">(</span><span class="s2">&quot;fanc/test/data/test_network/rao2014.chr11_77400000_78600000.hic&quot;</span><span class="p">)</span>
 
 <span class="c1"># Create plot showing some CTCF ChIP-seq data from ENCODE</span>
-<span class="n">bplot</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;fanc/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig&quot;</span><span class="p">,</span>
+<span class="n">bplot</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;fanc/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig&quot;</span><span class="p">,</span>
                          <span class="n">title</span><span class="o">=</span><span class="s2">&quot;CTCF ChIP&quot;</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="s2">&quot;fold enrichment&quot;</span><span class="p">)</span>
 
 <span class="c1"># Create plot of all genes in the region. The squash option in combination</span>
 <span class="c1"># with the group_by option causes all exons of each gene to be merged.</span>
 <span class="c1"># This is useful if the number of alternative transcripts is overwhelming</span>
 <span class="c1"># the plot.</span>
-<span class="n">gplot</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">GenePlot</span><span class="p">(</span><span class="s2">&quot;fanc/test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz&quot;</span><span class="p">,</span>
+<span class="n">gplot</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenePlot</span><span class="p">(</span><span class="s2">&quot;fanc/test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz&quot;</span><span class="p">,</span>
                        <span class="n">group_by</span><span class="o">=</span><span class="s2">&quot;gene_name&quot;</span><span class="p">,</span> <span class="n">squash</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">show_labels</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
                        <span class="n">title</span><span class="o">=</span><span class="s2">&quot;mm10 genes&quot;</span><span class="p">)</span>
 
 <span class="c1"># The created plots are used to generate a figure by passing them as a list</span>
 <span class="c1"># to the GenomicFigure constructor. The order in which they are passed</span>
 <span class="c1"># determines the order of panels in the figure.</span>
-<span class="n">gfig</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">([</span><span class="n">hplot</span><span class="p">,</span> <span class="n">bplot</span><span class="p">,</span> <span class="n">gplot</span><span class="p">])</span>
+<span class="n">gfig</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">([</span><span class="n">hplot</span><span class="p">,</span> <span class="n">bplot</span><span class="p">,</span> <span class="n">gplot</span><span class="p">])</span>
 
 <span class="c1"># Plot a specific region of the genome</span>
 <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">gfig</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;chr11:77400000-78600000&quot;</span><span class="p">)</span>
@@ -374,9 +377,9 @@ fold-enrichment of the bigwig track.</p>
 <p>An explanation of each plot class and the parameters that it supports can be
 accessed by suffixing a question mark (in Ipython/Jupyter) or calling the
 help() function:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>import fanc.plotting as kplot
-kplot.BigWigPlot? # Ipython/Jupyter
-help(kplot.BigWigPlot) # standard python
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>import fanc.plotting as fancplot
+fancplot.BigWigPlot? # Ipython/Jupyter
+help(fancplot.BigWigPlot) # standard python
 </pre></div>
 </div>
 </div>
@@ -401,7 +404,7 @@ be inverted to maintain correct orientation.</p>
 no longer expects a single region as argument, but a list of regions equal to
 the number of plots in the figure. We can modify the example above to illustrate
 this point:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">gfig</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">([</span><span class="n">hplot</span><span class="p">,</span> <span class="n">bplot</span><span class="p">,</span> <span class="n">gplot</span><span class="p">],</span> <span class="n">independent_x</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">gfig</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">([</span><span class="n">hplot</span><span class="p">,</span> <span class="n">bplot</span><span class="p">,</span> <span class="n">gplot</span><span class="p">],</span> <span class="n">independent_x</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">gfig</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="s2">&quot;chr11:77400000-78600000&quot;</span><span class="p">,</span> <span class="s2">&quot;chr11:77500000-78600000&quot;</span><span class="p">,</span>
                        <span class="s2">&quot;chr11:77200000-78600000&quot;</span><span class="p">])</span>
 <span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
@@ -413,18 +416,18 @@ this point:</p>
 <p>Sometimes it can be useful to synchronize y-axis limits across multiple datasets
 in order to compare their signals. Many plot types support plotting multiple
 datasets in the same panel, making comparisons easy:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">bplot</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">([</span><span class="s2">&quot;dataset1.bigwig&quot;</span><span class="p">,</span> <span class="s2">&quot;dataset2.bigwig&quot;</span><span class="p">])</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">bplot</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">([</span><span class="s2">&quot;dataset1.bigwig&quot;</span><span class="p">,</span> <span class="s2">&quot;dataset2.bigwig&quot;</span><span class="p">])</span>
 </pre></div>
 </div>
 <p>Alternatively it is possible to synchronize y-axis limits across panels using
 <a class="reference internal" href="#fanc.plotting.LimitGroup" title="fanc.plotting.LimitGroup"><code class="xref py py-class docutils literal notranslate"><span class="pre">LimitGroup</span></code></a> instances. In this example the y-axis limits
 are shared between bplot1 and bplot2 and seperately between bplot3 and bplot4:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ygroup</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">LimitGroup</span><span class="p">()</span>
-<span class="n">ygroup2</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">LimitGroup</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
-<span class="n">bplot1</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;dataset1.bigwig&quot;</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">ygroup</span><span class="p">)</span>
-<span class="n">bplot2</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;dataset2.bigwig&quot;</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">ygroup</span><span class="p">)</span>
-<span class="n">bplot3</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;dataset3.bigwig&quot;</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">ygroup2</span><span class="p">)</span>
-<span class="n">bplot4</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;dataset4.bigwig&quot;</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">ygroup2</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ygroup</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">LimitGroup</span><span class="p">()</span>
+<span class="n">ygroup2</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">LimitGroup</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+<span class="n">bplot1</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;dataset1.bigwig&quot;</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">ygroup</span><span class="p">)</span>
+<span class="n">bplot2</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;dataset2.bigwig&quot;</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">ygroup</span><span class="p">)</span>
+<span class="n">bplot3</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;dataset3.bigwig&quot;</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">ygroup2</span><span class="p">)</span>
+<span class="n">bplot4</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">BigWigPlot</span><span class="p">(</span><span class="s2">&quot;dataset4.bigwig&quot;</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">ygroup2</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>It is also possible to constrain the y-axis limits. Passing <code class="docutils literal notranslate"><span class="pre">limit=(None,</span> <span class="pre">10)</span></code>
@@ -437,10 +440,10 @@ the lower limit unconstrained.</p>
 <p>fanc plotting is ideally suited for programmatic generation of many plots or
 dynamic assembly of multiple datasets in a single figure. In this example three
 Hi-C datasets are visualized in a single figure:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">kplot</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">fancplot</span>
 <span class="n">hic_datasets</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;my_data1.hic&quot;</span><span class="p">,</span> <span class="s2">&quot;my_data2.hic&quot;</span><span class="p">,</span> <span class="n">my_data3</span><span class="o">.</span><span class="n">hic</span><span class="s2">&quot;]</span>
-<span class="n">hic_plots</span> <span class="o">=</span> <span class="p">[</span><span class="n">kplot</span><span class="o">.</span><span class="n">HicPlot</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">max_dist</span><span class="o">=</span><span class="mi">500000</span><span class="p">)</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">hic_datasets</span><span class="p">]</span>
-<span class="n">gfig</span> <span class="o">=</span> <span class="n">kplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">(</span><span class="n">hic_plots</span><span class="p">)</span>
+<span class="n">hic_plots</span> <span class="o">=</span> <span class="p">[</span><span class="n">fancplot</span><span class="o">.</span><span class="n">HicPlot</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">max_dist</span><span class="o">=</span><span class="mi">500000</span><span class="p">)</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">hic_datasets</span><span class="p">]</span>
+<span class="n">gfig</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenomicFigure</span><span class="p">(</span><span class="n">hic_plots</span><span class="p">)</span>
 <span class="n">regions</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;chr11:77400000-78600000&quot;</span><span class="p">,</span> <span class="s2">&quot;chr11:1100000-13600000&quot;</span><span class="p">]</span>
 <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">regions</span><span class="p">:</span>
     <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">gfig</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
@@ -713,6 +716,69 @@ Default: False</p></li>
 <li><p><strong>n_yticks</strong> (<em>int</em>) – Number of y-axis ticks. If only the maximum
 tick should be displayed set condensed to True.
 Default: 3</p></li>
+<li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
+<li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
+<li><p><strong>aspect</strong> (<em>float</em>) – Aspect ratio of the plot, height/width.
+So 0.5 means half as high as wide.
+Default: Plot type specific sensible value</p></li>
+<li><p><strong>axes_style</strong> – Set styling of the axes, can be anything
+that seaborn supports. See
+<a class="reference external" href="http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style">http://seaborn.pydata.org/tutorial/aesthetics.html#styling-figures-with-axes-style-and-set-style</a></p></li>
+<li><p><strong>ylabel</strong> (<em>str</em>) – Label for y-axis. Default: None</p></li>
+<li><p><strong>draw_ticks</strong> (<em>bool</em>) – Draw tickmarks. Default: True</p></li>
+<li><p><strong>draw_major_ticks</strong> (<em>bool</em>) – Draw major tickmarks. Default: True</p></li>
+<li><p><strong>draw_minor_ticks</strong> (<em>bool</em>) – Draw minor tickmarks. Default: True</p></li>
+<li><p><strong>draw_tick_labels</strong> (<em>bool</em>) – Draw tick labels. Default: True</p></li>
+<li><p><strong>draw_x_axis</strong> (<em>bool</em>) – If False, remove genome x-axis completely.
+Default: True</p></li>
+<li><p><strong>draw_tick_legend</strong> (<em>bool</em>) – Draw legend for the tick distances. Default: True</p></li>
+<li><p><strong>padding</strong> (<em>float</em>) – Padding in inches to the next plot. Default: None,
+automatically calculated.</p></li>
+<li><p><strong>extra_padding</strong> (<em>float</em>) – Add or subtract the specified inches from
+the automatically calculated padding from
+this panel to the next.</p></li>
+<li><p><strong>fix_chromosome</strong> (<em>bool</em>) – If True modify chromosome identifiers for this plot,
+removing or adding ‘chr’ as necessary. Default: False</p></li>
+<li><p><strong>invert_x</strong> (<em>bool</em>) – Invert x-axis. Default=False
+Caution: This only works reliably when <code class="docutils literal notranslate"><span class="pre">independent_x=True</span></code>
+in the GenomicFigure instance, since x-axis of all plots
+are linked otherwise.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – Matplotlib axes instance that the plot will be drawn on.
+Only necessary if you don’t intend to use a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicFigure</span></code> to draw the
+plot. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fanc.plotting.Virtual4CPlot">
+<em class="property">class </em><code class="sig-prename descclassname">fanc.plotting.</code><code class="sig-name descname">Virtual4CPlot</code><span class="sig-paren">(</span><em class="sig-param">hic</em>, <em class="sig-param">viewpoint</em>, <em class="sig-param">color='blue'</em>, <em class="sig-param">alpha=1.0</em>, <em class="sig-param">norm=True</em>, <em class="sig-param">oe=False</em>, <em class="sig-param">check_valid=True</em>, <em class="sig-param">excluded_filters=0</em>, <em class="sig-param">mask=True</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.Virtual4CPlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot a ‘virtual 4C’ plot of the interactions of a specific genomic viewpoint as a
+line plot. Extracts interactions from regions which overlap the viewpoint and
+plots the mean of these interactions.</p>
+<p>This plot is an alternative to the <a class="reference internal" href="#fanc.plotting.HicSlicePlot" title="fanc.plotting.HicSlicePlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">HicSlicePlot</span></code></a> with
+slightly different usage.</p>
+<dl class="method">
+<dt id="fanc.plotting.Virtual4CPlot.__init__">
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param">hic</em>, <em class="sig-param">viewpoint</em>, <em class="sig-param">color='blue'</em>, <em class="sig-param">alpha=1.0</em>, <em class="sig-param">norm=True</em>, <em class="sig-param">oe=False</em>, <em class="sig-param">check_valid=True</em>, <em class="sig-param">excluded_filters=0</em>, <em class="sig-param">mask=True</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.plotting.Virtual4CPlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hic</strong> – <code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrix</span></code>.</p></li>
+<li><p><strong>viewpoint</strong> – Viewpoint to use for virtual 4C. String, e.g.
+“2L:1000000-1500000” or <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>.</p></li>
+<li><p><strong>color</strong> – Line colour to use for plotting. Default: blue.</p></li>
+<li><p><strong>alpha</strong> – Transparency to use for plotting. Default: 1.0.</p></li>
+<li><p><strong>norm</strong> – Use normalised values from Hi-C matrix. Default: True.</p></li>
+<li><p><strong>oe</strong> – Use observed/expected values. Default: False.</p></li>
+<li><p><strong>mask</strong> – Use values from masked Hi-C matrix. Default: True.</p></li>
+<li><p><strong>check_valid</strong> – Parameter for Hi-C matrix extraction. Default: True.</p></li>
+<li><p><strong>excluded_filters</strong> – Parameter for Hi-C matrix extraction. Default: 0.</p></li>
 <li><p><strong>n_ticks</strong> (<em>int</em>) – Number of major x-axis genome coordinate ticks</p></li>
 <li><p><strong>n_minor_ticks</strong> (<em>int</em>) – Number of minor ticks per major tick</p></li>
 <li><p><strong>title</strong> (<em>str</em>) – Title drawn on top of the figure panel.</p></li>
