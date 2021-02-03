@@ -45,27 +45,27 @@ to the top-level fanc directory where the setup.py file is located.
 
 .. code:: python
 
-    import fanc.plotting as kplot
+    import fanc.plotting as fancplot
 
     # Create Hic plot
-    hplot = kplot.HicPlot("fanc/test/data/test_network/rao2014.chr11_77400000_78600000.hic")
+    hplot = fancplot.HicPlot("fanc/test/data/test_network/rao2014.chr11_77400000_78600000.hic")
 
     # Create plot showing some CTCF ChIP-seq data from ENCODE
-    bplot = kplot.BigWigPlot("fanc/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig",
+    bplot = fancplot.BigWigPlot("fanc/test/data/test_plotting/CTCF_ChIP_FE_chr11_77-80Mb_mouse_embryo_fibroblasts.bigwig",
                              title="CTCF ChIP", ylabel="fold enrichment")
 
     # Create plot of all genes in the region. The squash option in combination
     # with the group_by option causes all exons of each gene to be merged.
     # This is useful if the number of alternative transcripts is overwhelming
     # the plot.
-    gplot = kplot.GenePlot("fanc/test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz",
+    gplot = fancplot.GenePlot("fanc/test/data/test_plotting/genes_mm10_chr11_77-80Mb.gtf.gz",
                            group_by="gene_name", squash=True, show_labels=False,
                            title="mm10 genes")
 
     # The created plots are used to generate a figure by passing them as a list
     # to the GenomicFigure constructor. The order in which they are passed
     # determines the order of panels in the figure.
-    gfig = kplot.GenomicFigure([hplot, bplot, gplot])
+    gfig = fancplot.GenomicFigure([hplot, bplot, gplot])
 
     # Plot a specific region of the genome
     fig, axes = gfig.plot("chr11:77400000-78600000")
@@ -113,9 +113,9 @@ Basic Plot types and options
 
     .. code::
 
-        import fanc.plotting as kplot
-        kplot.BigWigPlot? # Ipython/Jupyter
-        help(kplot.BigWigPlot) # standard python
+        import fanc.plotting as fancplot
+        fancplot.BigWigPlot? # Ipython/Jupyter
+        help(fancplot.BigWigPlot) # standard python
 
 
 A few basic parameters such as a title and the aspect ratio are available for
@@ -146,7 +146,7 @@ this point:
 
 .. code:: python
 
-    gfig = kplot.GenomicFigure([hplot, bplot, gplot], independent_x=True)
+    gfig = fancplot.GenomicFigure([hplot, bplot, gplot], independent_x=True)
     fig, axes = gfig.plot(["chr11:77400000-78600000", "chr11:77500000-78600000",
                            "chr11:77200000-78600000"])
     fig.show()
@@ -160,7 +160,7 @@ datasets in the same panel, making comparisons easy:
 
 .. code:: python
 
-    bplot = kplot.BigWigPlot(["dataset1.bigwig", "dataset2.bigwig"])
+    bplot = fancplot.BigWigPlot(["dataset1.bigwig", "dataset2.bigwig"])
 
 Alternatively it is possible to synchronize y-axis limits across panels using
 :class:`~fanc.plotting.LimitGroup` instances. In this example the y-axis limits
@@ -168,12 +168,12 @@ are shared between bplot1 and bplot2 and seperately between bplot3 and bplot4:
 
 .. code:: python
 
-    ygroup = kplot.LimitGroup()
-    ygroup2 = kplot.LimitGroup(limit=(None, 10))
-    bplot1 = kplot.BigWigPlot("dataset1.bigwig", ylim=ygroup)
-    bplot2 = kplot.BigWigPlot("dataset2.bigwig", ylim=ygroup)
-    bplot3 = kplot.BigWigPlot("dataset3.bigwig", ylim=ygroup2)
-    bplot4 = kplot.BigWigPlot("dataset4.bigwig", ylim=ygroup2)
+    ygroup = fancplot.LimitGroup()
+    ygroup2 = fancplot.LimitGroup(limit=(None, 10))
+    bplot1 = fancplot.BigWigPlot("dataset1.bigwig", ylim=ygroup)
+    bplot2 = fancplot.BigWigPlot("dataset2.bigwig", ylim=ygroup)
+    bplot3 = fancplot.BigWigPlot("dataset3.bigwig", ylim=ygroup2)
+    bplot4 = fancplot.BigWigPlot("dataset4.bigwig", ylim=ygroup2)
 
 It is also possible to constrain the y-axis limits. Passing ``limit=(None, 10)``
 to the constructor constrains the upper limit to a maximum of 10 while leaving
@@ -188,10 +188,10 @@ Hi-C datasets are visualized in a single figure:
 
 .. code:: python
 
-    import fanc.plotting as kplot
+    import fanc.plotting as fancplot
     hic_datasets = ["my_data1.hic", "my_data2.hic", my_data3.hic"]
-    hic_plots = [kplot.HicPlot(h, max_dist=500000) for h in hic_datasets]
-    gfig = kplot.GenomicFigure(hic_plots)
+    hic_plots = [fancplot.HicPlot(h, max_dist=500000) for h in hic_datasets]
+    gfig = fancplot.GenomicFigure(hic_plots)
     regions = ["chr11:77400000-78600000", "chr11:1100000-13600000"]
     for r in regions:
         fig, axes = gfig.plot(r)
