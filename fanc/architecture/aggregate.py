@@ -739,7 +739,11 @@ def _loop_matrix_iterator(hic, loop_regions, pixels=16,
             r1.end += right * bin_size
             r2.start -= left * bin_size
             r2.end += right * bin_size
-            region_pairs.append((r1, r2))
+            
+            if r1.ix <= r2.ix:
+                region_pairs.append((r1, r2))
+            else:
+                region_pairs.append((r2, r1))
         except IndexError:
             invalid += 1
             region_pairs.append((None, None))
