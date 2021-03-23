@@ -1,3 +1,8 @@
+0.9.15
+
+- Option to plot aggregate loops below or above matrix diagonal
+- Warn, but no longer crash on too small chromosomes in compartments EV calculation
+
 0.9.14
 
 - Fixed a multiprocessing issue with fanc map
