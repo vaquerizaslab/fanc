@@ -9,6 +9,7 @@ from ..config import config
 from ..regions import Genome
 from future.utils import string_types
 from Bio.SeqUtils import GC as calculate_gc_content
+import warnings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -207,9 +208,20 @@ class ABCompartmentMatrix(RegionMatrixTable):
                     # v might end up being masked
                     if hasattr(v, 'mask'):
                         v.mask = False
-                    ab_vector = v[:, eigenvector]
-                    for i, region in enumerate(m.row_regions):
-                        ev[region.ix] = ab_vector[i]
+
+                    if v.shape[1] <= eigenvector:
+                        warning_text = 'Cannot extract EV {} from chromosome {}, ' \
+                                       'because it is too small. ' \
+                                       'Setting EV values on this chromosome ' \
+                                       'to NaN.'.format(eigenvector, chromosome_sub)
+                        warnings.warn(warning_text)
+                        logger.warning(warning_text)
+                        for i, region in enumerate(m.row_regions):
+                            ev[region.ix] = np.nan
+                    else:
+                        ab_vector = v[:, eigenvector]
+                        for i, region in enumerate(m.row_regions):
+                            ev[region.ix] = ab_vector[i]
             else:
                 m = self.matrix()
                 m[np.isnan(m)] = 0
