@@ -1191,7 +1191,7 @@ def hic_parser():
              'all regions in chromosomes 1 and 3, plus all '
              'contacts within chromosome 1, all contacts within '
              'chromosome 3, and all contacts between chromosome '
-             '1 and 3. "chr1" will only contain regions and contacts'
+             '1 and 3. "chr1" will only contain regions and contacts '
              'within chromosome 1.'
     )
 
@@ -4494,6 +4494,14 @@ def aggregate_parser():
         default=False,
         help='Flip submatrix if region is on the negative strand.'
     )
+    
+    parser.add_argument(
+        '--lower-triangular-plot', dest='lower_triangular',
+        action='store_true',
+        default=False,
+        help='Invert the aggregate plot so it corresponds to '
+             'the lower triangle of the Hi-C matrix.'
+    )
 
     parser.add_argument(
         '--labels', dest='labels',
@@ -4547,6 +4555,7 @@ def aggregate(argv, **kwargs):
     orient_strand = args.orient_strand
     labels = args.labels if args.labels is None else args.labels.split(",")
     label_locations = [float(loc) for loc in args.label_locations.split(",")]
+    lower_triangular = args.lower_triangular
     tmp = args.tmp
 
     presets = sum([tads_preset, tads_imakaev_preset, loops_preset])
@@ -4713,7 +4722,8 @@ def aggregate(argv, **kwargs):
                 fig, ax = plt.subplots()
                 aggregate_plot(aggregate_matrix, labels=labels, vmin=vmin, vmax=vmax,
                                oe=oe, log=log, colormap=colormap, ax=ax,
-                               relative_label_locations=label_locations)
+                               relative_label_locations=label_locations,
+                               lower_triangular=lower_triangular)
                 fig.savefig(plot_file)
                 plt.close(fig)
     finally:

@@ -349,7 +349,8 @@ def pca_plot(pca_res, variance=None, eigenvectors=(0, 1),
 
 def aggregate_plot(aggregate_matrix, labels=None, vmin=None, vmax=None,
                    oe=False, log=False, colormap='bwr', ax=None, cax=None,
-                   relative_label_locations=(0, 0.5, 1), plot_colorbar=True):
+                   relative_label_locations=(0, 0.5, 1), plot_colorbar=True,
+                   lower_triangular=False):
     if ax is None:
         ax = plt.gca()
 
@@ -378,7 +379,16 @@ def aggregate_plot(aggregate_matrix, labels=None, vmin=None, vmax=None,
     ax.set_xticklabels(labels)
     ax.set_yticks(ticks)
     ax.set_yticklabels(labels)
-    ax.set_ylim(ax.get_xlim())
+    
+    # ensure same axis limits
+    # need invert x here or plot will not be intuitive
+    # due to imshow origin location in the top left corner
+    ax.set_ylim(ax.get_xlim()[::-1])
+    
+    # for lower triangular just flip the matrix both ways
+    if lower_triangular:
+        ax.set_xlim(ax.get_xlim()[::-1])
+        ax.set_ylim(ax.get_ylim()[::-1])
 
     return ax
 
