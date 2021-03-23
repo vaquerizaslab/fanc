@@ -702,6 +702,11 @@ class RegionPairsContainer(RegionBased):
                         raise ValueError("Cannot perform O/E transformation because this object does not "
                                          "support the expected_values function!")
                     expected_genome, expected_intra, expected_inter = self._regions_pairs.expected_values(norm=norm)
+                    if not oe_per_chromosome and expected_genome is None:
+                        raise ValueError("Expected values were not calculated for the whole genome. "
+                                         "Please note that this option "
+                                         "is only supported for FAN-C Hi-C files. If this is a FAN-C file, "
+                                         "please report this as a bug.")
                 else:
                     expected_genome, expected_intra, expected_inter = None, None, None
 
