@@ -1,3 +1,7 @@
+0.9.17
+
+- Fix boundaries command so it works on all region-based files (BED, GFF, BigWig, ...)
+
 0.9.16
 
 - Fix Matplotlib error due to existing default colormaps
