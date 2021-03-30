@@ -223,10 +223,6 @@ if config['pdf_font_as_text']:
 
 sns.set_style("ticks")
 
-plt.register_cmap(name='viridis', cmap=viridis)
-plt.register_cmap(name='plasma', cmap=plasma)
-plt.register_cmap(name='inferno', cmap=inferno)
-plt.register_cmap(name='magma', cmap=magma)
 plt.register_cmap(name='RdBuWhitespace_r', cmap=fc_cmap)
 plt.register_cmap(name='germany', cmap=germany_cmap)
 plt.register_cmap(name='germany_r', cmap=germany_r)
