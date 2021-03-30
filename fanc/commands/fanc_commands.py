@@ -3102,7 +3102,8 @@ def boundaries_parser():
 
     parser.add_argument(
         'input',
-        help='Input InsulationScores or regions file'
+        help='Input InsulationScores or region-based file with scores ' 
+             '(BED, BigWig, ...)'
     )
 
     parser.add_argument(
