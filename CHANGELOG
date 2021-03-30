@@ -1,3 +1,7 @@
+0.9.16
+
+- Fix Matplotlib error due to existing default colormaps
+
 0.9.15
 
 - Option to plot aggregate loops below or above matrix diagonal
