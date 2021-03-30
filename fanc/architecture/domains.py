@@ -1,4 +1,4 @@
-from genomic_regions import GenomicRegion
+from genomic_regions import GenomicRegion, RegionBased
 from .maxima_callers import MaximaCallerDelta
 from .helpers import RegionScoreMatrix
 from ..regions import RegionsTable
@@ -584,11 +584,19 @@ class Boundaries(RegionScoreTable):
         :return: list of :class:`~fanc.data.genomic.GenomicRegion`
         """
         if isinstance(insulation_score, InsulationScores):
+            logger.debug("Found multiple insulation scores, extracting window size {}".format(window_size))
             if window_size is None:
                 raise ValueError("Must provide window size!")
             index = list(insulation_score.region_data('insulation_{}'.format(window_size)))
+            regions = list(insulation_score.regions)
+        elif isinstance(insulation_score, RegionBased):
+            logger.debug("Found RegionBased object, extracting regions and scores")
+            index = [getattr(r, score_field) for r in insulation_score.regions]
+            regions = list(insulation_score.regions)
         else:
-            index = list(insulation_score.region_data(score_field))
+            logger.debug("Assuming region iterator")
+            index = [getattr(r, score_field) for r in insulation_score]
+            regions = list(insulation_score)
 
         if log:
             index = np.log2(index)
@@ -597,7 +605,7 @@ class Boundaries(RegionScoreTable):
             minima, scores = peaks.get_maxima()
         else:
             minima, scores = peaks.get_minima()
-        regions = list(insulation_score.regions)
+        #regions = list(insulation_score.regions)
 
         boundaries = []
         for i, ix in enumerate(minima):

@@ -3191,39 +3191,53 @@ def boundaries(argv, **kwargs):
     from fanc.architecture.domains import InsulationScores, InsulationScore, Boundaries
     from fanc.architecture.comparisons import ComparisonScores
 
-    insulation = fanc.load(input_file, mode='r')
+    insulation = None
+    try:
+        insulation = fanc.load(input_file, mode='r')
+        if isinstance(insulation, InsulationScores) or isinstance(insulation, ComparisonScores):
+            if windows is None:
+                windows = insulation.window_sizes
+            else:
+                windows = [str_to_int(window) for window in windows.split(",")]
 
-    if isinstance(insulation, InsulationScores) or isinstance(insulation, ComparisonScores):
-        if windows is None:
-            windows = insulation.window_sizes
-        else:
-            windows = [str_to_int(window) for window in windows.split(",")]
+            if len(windows) > 1:
+                for window in windows:
+                    regions = insulation.score_regions(window)
+                    try:
+                        b = Boundaries.from_insulation_score(regions, min_score=min_score,
+                                                            delta_window=delta,
+                                                            sub_bin_precision=sub_bin_precision,
+                                                            log=log, call_maxima=maxima)
+                        regions.close()
+                        b.to_bed('{}_{}b.bed'.format(output_path, human_format(window, lowercase=True)))
+                    finally:
+                        b.close()
+            else:
+                regions = insulation.score_regions(windows[0])
+                try:
+                    b = Boundaries.from_insulation_score(regions, min_score=min_score,
+                                                        delta_window=delta,
+                                                        sub_bin_precision=sub_bin_precision,
+                                                        log=log, call_maxima=maxima)
+                    b.to_bed(output_path)
+                finally:
+                    b.close()
 
-        if len(windows) > 1:
-            for window in windows:
-                regions = insulation.score_regions(window)
+        elif isinstance(insulation, InsulationScore) or isinstance(insulation, gr.RegionBased):
+            regions = insulation.regions
+            try:
                 b = Boundaries.from_insulation_score(regions, min_score=min_score,
-                                                     delta_window=delta,
-                                                     sub_bin_precision=sub_bin_precision,
-                                                     log=log, call_maxima=maxima)
-                b.to_bed('{}_{}b.bed'.format(output_path, human_format(window, lowercase=True)))
+                                                    delta_window=delta,
+                                                    sub_bin_precision=sub_bin_precision,
+                                                    log=log, call_maxima=maxima)
+                b.to_bed(output_path)
+            finally:
+                b.close()
         else:
-            regions = insulation.score_regions(windows[0])
-            b = Boundaries.from_insulation_score(regions, min_score=min_score,
-                                                 delta_window=delta,
-                                                 sub_bin_precision=sub_bin_precision,
-                                                 log=log, call_maxima=maxima)
-            b.to_bed(output_path)
-
-    elif isinstance(insulation, InsulationScore) or isinstance(insulation, gr.RegionBased):
-        regions = insulation.regions
-        b = Boundaries.from_insulation_score(regions, min_score=min_score,
-                                             delta_window=delta,
-                                             sub_bin_precision=sub_bin_precision,
-                                             log=log, call_maxima=maxima)
-        b.to_bed(output_path)
-    else:
-        parser.error("Cannot recognise input file format!")
+            parser.error("Cannot recognise input file format!")
+    finally:
+        if insulation is not None:
+            insulation.close()
 
     logger.info("All done.")
 
