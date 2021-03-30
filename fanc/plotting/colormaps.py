@@ -531,11 +531,7 @@ _white_red_data = [[0.88118374, 0.22608963, 0.18798393],
                       [1.0, 1.0, 1.0]]
 
 cmaps = {}
-for (name, data) in (('magma', _magma_data),
-                     ('inferno', _inferno_data),
-                     ('plasma', _plasma_data),
-                     ('viridis', _viridis_data),
-                     ('germany', _germany_data),
+for (name, data) in (('germany', _germany_data),
                      ('germany_r', _germany_data[::-1]),
                      ('white_red', _white_red_data[::-1]),
                      ('white_red_r', _white_red_data)):
@@ -624,10 +620,6 @@ def reverse_colormap(cmap, name='my_cmap_r'):
 
 fc_cmap = reverse_colormap(fc_cmap_r, 'RdBuWhitespace')
 
-magma = cmaps['magma']
-inferno = cmaps['inferno']
-plasma = cmaps['plasma']
-viridis = cmaps['viridis']
 germany_cmap = cmaps['germany']
 germany_r = cmaps['germany_r']
 white_red = cmaps['white_red']
