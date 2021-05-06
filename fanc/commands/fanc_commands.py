@@ -402,11 +402,14 @@ def map(argv, **kwargs):
                     map.iterative_mapping(input_file, output_file, mapper, threads=threads,
                                           min_size=min_size, step_size=step_size, batch_size=batch_size,
                                           trim_front=trim_front, restriction_enzyme=restriction_enzyme)
+                    logger.debug("Mapping complete")
                 finally:
                     if tmp:
+                        logger.debug("Removing tmp files")
                         os.remove(input_file)
                         shutil.copy(output_file, original_output_file)
                         os.remove(output_file)
+                    logger.debug("Closing mapper")
                     mapper.close()
             else:
                 from fanc.tools.files import split_fastq, merge_sam, gzip_splitext
@@ -455,6 +458,7 @@ def map(argv, **kwargs):
                     shutil.rmtree(split_tmpdir, ignore_errors=True)
     finally:
         if tmp:
+            logger.debug("Removing index dir")
             shutil.rmtree(index_dir, ignore_errors=True)
 
 
