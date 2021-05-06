@@ -520,17 +520,18 @@ class BwaMapper(Mapper):
         return False
 
     def close(self):
-        logger.debug("Deleting shared memory index")
-        try:
-            with open(os.devnull, 'w') as f_null:
-                ret = subprocess.call(['pgrep', '-x', 'bwa'], stderr=subprocess.STDOUT, stdout=f_null)
-                if ret == 1:
-                    ret2 = subprocess.call(['bwa', 'shm', '-d'], stderr=subprocess.STDOUT, stdout=f_null)
-                    if ret2 == 0:
-                        logger.debug("Deleted memory mapped BWA index")
+        if self.memory_map:
+            logger.debug("Deleting shared memory index")
+            try:
+                with open(os.devnull, 'w') as f_null:
+                    ret = subprocess.call(['pgrep', '-x', 'bwa'], stderr=subprocess.STDOUT, stdout=f_null)
+                    if ret == 1:
+                        ret2 = subprocess.call(['bwa', 'shm', '-d'], stderr=subprocess.STDOUT, stdout=f_null)
+                        if ret2 == 0:
+                            logger.debug("Deleted memory mapped BWA index")
 
-        except FileNotFoundError:
-            pass
+            except FileNotFoundError:
+                pass
 
 
 class SimpleBwaMapper(BwaMapper):
