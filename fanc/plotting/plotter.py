@@ -968,11 +968,13 @@ class LinePlot(RegionPlotBase):
         self.lines = []
         self.fills = []
         self.fill = fill
-        if isinstance(colors, dict):
+        if isinstance(colors, string_types):
+            colors = [colors]
+        elif isinstance(colors, dict):
             if self.labels is None:
                 raise ValueError("Colors can only be assigned as dict of labels are present")
             colors = [colors[l] for l in self.labels]
-        if colors is None:
+        elif colors is None:
             colors = ('red', 'blue', 'green', 'purple', 'yellow', 'black', 'orange', 'pink', 'cyan', 'lawngreen')
 
         self.colors = itertools.cycle(colors)
