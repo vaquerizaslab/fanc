@@ -1,3 +1,8 @@
+0.9.18
+
+- Fix LinePlot color handling
+- Fix hanging of fanc map in some cluster setups
+
 0.9.17
 
 - Fix boundaries command so it works on all region-based files (BED, GFF, BigWig, ...)
