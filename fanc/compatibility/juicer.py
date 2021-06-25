@@ -679,6 +679,7 @@ class JuicerHic(RegionMatrixContainer):
         chromosomes = self.chromosomes()
         chromosome_index = chromosomes.index(chromosome) + 1
 
+        existing_normalisations = set()
         with open(self._hic_file, 'rb') as req:
             JuicerHic._skip_to_normalisation_vectors(req)
 
@@ -690,6 +691,7 @@ class JuicerHic(RegionMatrixContainer):
                 entry_resolution = struct.unpack('<i', req.read(4))[0]
                 file_position = struct.unpack('<q', req.read(8))[0]
                 req.read(4)  # skip size in bytes
+                existing_normalisations.add(entry_normalisation)
 
                 if (entry_chromosome_index == chromosome_index and
                         entry_normalisation == normalisation and
@@ -703,9 +705,21 @@ class JuicerHic(RegionMatrixContainer):
                         vector.append(v)
 
                     return vector
-        raise ValueError("Cannot find normalisation vector that matches "
-                         "chromosome: {}, normalisation: {}, "
-                         "resolution: {}, unit: {}".format(chromosome, normalisation, resolution, unit))
+        
+        if normalisation not in existing_normalisations:
+            raise ValueError("Cannot find normalisation '{}'".format(normalisation))
+        
+        warnings.warn("Cannot find normalisation vector for "
+                      "chromosome: {chromosome}, normalisation: {norm}, "
+                      "resolution: {res}, unit: {unit}. This could "
+                      "indicate that {norm} normalisation did not "
+                      "work for this chromosome. Will return NaN instead.".format(
+                          chromosome=chromosome, norm=normalisation, 
+                          res=resolution, unit=unit
+                          )
+                      )
+        c_bins = self.chromosome_bins[chromosome]
+        return np.repeat(np.nan, c_bins[1] - c_bins[0])
 
     def region_by_ix(self, ix):
         chromosome_lengths = self.chromosome_lengths
