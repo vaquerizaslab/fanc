@@ -76,7 +76,8 @@ class ABCompartmentMatrix(RegionMatrixTable):
 
     @classmethod
     def from_hic(cls, hic, file_name=None, tmpdir=None,
-                 per_chromosome=True, oe_per_chromosome=None):
+                 per_chromosome=True, oe_per_chromosome=None,
+                 exclude_chromosomes=None):
         """
         Generate an AB compartment matrix from a Hi-C object.
 
@@ -88,7 +89,8 @@ class ABCompartmentMatrix(RegionMatrixTable):
                                profile on the whole matrix - make sure your normalisation
                                is suitable for this (i.e. whole matrix!)
         :param oe_per_chromosome: Use the expected value vector matching each chromosome.
-                                  Do not modify this unless you know what you are doing.
+                                  Do not modify this unless you know what you are doing.+
+        :param exclude_chromosomes: Exclude these chromosomes from compartment calculations.
         :return: :class:`~fanc.architecture.compartments.ABCompartmentMatrix` object
         """
         ab_matrix = cls(file_name=file_name, mode='w', tmpdir=tmpdir)
@@ -103,6 +105,9 @@ class ABCompartmentMatrix(RegionMatrixTable):
             with RareUpdateProgressBar(max_value=len(chromosomes), silent=config.hide_progressbars,
                                        prefix="AB") as pb:
                 for chr_ix, chromosome in enumerate(chromosomes):
+                    if exclude_chromosomes is not None and chromosome in exclude_chromosomes:
+                        continue
+                    
                     m = hic.matrix((chromosome, chromosome), oe=True, oe_per_chromosome=oe_per_chromosome)
                     with np.errstate(divide='ignore', invalid='ignore'):
                         corr_m = np.corrcoef(m)
@@ -249,7 +254,10 @@ class ABCompartmentMatrix(RegionMatrixTable):
 
                     if chromosome_sub not in genome_chromosomes:
                         raise ValueError("Chromosome {} not found in genome. "
-                                         "Are you using the correct genome file?")
+                                         "Are you using the correct genome "
+                                         "file? (Juicer files remove the 'chr' "
+                                         "prefix from chromosomes, you may have "
+                                         "to modify your genome files)".format(chromosome_sub))
                     chromosome_sequence = genome[chromosome_sub].sequence
                     for region in self.regions(chromosome_sub):
                         s = chromosome_sequence[region.start - 1:region.end]

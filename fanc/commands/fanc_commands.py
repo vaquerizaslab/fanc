@@ -237,7 +237,7 @@ def map_parser():
         action='store_true',
         default=False,
         help='Map Bowtie2 index to memory. ' 
-             'Enable if you you system has enough memory '
+             'Only enable if your system has enough memory '
              'to hold the entire Bowtie2 index.'
     )
 
@@ -3899,6 +3899,7 @@ def compartments_parser():
         '-x', '--enrichment-exclude', dest='exclude',
         nargs='+',
         help='Chromosome names to exclude from '
+             'AB compartment and '
              'enrichment profile calculation'
     )
 
@@ -4015,7 +4016,8 @@ def compartments(argv, **kwargs):
                 logger.info("Computing AB compartment matrix")
                 ab_matrix = ABCompartmentMatrix.from_hic(matrix,
                                                          file_name=output_file, tmpdir=tmp,
-                                                         per_chromosome=not whole_genome)
+                                                         per_chromosome=not whole_genome,
+                                                         exclude_chromosomes=exclude)
         else:
             matrix.close()
             matrix = None
