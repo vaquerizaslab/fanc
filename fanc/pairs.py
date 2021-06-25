@@ -2035,6 +2035,22 @@ class ReadPairs(RegionPairsTable):
 
         pair_stats['total'] = sum(t._original_len() for t in self._pairs)
         return pair_stats
+    
+    @classmethod
+    def merge(cls, pairs, *args, **kwargs):
+        merged_pairs = super(ReadPairs, cls).merge(pairs, *args, **kwargs)
+        
+        read_stats = defaultdict(int)
+        for pair in pairs:
+            try:
+                for key, value in pair.meta.read_filter_stats.items():
+                    read_stats[key] += value
+            except AttributeError:
+                pass
+            
+        merged_pairs.meta.read_filter_stats = read_stats
+        
+        return merged_pairs
 
 
 class FragmentReadPair(object):
