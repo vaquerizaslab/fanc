@@ -1,3 +1,8 @@
+0.9.19
+
+- Copy read filtering stats when merging pairs files
+- Fix missing normalisation vector info that affects some Juicer files
+
 0.9.18
 
 - Fix LinePlot color handling
