@@ -819,11 +819,14 @@ class JuicerHic(RegionMatrixContainer):
 
         cl = self.chromosome_lengths[region.chromosome]
         norm = self.normalisation_vector(region.chromosome)
-        for i, start in enumerate(range(subset_start, int(region.end), self._resolution)):
+        for i, start in enumerate(range(subset_start, min(cl, region.end), self._resolution)):
             end = min(start + self._resolution - 1, cl, region.end)
             bias_ix = int(start / self._resolution)
 
-            if np.isnan([i]) or norm[i] == 0:
+            if bias_ix >= len(norm):
+                break
+            
+            if np.isnan(norm[bias_ix]) or norm[bias_ix] == 0:
                 valid = False
                 bias = 1.0
             else:
