@@ -195,6 +195,8 @@ class ABCompartmentMatrix(RegionMatrixTable):
             exclude_chromosomes = set()
         else:
             exclude_chromosomes = set(exclude_chromosomes)
+        
+        logger.debug("Excluding chromosomes: {}".format(exclude_chromosomes))
 
         if (not force and self.meta.has_ev and
                 oe_per_chromosome == self.meta.oe_per_chromosome and
@@ -246,6 +248,7 @@ class ABCompartmentMatrix(RegionMatrixTable):
                     close_genome = True
                 genome_chromosomes = genome.chromosomes()
 
+                ignored_chromosomes = []
                 gc_content = [np.nan] * len(self.regions)
                 for chromosome_sub in self.chromosomes():
                     if chromosome_sub in exclude_chromosomes:
@@ -253,15 +256,36 @@ class ABCompartmentMatrix(RegionMatrixTable):
                     logger.debug("{}".format(chromosome_sub))
 
                     if chromosome_sub not in genome_chromosomes:
-                        raise ValueError("Chromosome {} not found in genome. "
-                                         "Are you using the correct genome "
-                                         "file? (Juicer files remove the 'chr' "
-                                         "prefix from chromosomes, you may have "
-                                         "to modify your genome files)".format(chromosome_sub))
+                        if chromosome_sub.startswith('chr') and chromosome_sub[3:] in genome_chromosomes:
+                            logger.warning("Chromosome {} not found in genome, "
+                                           "but found {} - assuming these are the same.".format(chromosome_sub, 
+                                                                                                chromosome_sub[3:]))
+                            chromosome_sub = chromosome_sub[3:]
+                        elif 'chr{}'.format(chromosome_sub) in genome_chromosomes:
+                            logger.warning("Chromosome {} not found in genome, "
+                                           "but found {} - assuming these are the same.".format(chromosome_sub, 
+                                                                                                'chr{}'.format(chromosome_sub)))
+                            chromosome_sub = 'chr{}'.format(chromosome_sub)
+                        else:
+                            ignored_chromosomes.append(chromosome_sub)
+                            exclude_chromosomes.add(chromosome_sub)
+                            continue
+                    
                     chromosome_sequence = genome[chromosome_sub].sequence
                     for region in self.regions(chromosome_sub):
                         s = chromosome_sequence[region.start - 1:region.end]
                         gc_content[region.ix] = calculate_gc_content(s)
+                
+                if len(ignored_chromosomes) > 0:
+                    warnings.warn("Several chromosomes could not be found in the provided genome: "
+                                "{chromosomes}. GC eigenvector orientation has not been run for "
+                                "these chromosomes! Please ensure that this is what you intended!"
+                                "".format(chromosomes=", ".join(ignored_chromosomes)))
+                    logger.warning("Several chromosomes could not be found in the provided genome: "
+                                "{chromosomes}. GC eigenvector orientation has not been run for "
+                                "these chromosomes! Please ensure that this is what you intended!"
+                                "".format(chromosomes=", ".join(ignored_chromosomes)))
+                
                 gc_content = np.array(gc_content)
 
                 if close_genome:
@@ -274,8 +298,11 @@ class ABCompartmentMatrix(RegionMatrixTable):
                     gc_sub = gc_content[start:end]
                     a_ixs = np.where(ev_sub >= 0.)
                     b_ixs = np.where(ev_sub < 0.)
-                    gc_a = np.nanmean(gc_sub[a_ixs])
-                    gc_b = np.nanmean(gc_sub[b_ixs])
+                    
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", category=RuntimeWarning)
+                        gc_a = np.nanmean(gc_sub[a_ixs])
+                        gc_b = np.nanmean(gc_sub[b_ixs])
 
                     logger.debug("Chromosome {} GC content A: {}, B: {}".format(
                         chromosome_sub, gc_a, gc_b
