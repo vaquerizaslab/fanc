@@ -1,3 +1,9 @@
+0.9.20
+
+- Fixed an issue retrieving out of bounds matrices with Juicer files
+- Fixed an issue in Juicer files with missing normalisation vectors for small chromosomes
+- Improved EV orientation using GC content by ignoring (but warning about) missing chromosome sequences
+
 0.9.19
 
 - Copy read filtering stats when merging pairs files
