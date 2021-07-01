@@ -4031,7 +4031,8 @@ def compartments(argv, **kwargs):
                 ev = [r.score for r in ev_regions.regions]
             else:
                 ev = ab_matrix.eigenvector(sub_region=region_subset, genome=genome_file,
-                                           eigenvector=ev_index, force=recalculate)
+                                           eigenvector=ev_index, force=recalculate,
+                                           exclude_chromosomes=exclude)
                 regions = []
                 for i, region in enumerate(ab_matrix.regions(region_subset)):
                     r = region.copy()
