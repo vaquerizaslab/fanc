@@ -1008,7 +1008,9 @@ class LinePlot(RegionPlotBase):
 
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
-        #self.ax.set_xlim(limits)
+        
+        if region.start is not None and region.end is not None:
+            self.ax.set_xlim([region.start, region.end])
 
     def _refresh(self, region):
         for f in self.fills:
@@ -1106,6 +1108,9 @@ class BarPlot(RegionPlotBase):
                 self.ax.legend(bars, self.labels, loc=self.legend_location)
         self.remove_colorbar_ax()
         sns.despine(ax=self.ax, top=True, right=True)
+        
+        if region.start is not None and region.end is not None:
+            self.ax.set_xlim([region.start, region.end])
 
     def _refresh(self, region):
         self.ax.clear()
