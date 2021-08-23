@@ -199,3 +199,9 @@ To format the plot, you can choose a different colormap with ``-c <cmap>``. See
 `here <https://matplotlib.org/examples/color/colormaps_reference.html>`_ for colormap
 options. You can set the colorbar scale with ``--enrichment-min <n>`` and
 ``--enrichment-max <n>``, where n is -1 and 1, respectively.
+
+Compartment stength as defined by Flyamer, Gassler, and Imakaev et. al 2017
+(https://pubmed.ncbi.nlm.nih.gov/28355183) can be calculated using 
+``--compartment-strength <filename>``. It is defined in their supplement as follows
+"[In a 5x5 compartment enrichment map, ] “to calculate the strength of compartment signal, 
+we took the natural logarithm of the AA * BB / AB^2".

@@ -3905,7 +3905,9 @@ def compartments_parser():
 
     parser.add_argument(
         '--compartment-strength', dest='compartment_strength_file',
-        help='File for saving the compartment strength.'
+        help='File for saving the compartment strength as defined by '
+             'Flyamer, Gassler, and Imakaev et. al (2017) '
+             '(https://pubmed.ncbi.nlm.nih.gov/28355183).'
     )
 
     parser.add_argument(
