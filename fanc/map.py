@@ -682,7 +682,14 @@ def _fastq_to_queue(fastq_file, output_folder, batch_size, input_queue, monitor,
         if isinstance(restriction_enzyme, string_types):
             restriction_enzyme = [restriction_enzyme]
 
-        ligation_patterns = [ligation_site_pattern(r) for r in restriction_enzyme]
+        try:
+            ligation_patterns = [ligation_site_pattern(r) for r in restriction_enzyme]
+        except AttributeError as e:
+            import sys
+            stacktrace = "".join(traceback.format_exception(*sys.exc_info()))
+            logger.error(stacktrace)
+            exception_queue.put(stacktrace)
+            return
     else:
         ligation_patterns = None
 
