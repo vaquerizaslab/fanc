@@ -34,11 +34,19 @@ def fanc_parser():
                  'compare', 'loops', 'aggregate']:
         padding = ' ' * (max_len - len(name))
         usage += "{}{}{}\n".format(name, padding, command_descriptions.pop(name))
+        
+    deprecated_descriptions = {name: command_descriptions.pop(name) 
+                               for name in ['from-juicer', 'from-cooler', 'stats', 'subset']}
 
     usage += "\n-- Other helpers --\n"
     for name in command_descriptions.keys():
         padding = ' ' * (max_len - len(name))
         usage += "{}{}{}\n".format(name, padding, command_descriptions.get(name))
+        
+    usage += "\n-- Deprecated --\n"
+    for name in deprecated_descriptions.keys():
+        padding = ' ' * (max_len - len(name))
+        usage += "{}{}{}\n".format(name, padding, deprecated_descriptions.get(name))
 
     parser = argparse.ArgumentParser(
         description="fanc processing tool for Hi-C data",
@@ -1616,7 +1624,7 @@ def hic(argv, **kwargs):
 def from_juicer_parser():
     parser = argparse.ArgumentParser(
         prog="fanc from_juicer",
-        description='Import a Hi-C object from juicer (Aiden lab)'
+        description='[deprecated] Convert Juicer Hi-C file to FAN-C format'
     )
 
     parser.add_argument(
@@ -1804,10 +1812,80 @@ def from_txt(argv, **kwargs):
     logger.info("All done.")
 
 
+def to_fanc_parser():
+    parser = argparse.ArgumentParser(
+        prog="fanc from-cooler",
+        description="Convert a matrix file (Cooler, Juicer) file to FAN-C format."
+    )
+
+    parser.add_argument(
+        'input',
+        help="Input .cool, .mcool, or Juicer .hic file. You must specify the "
+             "resolution you want to export to FAN-C using the format "
+             "/path/to/matrix.file@<resolution>, and optionally the Juicer norm "
+             "as /path/to/matrix.file@<resolution>@<norm>"
+    )
+
+    parser.add_argument(
+        'output',
+        help='Output FAN-C file.'
+    )
+    
+    parser.add_argument(
+        '-I', '--no-inter-chromosomal', dest='inter_chromosomal',
+        action='store_false',
+        default=True,
+        help="Do not copy inter-chromosomal contacts."
+    )
+
+    parser.add_argument(
+        '-tmp', '--work-in-tmp', dest='tmp',
+        action='store_true',
+        default=False,
+        help='Work in temporary directory'
+    )
+
+    return parser
+
+
+def to_fanc(argv, **kwargs):
+    parser = to_fanc_parser()
+
+    args = parser.parse_args(argv[2:])
+    input_file = os.path.expanduser(args.input)
+    output_file = os.path.expanduser(args.output)
+    inter_chromosomal = args.inter_chromosomal
+    tmp = args.tmp
+
+    import fanc
+    from fanc.tools.general import str_to_int
+
+    tmp_files = []
+    original_output_file = output_file
+    try:
+        if tmp:  # copy file if required
+            tmp = False  # to prevent deleting input file should this be interrupted at this point
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.hic')
+            tmp_file.close()
+            output_file = tmp_file.name
+            logger.info("Temporary output file: %s" % output_file)
+            tmp_files = [output_file]
+            tmp = True
+
+        with fanc.load(input_file, mode='r', tmpdir=tmp) as mat:
+            mat.deepcopy(fanc.Hic, file_name=output_file, mode='w', inter_chromosomal=inter_chromosomal)
+    finally:
+        if tmp:
+            shutil.copy(output_file, original_output_file)
+        for tmp_file in tmp_files:
+            os.remove(tmp_file)
+    logger.info("All done.")
+    
+
 def from_cooler_parser():
     parser = argparse.ArgumentParser(
         prog="fanc from-cooler",
-        description="Convert a Cooler (.cool or .mcool) file to FAN-C format."
+        description="[deprecated] Convert a Cooler file to FAN-C format."
     )
 
     parser.add_argument(
@@ -4259,7 +4337,7 @@ def expected(argv, **kwargs):
 def subset_parser():
     parser = argparse.ArgumentParser(
         prog="fanc subset",
-        description='Create a new Hic object by subsetting.'
+        description='[deprecated] Create a new Hic object by subsetting.'
     )
     parser.add_argument(
         'input',
@@ -4760,7 +4838,7 @@ def aggregate(argv, **kwargs):
 def stats_parser():
     parser = argparse.ArgumentParser(
         prog="fanc stats",
-        description='Get statistics on number of reads used at each step of a pipeline.'
+        description='[deprecated] Get statistics on FAN-C pipeline steps.'
     )
 
     parser.add_argument(
