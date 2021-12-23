@@ -4,6 +4,7 @@ import zlib
 
 import numpy as np
 from genomic_regions import GenomicRegion
+from deprecated import deprecated
 
 from ..regions import Genome
 from ..hic import Hic
@@ -50,6 +51,8 @@ def is_juicer(file_name):
         return False
 
 
+@deprecated(reason="Outdated API - use matrix copying instead! (fanc hic "
+                   "--deepcopy on the cmd line or matrix.copy()) in the API")
 def convert_juicer_to_hic(juicer_file, genome_file, resolution, juicer_tools_jar_path=None,
                           norm='NONE', output_file=None, inter_chromosomal=True,
                           chromosomes=None):

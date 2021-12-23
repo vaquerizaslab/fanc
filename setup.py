@@ -57,7 +57,8 @@ setup(
         'genomic_regions>=0.0.10',
         'scikit-image>=0.15.0',
         'cooler>=0.8.0',
-        'h5py'
+        'h5py',
+        'Deprecated',
     ],
     scripts=['bin/fanc', 'bin/fancplot'],
     cmdclass={
