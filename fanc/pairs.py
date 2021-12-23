@@ -654,6 +654,10 @@ class FourDNucleomePairGenerator(TxtReadPairGenerator):
 
                 if line.startswith('#columns:'):
                     columns_line = line
+                    break
+                    
+                if not line.startswith('#'):
+                    break
 
             if columns_line is None:
                 raise ValueError("Pairs file does not contain a "
