@@ -1,3 +1,8 @@
+0.9.22
+
+- to-fanc function consolidates matrix conversion to FAN-C
+- speed up 4D nucleome pairs file loading
+
 0.9.21
 
 - Help text improvements
