@@ -2130,7 +2130,7 @@ class RegionPairsTable(RegionPairsContainer, Maskable, RegionsTable):
 
         logger.info("Determining random sample")
         choice = np.random.choice(int(total), size=int(n), replace=False)
-        choice = sorted(choice)
+        choice.sort()
 
         logger.info("Adding sampled pairs to new object...")
         new_pairs = self.__class__(file_name=file_name, mode='w')
