@@ -1322,7 +1322,7 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
         logger.debug("Scaling factor: {}/{} = {}".format(m1_sum, m2_sum, scaling_factor))
         return scaling_factor
 
-    def deepcopy(self, target_class=None, bias=True, **kwargs):
+    def deepcopy(self, target_class=None, bias=True, inter_chromosomal=True, **kwargs):
         cls = self.__class__ if target_class is None else target_class
 
         copy = cls(**kwargs)
@@ -1330,7 +1330,8 @@ class RegionMatrixContainer(RegionPairsContainer, RegionBasedWithBins):
 
         total = len(self.edges)
         with RareUpdateProgressBar(max_value=total) as pb:
-            for i, edge in enumerate(self.edges(lazy=True, norm=False, oe=False)):
+            for i, edge in enumerate(self.edges(lazy=True, norm=False, oe=False,
+                                                inter_chromosomal=inter_chromosomal)):
                 copy.add_edge_simple(edge.source, edge.sink, edge.weight)
                 pb.update(i)
         copy.flush(update_mappability=False)
