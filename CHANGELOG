@@ -1,3 +1,7 @@
+0.9.23
+
+- Fixed compatibility with Juicer v9 hic files
+
 0.9.22
 
 - to-fanc function consolidates matrix conversion to FAN-C
