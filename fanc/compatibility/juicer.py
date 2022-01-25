@@ -237,6 +237,7 @@ def _read_cstr(f):
             return str(buf)
         else:
             buf = buf + b
+    return buf
 
 
 class LazyJuicerEdge(object):
@@ -347,6 +348,13 @@ class JuicerHic(RegionMatrixContainer):
         """
         if self.tmp_file_name is not None and remove_tmp:
             os.remove(self.tmp_file_name)
+            
+    @staticmethod
+    def _version(req):
+        req.seek(0)
+        
+        req.read(4)  # jump to version location
+        return struct.unpack('<i', req.read(4))[0]
 
     @property
     def version(self):
@@ -361,14 +369,18 @@ class JuicerHic(RegionMatrixContainer):
 
     @staticmethod
     def _skip_to_attributes(req):
+        version = JuicerHic._version(req)
+        
         req.seek(0)
-
-        # skip magic, version, master
         req.read(16)
 
         # skip genome
         while req.read(1).decode("utf-8") != '\0':
             pass
+        
+        if (version > 8):
+            nvi = struct.unpack('<q',req.read(8))[0]
+            nvisize = struct.unpack('<q',req.read(8))[0]
 
     @staticmethod
     def _skip_to_chromosome_lengths(req):
@@ -386,13 +398,17 @@ class JuicerHic(RegionMatrixContainer):
 
     @staticmethod
     def _skip_to_resolutions(req):
+        version = JuicerHic._version(req)
         JuicerHic._skip_to_chromosome_lengths(req)
 
         n_chromosomes = struct.unpack('<i', req.read(4))[0]
         for _ in range(0, n_chromosomes):
             while req.read(1).decode("utf-8", "backslashreplace") != '\0':
                 pass
-            req.read(4)
+            if (version > 8):
+                req.read(8)
+            else:
+                req.read(4)
 
     @staticmethod
     def _skip_to_chromosome_sites(req):
@@ -427,7 +443,10 @@ class JuicerHic(RegionMatrixContainer):
             n_chromosomes = struct.unpack('<i', req.read(4))[0]
             for _ in range(0, n_chromosomes):
                 name = _read_cstr(req)
-                length = struct.unpack('<i', req.read(4))[0]
+                if self.version > 8:
+                    length = struct.unpack('q',req.read(8))[0]
+                else:
+                    length = struct.unpack('<i', req.read(4))[0]
                 chromosome_lengths[name] = length
 
         return chromosome_lengths
@@ -452,7 +471,10 @@ class JuicerHic(RegionMatrixContainer):
             n_chromosomes = struct.unpack('<i', req.read(4))[0]
             for _ in range(0, n_chromosomes):
                 name = _read_cstr(req)
-                req.read(4)
+                if self.version > 8:
+                    req.read(8)
+                else:
+                    req.read(4)
                 chromosomes.append(name)
 
         return chromosomes
@@ -485,18 +507,24 @@ class JuicerHic(RegionMatrixContainer):
 
     @staticmethod
     def _skip_to_footer(req):
+        version = JuicerHic._version(req)
         req.seek(0)
+        
         req.read(8)  # jump to master index location
         master_index = struct.unpack('<q', req.read(8))[0]
 
         # jump to footer location
         req.seek(master_index)
-        req.read(4)  # skip number of bytes
+        # skip number of bytes
+        if version > 8: 
+            req.read(8)  
+        else:
+            req.read(4)
 
     @staticmethod
     def _skip_to_expected_values(req):
         JuicerHic._skip_to_footer(req)
-
+        
         n_entries = struct.unpack('<i', req.read(4))[0]
         for _ in range(n_entries):
             while req.read(1).decode("utf-8", "backslashreplace") != '\0':
@@ -505,24 +533,35 @@ class JuicerHic(RegionMatrixContainer):
 
     @staticmethod
     def _skip_to_normalised_expected_values(req):
+        version = JuicerHic._version(req)
+        
         JuicerHic._skip_to_expected_values(req)
 
         n_vectors = struct.unpack('<i', req.read(4))[0]
         for _ in range(n_vectors):
-            while req.read(1).decode("utf-8", "backslashreplace") != '\0':
-                pass
-            req.read(4)
-
-            n_values = struct.unpack('<i', req.read(4))[0]
-            for j in range(n_values):
-                req.read(8)
+            key = _read_cstr(req)
+            
+            bin_size = struct.unpack('<i', req.read(4))[0]
+            if version > 8:
+                n_values = struct.unpack('<2i', req.read(8))[0]
+            else:
+                n_values = struct.unpack('<i', req.read(4))[0]
+            for i in range(n_values):
+                if version > 8:
+                    req.read(4)
+                else:
+                    req.read(8)
 
             n_scaling_factors = struct.unpack('<i', req.read(4))[0]
             for _ in range(n_scaling_factors):
-                req.read(12)
+                if version > 8:
+                    req.read(8)
+                else:
+                    req.read(12)
 
     @staticmethod
     def _skip_to_normalisation_vectors(req):
+        version = JuicerHic._version(req)
         JuicerHic._skip_to_normalised_expected_values(req)
 
         n_vectors = struct.unpack('<i', req.read(4))[0]
@@ -531,15 +570,25 @@ class JuicerHic(RegionMatrixContainer):
                 pass
             while req.read(1).decode("utf-8", "backslashreplace") != '\0':
                 pass
-            req.read(4)
-
-            n_values = struct.unpack('<i', req.read(4))[0]
-            for j in range(n_values):
-                req.read(8)
+            
+            bin_size = struct.unpack('<i', req.read(4))[0]
+            if version > 8:
+                n_values = struct.unpack('<2i', req.read(8))[0]
+            else:
+                n_values = struct.unpack('<i', req.read(4))[0]
+            
+            for _ in range(n_values):
+                if version > 8:
+                    req.read(4)
+                else:
+                    req.read(8)
 
             n_scaling_factors = struct.unpack('<i', req.read(4))[0]
             for _ in range(n_scaling_factors):
-                req.read(12)
+                if version > 8:
+                    req.read(8)
+                else:
+                    req.read(12)
 
     def _matrix_positions(self):
         """
@@ -559,7 +608,7 @@ class JuicerHic(RegionMatrixContainer):
             return chromosome_pair_positions
 
     @staticmethod
-    def _expected_value_vectors_from_pos(req, normalisation=None, unit='BP'):
+    def _expected_value_vectors_from_pos(req, normalisation=None, unit='BP', version=8):        
         expected_values = defaultdict(list)
         scaling_factors = defaultdict(dict)
 
@@ -573,23 +622,31 @@ class JuicerHic(RegionMatrixContainer):
                 entry_normalisation = 'NONE'
 
             bin_size = struct.unpack('<i', req.read(4))[0]
-
+            if version > 8:
+                n_values = struct.unpack('<2i', req.read(8))[0]
+            else:
+                n_values = struct.unpack('<i', req.read(4))[0]
             ev = []
-            n_values = struct.unpack('<i', req.read(4))[0]
-
-            for j in range(n_values):
-                v = struct.unpack('<d', req.read(8))[0]
+            for _ in range(n_values):
+                if version > 8:
+                    v = struct.unpack('<f',req.read(4))[0]
+                else:
+                    v = struct.unpack('<d',req.read(8))[0]
                 ev.append(v)
-
+            
             if entry_unit == unit and (normalisation is None or entry_normalisation == normalisation):
                 expected_values[bin_size] = ev
 
             sf = dict()
             n_scaling_factors = struct.unpack('<i', req.read(4))[0]
             for _ in range(n_scaling_factors):
-                chromosome_index = struct.unpack('<i', req.read(4))[0]
-                f = struct.unpack('<d', req.read(8))[0]
-                sf[chromosome_index] = f
+                #req.read(12)
+                chromosome_index = struct.unpack('<i',req.read(4))[0]
+                if version > 8:
+                    v = struct.unpack('<f',req.read(4))[0]
+                else:
+                    v = struct.unpack('<d',req.read(8))[0]
+                sf[chromosome_index] = v
 
             if normalisation is None or entry_normalisation == normalisation:
                 scaling_factors[bin_size] = sf
@@ -620,18 +677,20 @@ class JuicerHic(RegionMatrixContainer):
 
     def expected_value_vectors(self):
         with open(self._hic_file, 'rb') as req:
+            version = JuicerHic._version(req)
             JuicerHic._skip_to_expected_values(req)
 
-            return JuicerHic._expected_value_vectors_from_pos(req)
+            return JuicerHic._expected_value_vectors_from_pos(req, version=version)
 
     def normalised_expected_value_vectors(self, normalisation=None):
         if normalisation is None:
             normalisation = self._normalisation
 
         with open(self._hic_file, 'rb') as req:
+            version = JuicerHic._version(req)
             JuicerHic._skip_to_normalised_expected_values(req)
 
-            return JuicerHic._expected_value_vectors_from_pos(req, normalisation=normalisation)
+            return JuicerHic._expected_value_vectors_from_pos(req, version=version, normalisation=normalisation)
 
     def expected_values(self, selected_chromosome=None, norm=True, *args, **kwargs):
         def _fill_norm_vector(v, n, fill):
@@ -684,6 +743,7 @@ class JuicerHic(RegionMatrixContainer):
 
         existing_normalisations = set()
         with open(self._hic_file, 'rb') as req:
+            version = JuicerHic._version(req)
             JuicerHic._skip_to_normalisation_vectors(req)
 
             n_entries = struct.unpack('<i', req.read(4))[0]
@@ -693,18 +753,26 @@ class JuicerHic(RegionMatrixContainer):
                 entry_unit = _read_cstr(req)
                 entry_resolution = struct.unpack('<i', req.read(4))[0]
                 file_position = struct.unpack('<q', req.read(8))[0]
-                req.read(4)  # skip size in bytes
+                req.read(8 if version > 8 else 4)  # skip size in bytes
                 existing_normalisations.add(entry_normalisation)
-
+                
                 if (entry_chromosome_index == chromosome_index and
                         entry_normalisation == normalisation and
                         entry_resolution == resolution and
                         entry_unit == unit):
                     req.seek(file_position)
+                    
                     vector = []
-                    n_values = struct.unpack('<i', req.read(4))[0]
+                    if version > 8:
+                        n_values = struct.unpack('<2i', req.read(8))[0]
+                    else:
+                        n_values = struct.unpack('<i', req.read(4))[0]
+
                     for _ in range(n_values):
-                        v = struct.unpack('<d', req.read(8))[0]
+                        if version > 8:
+                            v = struct.unpack('<f',req.read(4))[0]
+                        else:
+                            v = struct.unpack('<d',req.read(8))[0]
                         vector.append(v)
 
                     return vector
@@ -872,34 +940,55 @@ class JuicerHic(RegionMatrixContainer):
         else:
             x_offset = struct.unpack('<i', block[4:8])[0]
             y_offset = struct.unpack('<i', block[8:12])[0]
-            use_short = not struct.unpack('<b', block[12:13])[0] == 0
-            block_type = struct.unpack('<b', block[13:14])[0]
+            use_short = struct.unpack('<b', block[12:13])[0] == 0
+            use_short_bin_x = True
+            use_short_bin_y = True
+            
+            ix_continue = 13
+            if self.version > 8:
+                use_short_bin_x = struct.unpack('<b', block[13:14])[0] == 0
+                use_short_bin_y = struct.unpack('<b', block[14:15])[0] == 0
+                ix_continue = 15
+            
+            row_bytes = 2 if use_short_bin_x else 4
+            row_type = '<h' if use_short_bin_x else '<f'
+            col_bytes = 2 if use_short_bin_y else 4
+            col_type = '<h' if use_short_bin_y else '<f'
+            weight_bytes = 2 if use_short else 4
+            weight_type = '<h' if use_short else '<f'
+            
+            block_type = struct.unpack('<b', block[ix_continue:ix_continue+1])[0]
             index = 0
 
             if block_type == 1:
-                row_count = struct.unpack('<h', block[14:16])[0]
-                temp = 16
+                row_count = struct.unpack(row_type, block[ix_continue+1:ix_continue+1+row_bytes])[0]
+                temp = ix_continue + 1 + row_bytes
                 for i in range(row_count):
-                    y_raw = struct.unpack('<h', block[temp:(temp + 2)])[0]
-                    temp += 2
+                    y_raw = struct.unpack(row_type, block[temp:(temp + row_bytes)])[0]
+                    temp += row_bytes
                     y = y_raw + y_offset
-                    col_count = struct.unpack('<h', block[temp:(temp + 2)])[0]
-                    temp += 2
+                    col_count = struct.unpack(col_type, block[temp:(temp + col_bytes)])[0]
+                    temp += col_bytes
                     for j in range(col_count):
-                        x_raw = struct.unpack('<h', block[temp:(temp + 2)])[0]
-                        temp += 2
+                        x_raw = struct.unpack(col_type, block[temp:(temp + col_bytes)])[0]
+                        temp += col_bytes
                         x = x_offset + x_raw
-                        if not use_short:
-                            weight = struct.unpack('<h', block[temp:(temp + 2)])[0]
-                            temp += 2
-                        else:
-                            weight = struct.unpack('<f', block[temp:(temp + 4)])[0]
-                            temp += 4
+                        # weight = struct.unpack('<h', block[temp:(temp + weight_bytes)])[0]
+                        # temp += weight_bytes
+                        
+                        weight = struct.unpack(weight_type, block[temp:(temp + weight_bytes)])[0]
+                        temp += weight_bytes
+                        # if not use_short:
+                        #     weight = struct.unpack('<h', block[temp:(temp + 2)])[0]
+                        #     temp += 2
+                        # else:
+                        #     weight = struct.unpack('<f', block[temp:(temp + 4)])[0]
+                        #     temp += 4
                         yield x, y, weight
 
                         index += 1
             elif block_type == 2:
-                temp = 14
+                temp = ix_continue + 1
                 n_points = struct.unpack('<i', block[temp:(temp + 4)])[0]
                 temp += 4
                 w = struct.unpack('<h', block[temp:(temp + 2)])[0]
