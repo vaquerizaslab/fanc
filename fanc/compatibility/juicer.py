@@ -546,19 +546,13 @@ class JuicerHic(RegionMatrixContainer):
                 n_values = struct.unpack('<2i', req.read(8))[0]
             else:
                 n_values = struct.unpack('<i', req.read(4))[0]
-            for i in range(n_values):
-                if version > 8:
-                    req.read(4)
-                else:
-                    req.read(8)
+            skip_size = 4 if version > 8 else 8
+            req.read(skip_size * n_values)
 
             n_scaling_factors = struct.unpack('<i', req.read(4))[0]
-            for _ in range(n_scaling_factors):
-                if version > 8:
-                    req.read(8)
-                else:
-                    req.read(12)
-
+            skip_size = 8 if version > 8 else 12
+            req.read(skip_size * n_scaling_factors)
+    
     @staticmethod
     def _skip_to_normalisation_vectors(req):
         version = JuicerHic._version(req)
@@ -577,18 +571,15 @@ class JuicerHic(RegionMatrixContainer):
             else:
                 n_values = struct.unpack('<i', req.read(4))[0]
             
-            for _ in range(n_values):
-                if version > 8:
-                    req.read(4)
-                else:
-                    req.read(8)
+            skip_size = 4 if version > 8 else 8
+            #for _ in range(n_values):
+            req.read(skip_size * n_values)
 
             n_scaling_factors = struct.unpack('<i', req.read(4))[0]
-            for _ in range(n_scaling_factors):
-                if version > 8:
-                    req.read(8)
-                else:
-                    req.read(12)
+            skip_size = 8 if version > 8 else 12
+            req.read(skip_size * n_scaling_factors)
+            # for _ in range(n_scaling_factors):
+            #     req.read(skip_size)
 
     def _matrix_positions(self):
         """
@@ -626,13 +617,12 @@ class JuicerHic(RegionMatrixContainer):
                 n_values = struct.unpack('<2i', req.read(8))[0]
             else:
                 n_values = struct.unpack('<i', req.read(4))[0]
-            ev = []
-            for _ in range(n_values):
-                if version > 8:
-                    v = struct.unpack('<f',req.read(4))[0]
-                else:
-                    v = struct.unpack('<d',req.read(8))[0]
-                ev.append(v)
+            
+            value_size = 4 if version > 8 else 8
+            value_type = '<f' if version > 8 else '<d'
+            ev = np.zeros(n_values)
+            for i in range(n_values):
+                ev[i] = struct.unpack(value_type, req.read(value_size))[0]
             
             if entry_unit == unit and (normalisation is None or entry_normalisation == normalisation):
                 expected_values[bin_size] = ev
@@ -762,18 +752,16 @@ class JuicerHic(RegionMatrixContainer):
                         entry_unit == unit):
                     req.seek(file_position)
                     
-                    vector = []
                     if version > 8:
                         n_values = struct.unpack('<2i', req.read(8))[0]
                     else:
                         n_values = struct.unpack('<i', req.read(4))[0]
 
-                    for _ in range(n_values):
-                        if version > 8:
-                            v = struct.unpack('<f',req.read(4))[0]
-                        else:
-                            v = struct.unpack('<d',req.read(8))[0]
-                        vector.append(v)
+                    value_size = 4 if version > 8 else 8
+                    value_type = '<f' if version > 8 else '<d'
+                    vector = np.zeros(n_values)
+                    for i in range(n_values):
+                        vector[i] = struct.unpack(value_type,req.read(value_size))[0]
 
                     return vector
         
@@ -949,7 +937,7 @@ class JuicerHic(RegionMatrixContainer):
                 use_short_bin_x = struct.unpack('<b', block[13:14])[0] == 0
                 use_short_bin_y = struct.unpack('<b', block[14:15])[0] == 0
                 ix_continue = 15
-            
+                            
             row_bytes = 2 if use_short_bin_x else 4
             row_type = '<h' if use_short_bin_x else '<f'
             col_bytes = 2 if use_short_bin_y else 4
@@ -973,17 +961,8 @@ class JuicerHic(RegionMatrixContainer):
                         x_raw = struct.unpack(col_type, block[temp:(temp + col_bytes)])[0]
                         temp += col_bytes
                         x = x_offset + x_raw
-                        # weight = struct.unpack('<h', block[temp:(temp + weight_bytes)])[0]
-                        # temp += weight_bytes
-                        
                         weight = struct.unpack(weight_type, block[temp:(temp + weight_bytes)])[0]
                         temp += weight_bytes
-                        # if not use_short:
-                        #     weight = struct.unpack('<h', block[temp:(temp + 2)])[0]
-                        #     temp += 2
-                        # else:
-                        #     weight = struct.unpack('<f', block[temp:(temp + 4)])[0]
-                        #     temp += 4
                         yield x, y, weight
 
                         index += 1
@@ -1010,7 +989,7 @@ class JuicerHic(RegionMatrixContainer):
                         if weight != 0x7fc00000:
                             yield x, y, weight
                             index = index + 1
-
+        
     def _read_matrix(self, region1, region2):
         region1 = self._convert_region(region1)
         region2 = self._convert_region(region2)
@@ -1191,4 +1170,5 @@ class JuicerHic(RegionMatrixContainer):
             return np.array([r.valid for r in self.regions(region, lazy=True)])
 
     def bias_vector(self):
-        return np.array([r.bias for r in self.regions(lazy=True)])
+        x = np.array([r.bias for r in self.regions(lazy=True)])
+        return x
