@@ -4714,7 +4714,7 @@ def aggregate(argv, **kwargs):
     import numpy as np
     import genomic_regions as gr
     import warnings
-    from fanc.architecture.aggregate import AggregateMatrix, loop_strength, tad_strength
+    from fanc.architecture.aggregate import AggregateMatrix, loop_strength, tad_strength, loop_strength_by_region_pair
     from fanc.tools.general import human_format, str_to_int
 
     if window is not None:
@@ -4756,9 +4756,9 @@ def aggregate(argv, **kwargs):
                                   '+{}b'.format(human_format(right * b))]
 
                     if loop_strength_file is not None:
-                        loop_strengths = loop_strength(matrix, region_pairs)
+                        loop_strengths = loop_strength_by_region_pair(matrix, region_pairs)
                         with open(loop_strength_file, 'w') as o:
-                            for s, (r1, r2) in zip(loop_strengths, region_pairs):
+                            for (r1, r2), s in loop_strengths:
                                 o.write("{}\t{}\t{}\t{}\t{}\t{}\t.\t{}\n".format(
                                     r1.chromosome, r1.start, r1.end,
                                     r2.chromosome, r2.start, r2.end,
