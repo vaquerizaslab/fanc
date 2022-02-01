@@ -774,7 +774,7 @@ def aggregate_loops(hic, loop_regions, pixels=16, **kwargs):
     return matrix_sum/counter_matrix
 
 
-def loop_strength(hic, loop_regions, pixels=16, **kwargs):
+def loop_strength_by_region_pair(hic, loop_regions, pixels=16, **kwargs):
     kwargs.setdefault('log', False)
     kwargs.setdefault('norm', True)
     kwargs.setdefault('oe', True)
@@ -786,7 +786,7 @@ def loop_strength(hic, loop_regions, pixels=16, **kwargs):
 
     if isinstance(loop_regions, Bedpe):
         loop_regions = _loop_regions_from_bedpe(loop_regions)
-
+    
     # generating new regions
     new_region_pairs = []  # 0: original, 1: control left, 2: control right
     for (region1, region2) in loop_regions:
@@ -797,6 +797,7 @@ def loop_strength(hic, loop_regions, pixels=16, **kwargs):
         new_region_pairs.append((new_left, region1))
         new_region_pairs.append((region2, new_right))
 
+    original_pairs = []
     original, left, right = [], [], []
     for i, (pair, m) in enumerate(_loop_matrix_iterator(hic, new_region_pairs, pixels=pixels,
                                                         keep_invalid=True, **kwargs)):
@@ -807,16 +808,18 @@ def loop_strength(hic, loop_regions, pixels=16, **kwargs):
 
         if i % 3 == 0:
             original.append(value)
+            original_pairs.append(pair)
         elif i % 3 == 1:
             left.append(value)
         else:
             right.append(value)
-
-    ratios = []
+    
     for i in range(len(original)):
+        pair = loop_regions[i]
+
         if original[i] is None or (left[i] is None and right[i] is None):
             if include_nan:
-                ratios.append(np.nan)
+                yield pair, np.nan
             continue
 
         try:
@@ -826,11 +829,16 @@ def loop_strength(hic, loop_regions, pixels=16, **kwargs):
                 r = original[i]/left[i]
             else:
                 r = original[i]/((left[i]+right[i])/2)
-            ratios.append(np.log2(r))
+            yield pair, np.log2(r)
         except ZeroDivisionError:
             if include_nan:
-                ratios.append(np.nan)
-    return ratios
+                yield pair, np.nan
+    
+
+def loop_strength(hic, loop_regions, pixels=16, **kwargs):
+    loop_strengths = loop_strength_by_region_pair(hic, loop_regions, pixels=pixels, **kwargs)
+    v = [x[1] for x in loop_strengths]
+    return v
 
 
 def contact_directionality_bias(hic, regions, distance=1000000, region_anchor='center', **kwargs):
