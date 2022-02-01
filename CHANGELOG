@@ -1,6 +1,7 @@
 0.9.23
 
 - Fixed compatibility with Juicer v9 hic files
+- Fixed issue with loop strength calculation caused by out-of-bounds regions
 
 0.9.22
 
