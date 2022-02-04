@@ -278,7 +278,7 @@ class LazyJuicerEdge(object):
 
 
 class JuicerHic(RegionMatrixContainer):
-    def __init__(self, hic_file, resolution=None, mode='r', tmpdir=None, norm='KR'):
+    def __init__(self, hic_file, resolution=None, mode='r', tmpdir=None, norm=None):
         RegionMatrixContainer.__init__(self)
         if '@' in hic_file:
             fields = hic_file.split("@")
@@ -293,6 +293,10 @@ class JuicerHic(RegionMatrixContainer):
                 raise ValueError("Conflicting resolution specifications: "
                                  "{} and {}".format(at_resolution, resolution))
             resolution = str_to_int(at_resolution)
+            
+        if not is_juicer(hic_file):
+            raise ValueError("File {} does not seem to be a .hic "
+                             "file produced with juicer!".format(hic_file))
 
         if tmpdir is None or (isinstance(tmpdir, bool) and not tmpdir):
             self.tmp_file_name = None
@@ -320,15 +324,25 @@ class JuicerHic(RegionMatrixContainer):
             warnings.warn("Mode {} not compatible with JuicerHic. "
                           "File will be opened in read-only mode and "
                           "changes will not be saved to file!")
-
+            
+        with open(self._hic_file, 'rb') as req:
+            req.read(4)  # jump to version location
+            self.version = struct.unpack('<i', req.read(4))[0]
+        
         self._resolution = resolution
-        self._normalisation = norm
+        if norm is None:
+            self._normalisation = 'KR' if self.version < 9 else 'SCALE'
+        else:
+            self._normalisation = norm
         self._unit = 'BP'
         self._mappability = None
-
-        if not is_juicer(hic_file):
-            raise ValueError("File {} does not seem to be a .hic "
-                             "file produced with juicer!".format(hic_file))
+        
+        if self.version > 8:
+            warnings.warn(f"Support for Juicer .hic v{self.version} is still in beta. "
+                          "Please report any issues to https://github.com/vaquerizaslab/fanc/issues/92")
+        elif self.version > 9:
+            raise ValueError(f"Juicer v{self.version} not currently supported. "
+                             "Please report to https://github.com/vaquerizaslab/fanc/issues")
 
     def __enter__(self):
         return self
@@ -355,12 +369,6 @@ class JuicerHic(RegionMatrixContainer):
         
         req.read(4)  # jump to version location
         return struct.unpack('<i', req.read(4))[0]
-
-    @property
-    def version(self):
-        with open(self._hic_file, 'rb') as req:
-            req.read(4)  # jump to version location
-            return struct.unpack('<i', req.read(4))[0]
 
     def _master_index(self):
         with open(self._hic_file, 'rb') as req:
@@ -991,9 +999,10 @@ class JuicerHic(RegionMatrixContainer):
                             index = index + 1
         
     def _read_matrix(self, region1, region2):
+        version = self.version
         region1 = self._convert_region(region1)
         region2 = self._convert_region(region2)
-
+        
         chromosomes = self._all_chromosomes()
         chromosome1_ix = chromosomes.index(region1.chromosome)
         chromosome2_ix = chromosomes.index(region2.chromosome)
@@ -1050,21 +1059,35 @@ class JuicerHic(RegionMatrixContainer):
             row1, row2 = int(region2_bins[0] / block_bin_count), int(region2_bins[1] / block_bin_count)
 
             blocks = set()
-            for r in range(row1, row2 + 1):
-                for c in range(col1, col2 + 1):
-                    block_number = r * block_column_count + c
-                    blocks.add(block_number)
+            if version > 8:
+                translatedLowerPAD = int(row1 + col1 / 2 / block_bin_count)
+                translatedHigherPAD = int(row2 + col2 / 2 / block_bin_count + 1)
+                tranlatedNearerDepth = int(np.log2(1 + abs(row1 - col2) / np.sqrt(2) / block_bin_count))
+                tranlatedFurtherDepth = int(np.log2(1 + abs(row2 - col1) / np.sqrt(2) / block_bin_count))
+                nearerDepth = int(min(tranlatedNearerDepth, tranlatedFurtherDepth))
+                if (row1 > col2 and row2 < col1) or (row2 > col1 and row1 < col2):
+                    nearerDepth = 0
+                furtherDepth = int(max(tranlatedNearerDepth, tranlatedFurtherDepth) + 1)
 
-            if region1.chromosome == region2.chromosome:
-                for r in range(col1, col2 + 1):
-                    for c in range(row1, row2 + 1):
+                for r in range(nearerDepth, furtherDepth + 1):
+                    for c in range(translatedLowerPAD, translatedHigherPAD + 1):
                         block_number = r * block_column_count + c
                         blocks.add(block_number)
+            else:
+                for r in range(row1, row2 + 1):
+                    for c in range(col1, col2 + 1):
+                        block_number = r * block_column_count + c
+                        blocks.add(block_number)
+
+                if region1.chromosome == region2.chromosome:
+                    for r in range(col1, col2 + 1):
+                        for c in range(row1, row2 + 1):
+                            block_number = r * block_column_count + c
+                            blocks.add(block_number)
 
             for block_number in blocks:
                 try:
                     file_position, block_size_in_bytes = block_map[block_number]
-
                     for x, y, weight in self._read_block(req, file_position, block_size_in_bytes):
                         if x < y:
                             if region1_bins[0] <= x < region1_bins[1] - 1 and region2_bins[0] <= y < region2_bins[1] - 1:
@@ -1081,7 +1104,6 @@ class JuicerHic(RegionMatrixContainer):
 
     def _edges_subset(self, key=None, row_regions=None, col_regions=None,
                       lazy=False, *args, **kwargs):
-
         if row_regions[0].chromosome != row_regions[-1].chromosome:
             raise ValueError("Cannot subset rows across multiple chromosomes!")
 
@@ -1109,7 +1131,10 @@ class JuicerHic(RegionMatrixContainer):
                            weight=weight)
         else:
             edge = LazyJuicerEdge(source=0, sink=0, weight=1.0, matrix=self)
+            found = False
             for x, y, weight in self._read_matrix(row_span, col_span):
+                if not found and 101000 < x < 101037:
+                    found = True
                 if x > y:
                     x, y = y, x
                 edge.source, edge.sink, edge.weight = x, y, weight
