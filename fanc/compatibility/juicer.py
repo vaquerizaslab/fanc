@@ -985,7 +985,7 @@ class JuicerHic(RegionMatrixContainer):
                     col = i - row * w
                     x = int(x_offset + col)
                     y = int(y_offset + row)
-                    if not use_short:
+                    if use_short:
                         weight = struct.unpack('<h', block[temp:(temp + 2)])[0]
                         temp += 2
                         if weight != -32768:
