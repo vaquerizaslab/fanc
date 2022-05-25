@@ -256,6 +256,12 @@ def map_parser():
         help='Do not use iterative mapping strategy. '
              '(much faster, less sensitive).'
     )
+    
+    parser.add_argument(
+        '--mapper-type', dest='mapper_type',
+        help='Manually set mapper type. Currently supported: bowtie2, bwa, and bwa-mem2. '
+             'Not that this is generally auto-detected from the index path.'
+    )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
@@ -288,6 +294,7 @@ def map(argv, **kwargs):
     restriction_enzyme = args.restriction_enzyme
     max_alignments = args.max_alignments
     all_alignments = args.all_alignments
+    mapper_type = args.mapper_type
     tmp = args.tmp
 
     if mapper_parallel:
@@ -302,6 +309,7 @@ def map(argv, **kwargs):
     from fanc.tools.general import mkdir
     from genomic_regions.files import create_temporary_copy
     from fanc.tools.files import random_name
+    from fanc.config import config
     import subprocess
     import tempfile
     import shutil
@@ -318,12 +326,21 @@ def map(argv, **kwargs):
     if index_path.endswith('.'):
         index_path = index_path[:-1]
 
-    mapper_type = 'bwa'
-    for ending in ('amb', 'ann', 'bwt', 'pac', 'sa'):
-        file_name = index_path + '.{}'.format(ending)
-        if not os.path.isfile(file_name):
-            mapper_type = None
-            break
+    if mapper_type is None:
+        mapper_type = 'bwa'
+        for ending in ('amb', 'ann', 'bwt', 'pac', 'sa'):
+            file_name = index_path + '.{}'.format(ending)
+            if not os.path.isfile(file_name):
+                mapper_type = None
+                break
+    
+    if mapper_type is None:
+        mapper_type = 'bwa-mem2'
+        for ending in ('amb', 'ann', 'bwt.2bit.64', 'pac', '0123'):
+            file_name = index_path + '.{}'.format(ending)
+            if not os.path.isfile(file_name):
+                mapper_type = None
+                break
 
     if mapper_type is None:
         mapper_type = 'bowtie2'
@@ -337,9 +354,9 @@ def map(argv, **kwargs):
                 break
 
     if mapper_type is None:
-        raise RuntimeError("Cannot detect mapper type from index (supported are Bowtie2 and BWA)")
+        raise RuntimeError("Cannot detect mapper type from index (supported are Bowtie2, BWA, and BWA-mem2)")
     elif min_quality is None:
-        if mapper_type == 'bwa':
+        if mapper_type == 'bwa' or mapper_type == 'bwa-mem2':
             min_quality = 3
         elif mapper_type == 'bowtie2':
             min_quality = 30
@@ -359,6 +376,11 @@ def map(argv, **kwargs):
                 for ending in ('amb', 'ann', 'bwt', 'pac', 'sa'):
                     file_name = index_path + '.{}'.format(ending)
                     shutil.copy(file_name, os.path.join(index_dir, '{}.{}'.format(index_base, ending)))
+            elif mapper_type == 'bwa-mem2':
+                index_base = random_name()
+                for ending in ('amb', 'ann', 'bwt.2bit.64', 'pac', '0123'):
+                    file_name = index_path + '.{}'.format(ending)
+                    shutil.copy(file_name, os.path.join(index_dir, '{}.{}'.format(index_base, ending)))
 
             index_path = os.path.join(index_dir, index_base)
             logger.debug('Index path: {}'.format(index_path))
@@ -373,13 +395,18 @@ def map(argv, **kwargs):
             else:
                 mapper = map.SimpleBowtie2Mapper(index_path, additional_arguments=additional_arguments,
                                                  threads=mapper_threads)
-        elif mapper_type == 'bwa':
+        elif mapper_type == 'bwa' or mapper_type == 'bwa-mem2':
+            mapper_path = config.bwa_path if mapper_type == 'bwa' else config.bwa_mem2_path
+            logger.debug("Using bwa-mem2 at '{}'".format(mapper_path))
+            
             if iterative:
                 mapper = map.BwaMapper(index_path, min_quality=min_quality,
-                                       threads=mapper_threads, memory_map=memory_map)
+                                       threads=mapper_threads, memory_map=memory_map,
+                                       _bwa_path=mapper_path)
             else:
                 mapper = map.SimpleBwaMapper(index_path,
-                                             threads=mapper_threads, memory_map=memory_map)
+                                             threads=mapper_threads, memory_map=memory_map,
+                                             _bwa_path=mapper_path)
 
         for input_file in input_files:
             input_file = os.path.expanduser(input_file)
@@ -439,7 +466,7 @@ def map(argv, **kwargs):
 
                         split_command = ['fanc', 'map', split_file, index_path, split_bam_file,
                                          '-m', str(min_size), '-s', str(step_size), '-t', str(threads),
-                                         '-q', str(args.quality), '-b', str(batch_size)]
+                                         '-q', str(min_quality), '-b', str(batch_size)]
                         if not iterative:
                             split_command += ['--no-iterative']
                         if tmp:
@@ -934,7 +961,7 @@ def pairs(argv, **kwargs):
                 tmp = True
 
             from fanc.tools.general import get_sam_mapper
-            bwa = get_sam_mapper(sam1_file) == 'bwa' or args.bwa
+            bwa = get_sam_mapper(sam1_file) in ['bwa', 'bwa-mem2'] or args.bwa
             logger.info("Using filters appropriate for {}.".format('BWA' if bwa else 'Bowtie2'))
 
             from fanc.pairs import BwaMemQualityFilter, BwaMemUniquenessFilter, \
@@ -1951,7 +1978,7 @@ def from_cooler(argv, **kwargs):
 def to_cooler_parser():
     parser = argparse.ArgumentParser(
         prog="fanc hic_to_cooler",
-        description="""Convert a Hic file into cooler format.
+        description="""Convert a binned Hic file into cooler format.
                        See https://github.com/mirnylab/cooler for details.
                        If input Hi-C matrix is uncorrected, the uncorrected matrix is stored.
                        If it is corrected, the uncorrected matrix is stored and the bias vector.
@@ -1961,7 +1988,7 @@ def to_cooler_parser():
 
     parser.add_argument(
         'input',
-        help='''Input .hic file, fanc format.'''
+        help='''Input binned .hic file, fanc format.'''
     )
 
     parser.add_argument(
@@ -2010,6 +2037,11 @@ def to_cooler_parser():
              'When using this option, chromosomes will appear in the Cooler '
              'file in the order they are listed in the FAN-C file.'
     )
+    
+    parser.add_argument(
+        '--chromosomes', dest='chromosomes',
+        help='Comma-separated list of chromosomes to appear in the final Cooler file.'
+    )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
@@ -2031,6 +2063,9 @@ def to_cooler(argv, **kwargs):
     multi = args.multi
     threads = args.threads
     natural_sort = args.natural_sort
+    chromosomes = None
+    if args.chromosomes is not None:
+        chromosomes = args.chromosomes.split(",")
     tmp = args.tmp
 
     resolutions = args.resolutions
@@ -2061,7 +2096,7 @@ def to_cooler(argv, **kwargs):
 
         with fanc.load(input_file, mode='r', tmpdir=tmp) as hic:
             to_cooler(hic, output_file, balance=norm, multires=multi, resolutions=resolutions,
-                      threads=threads, natural_order=natural_sort)
+                      threads=threads, natural_order=natural_sort, chromosomes=chromosomes)
     finally:
         if tmp:
             shutil.copy(output_file, original_output_file)
@@ -2072,7 +2107,7 @@ def to_cooler(argv, **kwargs):
 
 def to_juicer_parser():
     parser = argparse.ArgumentParser(
-        prog="fanc hic_to_juicer",
+        prog="fanc to_juicer",
         description="Convert a ReadPairs file to Juicer .hic format"
     )
 
@@ -2090,6 +2125,14 @@ def to_juicer_parser():
     parser.add_argument(
         '--juicer-tools-jar', dest='juicer_tools_jar_path',
         help='Path to juicer jar. You can also specify this in fanc.conf'
+    )
+    
+    parser.add_argument(
+        '-G', '--no-gzip', dest='gzip_intermediates',
+        action='store_false',
+        default=True,
+        help='Do not gzip intermediate pairs txt files. Can speed up '
+             'the conversion, but take3s a lot more space on disk.'
     )
 
     parser.add_argument(
@@ -2116,6 +2159,7 @@ def to_juicer(argv, **kwargs):
     output_file = os.path.expanduser(args.output)
     juicer_tools_jar_path = args.juicer_tools_jar_path
     resolutions = args.resolutions
+    gzip_intermediates = args.gzip_intermediates
     tmp = args.tmp
 
     import fanc
@@ -2128,6 +2172,7 @@ def to_juicer(argv, **kwargs):
     try:
         to_juicer(pairs, output_file, resolutions=resolutions,
                   juicer_tools_jar_path=juicer_tools_jar_path,
+                  gzip_intermediates=gzip_intermediates,
                   tmp=tmp)
     finally:
         for p in pairs:
@@ -4257,7 +4302,7 @@ def expected(argv, **kwargs):
     recalculate = args.recalculate
     norm = args.norm
     tmp = args.tmp
-
+    
     if labels is None:
         labels = ['Matrix_{}'.format(i) for i in range(len(input_files))]
 
@@ -4270,15 +4315,17 @@ def expected(argv, **kwargs):
     equal_distances = True
     for label, input_file in zip(labels, input_files):
         with fanc.load(input_file, mode='a', tmpdir=tmp) as matrix:
-            intra_expected, intra_expected_chromosome, inter_expected = matrix.expected_values(
-                force=recalculate, norm=norm)
-
-            logger.info("Inter-chromosomal expected value: {}".format(inter_expected))
-
             if chromosome is not None:
-                expected = intra_expected_chromosome[chromosome]
+                expected = matrix.expected_values(force=recalculate, norm=norm, 
+                                                  selected_chromosome=chromosome)
             else:
-                expected = intra_expected
+                expected, _, inter_expected = matrix.expected_values( force=recalculate, norm=norm)
+                logger.info("Inter-chromosomal expected value: {}".format(inter_expected))
+            
+            if expected is None:
+                parser.error("No expected values found for your settings. Use '--recalculate' to generate them. "
+                             "If you are using Juicer files, try setting the '--chromosome', as "
+                             "no global expected values are calculated")
 
             bin_size = matrix.bin_size
             distance = [i * bin_size for i in range(len(expected))]
@@ -4326,7 +4373,7 @@ def expected(argv, **kwargs):
         hics = [fanc.load(file_name) for file_name in input_files]
 
         fig, ax = plt.subplots(figsize=(4, 3), dpi=300)
-        distance_decay_plot(*hics, chromosome=chromosome, ax=ax, labels=labels)
+        distance_decay_plot(*hics, chromosome=chromosome, norm=norm, ax=ax, labels=labels)
         fig.savefig(plot_file)
         plt.close(fig)
 
