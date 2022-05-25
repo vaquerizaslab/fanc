@@ -50,6 +50,7 @@ hdf5_compression_algorithm: blosc
 #
 bowtie2_path: bowtie2
 bwa_path: bwa
+bwa_mem2_path: bwa-mem2
 
 #
 # PLOTTING

@@ -572,7 +572,7 @@ class SimpleBwaMapper(BwaMapper):
 
     """
     def __init__(self, bwa_index, additional_arguments=(),
-                 threads=1, memory_map=False, _bwa_path='bwa'):
+                 threads=1, memory_map=False, _bwa_path=config.bwa_path):
         BwaMapper.__init__(self, bwa_index, min_quality=0,
                            additional_arguments=additional_arguments,
                            threads=threads, memory_map=memory_map,

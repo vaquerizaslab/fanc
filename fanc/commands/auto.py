@@ -866,6 +866,7 @@ def auto(argv, **kwargs):
         if args.genome_index is None:
             parser.error("Must provide genome index (-i) when mapping FASTQ files!")
         else:
+            from fanc.config import config
             check_path = os.path.expanduser(genome_index)
             if check_path.endswith('.'):
                 check_path = check_path[:-1]
@@ -882,15 +883,23 @@ def auto(argv, **kwargs):
             for ending in ('amb', 'ann', 'bwt', 'pac', 'sa'):
                 if not os.path.exists(check_path + '.{}'.format(ending)):
                     is_bwa = False
+                    
+            is_bwa2 = True
+            for ending in ('amb', 'ann', 'bwt.2bit.64', 'pac', '0123'):
+                if not os.path.exists(check_path + '.{}'.format(ending)):
+                    is_bwa2 = False
 
-            if not is_bowtie2 and not is_bwa:
-                parser.error("Cannot detect Bowtie2 or BWA index.")
+            if not is_bowtie2 and not is_bwa and not is_bwa2:
+                parser.error("Cannot detect Bowtie2, BWA or BWA-mem2 index.")
 
-            if is_bowtie2 and not which('bowtie2'):
-                parser.error("bowtie2 must be in PATH for mapping!")
+            if is_bowtie2 and not which(config.bowtie2_path):
+                parser.error("bowtie2 must be in PATH or defined on config file for mapping!")
 
-            if is_bwa and not which('bwa'):
-                parser.error("bwa must be in PATH for mapping!")
+            if is_bwa and not which(config.bwa_path):
+                parser.error("bwa must be in PATH or defined on config file for mapping!")
+            
+            if is_bwa2 and not which(config.bwa_mem2_path):
+                parser.error("bwa-mem2 must be in PATH or defined on config file for mapping!")
 
     if 'fastq' in file_types or 'sam' in file_types:
         if genome is None:
