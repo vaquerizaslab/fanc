@@ -1,3 +1,10 @@
+0.9.24
+
+- Fixed an issue recognising quality cutoffs in fanc map when splitting FASTQ files
+- Support for bwa-mem2
+- Fixed an issue with fancplot --window-size
+- Fixed an issue with fanc expected where the plot did not respect the -N parameter
+
 0.9.23
 
 - Fixed compatibility with Juicer v9 hic files
