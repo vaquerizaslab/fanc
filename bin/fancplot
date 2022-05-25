@@ -7,9 +7,9 @@ import os
 from itertools import groupby
 from fanc.commands import fancplot_command_parsers as fancplot_parsers
 import logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+#logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('')
 
 
 class FancPlot(object):
@@ -37,6 +37,31 @@ class FancPlot(object):
             import fanc
             print(fanc.__version__)
             exit()
+            
+        # configure logger
+        verbosity = global_args.verbosity
+        if verbosity == 1:
+            log_level = logging.WARN
+        elif verbosity == 2:
+            log_level = logging.INFO
+        elif verbosity > 2:
+            log_level = logging.DEBUG
+            logger.debug("Enabled logging debug mode")
+        else:
+            log_level = logging.INFO
+        logger.setLevel(log_level)
+        
+        silent = global_args.silent
+        if not silent:
+            sh = logging.StreamHandler()
+            sh_formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+            sh.setFormatter(sh_formatter)
+            sh.setLevel(log_level)
+            logger.addHandler(sh)
+            logger.debug("Enabled logging")
+        else:
+            nh = logging.NullHandler()
+            logger.addHandler(nh)
 
         if global_args.script is not None:
             logger.info("Parsing script file")
@@ -132,8 +157,8 @@ class FancPlot(object):
             if global_args.window_size is not None:
                 window_size = str_to_int(global_args.window_size)
                 chromosome = region.chromosome
-                start = max(1, region.center - int(window_size / 2))
-                end = region.center + int(window_size / 2)
+                start = int(max(1, region.center - int(window_size / 2)))
+                end = int(region.center + int(window_size / 2))
                 import fanc
                 plot_region = fanc.GenomicRegion(chromosome=chromosome, start=start, end=end)
             else:
