@@ -12,9 +12,10 @@ from ..pairs import ReadPairs
 from ..matrix import RegionMatrixContainer, Edge
 from ..config import config
 from ..tools.files import tmp_file_name
-from ..tools.general import str_to_int
+from ..tools.general import str_to_int, RareUpdateProgressBar
 
 import os
+import io
 import subprocess
 import warnings
 import tempfile
@@ -125,7 +126,7 @@ def convert_juicer_to_hic(juicer_file, genome_file, resolution, juicer_tools_jar
 
 def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
               resolutions=None, fragment_map=False, tmp=False,
-              verbose=False):
+              verbose=False, gzip_intermediates=True):
     tmpdir = None if not tmp else tempfile.mkdtemp()
     try:
         if juicer_tools_jar_path is None:
@@ -166,15 +167,24 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
                 re_file.flush()
 
                 logger.info("Writing pairs")
-                with tempfile.NamedTemporaryFile(prefix='reads_', suffix='.txt.gz', dir=tmpdir) as f:
+                chromosome_pairs = []
+                for chri, chromosome1 in enumerate(chromosomes):
+                    for chrj in range(chri, len(chromosomes)):
+                        chromosome2 = chromosomes[chrj]
+                        chromosome_pairs.append((chromosome1, chromosome2))
+                
+                suffix = '.txt.gz' if gzip_intermediates else '.txt'
+                with tempfile.NamedTemporaryFile(prefix='reads_', suffix=suffix, dir=tmpdir, mode='wb') as f:
                     f.flush()
-                    fgz = gzip.GzipFile(mode='wb', fileobj=f)
+                    if gzip_intermediates:
+                        fgz = gzip.GzipFile(mode='wb', fileobj=f)
+                    else:
+                        fgz = io.BufferedWriter(f)
 
-                    for chri, chromosome1 in enumerate(chromosomes):
-                        for chrj in range(chri, len(chromosomes)):
-                            chromosome2 = chromosomes[chrj]
+                    with RareUpdateProgressBar(max_value=len(chromosome_pairs), prefix='Pairs') as pb:
+                        for pair_ix, chromosome_pair in enumerate(chromosome_pairs):
                             for p in pairs:
-                                for pair in p.pairs((chromosome1, chromosome2), lazy=True):
+                                for pair in p.pairs(chromosome_pair, lazy=True):
                                     if pair.left.fragment.chromosome <= pair.right.fragment.chromosome:
                                         fgz.write("{} {} {} {} {} {} {} {}\n".format(
                                             1 if pair.left.strand == -1 else 0,
@@ -197,8 +207,10 @@ def to_juicer(pairs, juicer_file, juicer_tools_jar_path=None,
                                             pair.left.position,
                                             pair.left.fragment.ix
                                         ).encode('utf-8'))
-                    fgz.close()
-
+                            pb.update(pair_ix)
+                            
+                    if gzip_intermediates:
+                        fgz.close()
                     f.flush()
 
                     pre_command = ['java', '-jar', juicer_tools_jar_path, 'pre']
@@ -838,7 +850,7 @@ class JuicerHic(RegionMatrixContainer):
         offset_ix = self._chromosome_ix_offset(region.chromosome)
         region_start = region.start if region.start is not None else 1
         ix = int((region_start - 1) / self._resolution)
-        start = self._resolution * ix + 1
+        start = int(self._resolution * ix + 1)
         return offset_ix + ix, start
 
     def _region_iter(self, *args, **kwargs):
