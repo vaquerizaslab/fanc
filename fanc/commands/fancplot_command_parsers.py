@@ -105,6 +105,24 @@ def fancplot_parser():
         help='Manually define the locations of the tick '
              'labels on the genome axis.'
     )
+    
+    parser.add_argument(
+        '--verbose', '-v', dest='verbosity',
+        action='count',
+        default=0,
+        help='Set verbosity level: Can be chained like '
+             '"-vvv" to increase verbosity. Default is to show '
+             'errors, warnings, and info messages (same as "-vv"). '
+             '"-v" shows only errors and warnings,  "-vvv" shows '
+             'errors, warnings, info, and debug messages.'
+    )
+    
+    parser.add_argument(
+        '--silent', dest='silent',
+        action='store_true',
+        default=False,
+        help='Do not print log messages to command line.'
+    )
 
     parser.add_argument(
         '-V', '--version', dest='print_version',
