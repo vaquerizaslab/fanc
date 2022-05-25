@@ -263,10 +263,10 @@ def distance_decay_plot(*matrices, ax=None, chromosome=None, labels=None, tight=
         ax = plt.gca()
 
     for i, matrix in enumerate(matrices):
-        ex, ex_chromosome, ex_inter = matrix.expected_values(norm=norm)
-
         if chromosome is not None:
-            ex = ex_chromosome[chromosome]
+            ex = matrix.expected_values(norm=norm, selected_chromosome=chromosome)
+        else:
+            ex, _, _ = matrix.expected_values(norm=norm)
 
         bin_size = matrix.bin_size
         distances = np.arange(0, bin_size * len(ex), bin_size)
