@@ -124,20 +124,16 @@ GitHub for any issue that you encounter.
 
 .. _conda_note:
 
-.. note::
+.. warning::
 
-    FAN-C is also available via `Bioconda <https://bioconda.github.io/>`_, but due to an unresolved
-    dependency issue it is currently limited to Python 3.7.X. Please refer to the
+    An older FAN-C package is also available via `Bioconda <https://bioconda.github.io/>`_, 
+    but due to an unresolved dependency issue it is currently limited to Python 3.7.X and will not be 
+    updated. Please refer to the
     `pull request thread <https://github.com/bioconda/bioconda-recipes/pull/23911>`_ for additional
     details.
 
-    We recommend working from a clean conda environment using Python 3.7:
-
-    .. code::
-
-        conda create -n my_fanc_env python=3.7
-        conda activate my_fanc_env
-        conda install fanc
+    We strongly recommend installing FAN-C via ``pip`` - only then you will obtain the latest bug fixes 
+    and features!
 
 
 .. warning::

@@ -1,3 +1,8 @@
+0.9.25
+
+- Fixed an issue with plotting insulation scores using fancplot
+- Fixed an issue with aggregate plots and float coordinates
+
 0.9.24
 
 - Fixed an issue recognising quality cutoffs in fanc map when splitting FASTQ files

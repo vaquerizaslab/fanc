@@ -726,19 +726,19 @@ def _loop_matrix_iterator(hic, loop_regions, pixels=16,
     invalid = 0
     for (anchor1, anchor2) in loop_regions:
         a1 = GenomicRegion(chromosome=anchor1.chromosome,
-                           start=getattr(anchor1, region_viewpoint),
-                           end=getattr(anchor1, region_viewpoint))
+                           start=int(getattr(anchor1, region_viewpoint)),
+                           end=int(getattr(anchor1, region_viewpoint)))
         a2 = GenomicRegion(chromosome=anchor2.chromosome,
-                           start=getattr(anchor2, region_viewpoint),
-                           end=getattr(anchor2, region_viewpoint))
+                           start=int(getattr(anchor2, region_viewpoint)),
+                           end=int(getattr(anchor2, region_viewpoint)))
 
         try:
             r1 = list(hic.regions(a1))[0].copy()
             r2 = list(hic.regions(a2))[0].copy()
-            r1.start -= left * bin_size
-            r1.end += right * bin_size
-            r2.start -= left * bin_size
-            r2.end += right * bin_size
+            r1.start -= int(left * bin_size)
+            r1.end += int(right * bin_size)
+            r2.start -= int(left * bin_size)
+            r2.end += int(right * bin_size)
             
             if r1.ix <= r2.ix:
                 region_pairs.append((r1, r2))

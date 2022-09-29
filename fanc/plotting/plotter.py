@@ -551,7 +551,7 @@ class GenomicVectorArrayPlot(BasePlotterMatrix, BasePlotter1D):
 
     def _mesh_data(self, region):
         hm = self.array.score_matrix(region=region, parameters=self.parameters)
-        bin_coords = np.r_[[(x.start - 1) for x in hm.row_regions], hm.row_regions[-1].end]
+        bin_coords = np.r_[[(x.start - 1) for x in hm.row_regions]]#, hm.row_regions[-1].end]
         x, y = np.meshgrid(bin_coords, self.parameters)
         return x, y, hm
 
