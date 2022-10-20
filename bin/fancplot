@@ -77,11 +77,12 @@ class FancPlot(object):
         if len(subplot_data) == 0:
             self.global_parser.error("Need to provide at least one plot")
 
+        import matplotlib
+        
         # configure output
         output_file = None
         if global_args.output is not None:
             logger.info("Using non-interactive backend")
-            import matplotlib
             matplotlib.use("Agg")
             output_file = os.path.expanduser(global_args.output)
 
@@ -94,7 +95,7 @@ class FancPlot(object):
                                      "to file or install a backend that supports interactive "
                                      "plots, such as Tkinter!")
             raise
-
+        
         from fanc import config as fanc_config
         if global_args.pdf_text_as_font:
             logger.debug("Using text for PDF export instead of paths")
