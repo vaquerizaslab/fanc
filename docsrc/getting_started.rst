@@ -80,7 +80,7 @@ FAN-C
 =====
 
 We strongly recommend installing FAN-C in a fresh virtual environment to prevent dependency 
-issues. You can do this with tools like `pyenv <https://github.com/pyenv/pyenv>_` or manually 
+issues. You can do this with tools like `pyenv <https://github.com/pyenv/pyenv>`_ or manually 
 using `venv`, for example:
 
 .. code:: bash
