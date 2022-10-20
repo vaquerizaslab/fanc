@@ -1,71 +1,39 @@
-
-
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.9.14-beta documentation</title>
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generating Hi-C matrices with fanc &mdash; FAN-C 0.9.26b1-beta documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../../_static/jquery.js"></script>
-        <script type="text/javascript" src="../../_static/underscore.js"></script>
-        <script type="text/javascript" src="../../_static/doctools.js"></script>
-        <script type="text/javascript" src="../../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../../_static/js/theme.js"></script>
-
-    
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="Individual pipeline steps" href="fanc_modular_steps.html" />
     <link rel="prev" title="Generate Hi-C matrices" href="../fanc_generate_hic.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../../index.html" class="icon icon-home"> FAN-C
-          
-
-          
           </a>
-
-          
-            
-            
               <div class="version">
-                0.9.14
+                0.9.26b1
               </div>
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -73,17 +41,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
@@ -109,74 +67,34 @@
 <li class="toctree-l1"><a class="reference internal" href="../../api/api.html">Python API</a></li>
 </ul>
 
-            
-          
         </div>
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../index.html">FAN-C</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
-        
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../../fanc.html">FAN-C command line tools</a> &raquo;</li>
-        
           <li><a href="../fanc_generate_hic.html">Generate Hi-C matrices</a> &raquo;</li>
-        
       <li>Generating Hi-C matrices with fanc</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-            
             <a href="../../_sources/fanc-executable/fanc-generate-hic/fanc_auto.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="generating-hi-c-matrices-with-fanc">
-<span id="fanc-auto"></span><h1>Generating Hi-C matrices with fanc<a class="headerlink" href="#generating-hi-c-matrices-with-fanc" title="Permalink to this headline">¶</a></h1>
+             
+  <section id="generating-hi-c-matrices-with-fanc">
+<span id="fanc-auto"></span><h1>Generating Hi-C matrices with fanc<a class="headerlink" href="#generating-hi-c-matrices-with-fanc" title="Permalink to this heading"></a></h1>
 <p>This part of the documentation will focus primarily on <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> - the most versatile
 command in the FAN-C toolkit. Its main goal is to convert any input to binned Hi-C matrices.
 The following schematic will give you an overview of what file types <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> can handle
@@ -190,31 +108,24 @@ the fragment-level Hic object will be binned at various bin sizes.</p>
 <p>Internally, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> constructs its Hi-C processing pipeline from more specialised <code class="docutils literal notranslate"><span class="pre">fanc</span></code>
 commands. When describing the different pipeline steps and how you can control them below, we
 will also reference the specialised command that is used to build each step of the pipeline.</p>
-<div class="section" id="parameters">
-<h2>Parameters<a class="headerlink" href="#parameters" title="Permalink to this headline">¶</a></h2>
+<section id="parameters">
+<h2>Parameters<a class="headerlink" href="#parameters" title="Permalink to this heading"></a></h2>
 <p>Each pipeline step in <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> is controlled by a specific set of parameters in <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code>.
 Some of these are mandatory for specific types of input, others are optional and affect, for example,
 the processing and filtering of objects in the pipeline.</p>
 <p>Here is the help output for <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code>:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">auto</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span> <span class="n">GENOME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RESTRICTION_ENZYME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">GENOME_INDEX</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">-</span><span class="n">n</span> <span class="n">BASENAME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STEP_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BIN_SIZES</span> <span class="p">[</span><span class="n">BIN_SIZES</span> <span class="o">...</span><span class="p">]]</span>
-                 <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="nb">max</span><span class="o">-</span><span class="n">restriction</span><span class="o">-</span><span class="n">site</span><span class="o">-</span><span class="n">distance</span> <span class="n">MAX_RESTRICTION_SITE_DISTANCE</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="n">fanc</span><span class="o">-</span><span class="n">parallel</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">fastq</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">memory</span><span class="o">-</span><span class="nb">map</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">ice</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="n">norm</span><span class="o">-</span><span class="n">method</span> <span class="n">NORM_METHOD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY_CUTOFF</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="n">iterative</span><span class="o">-</span><span class="n">quality</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">ITERATIVE_QUALITY_CUTOFF</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="n">le</span><span class="o">-</span><span class="n">inward</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">INWARD_CUTOFF</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="n">le</span><span class="o">-</span><span class="n">outward</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">OUTWARD_CUTOFF</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">auto</span><span class="o">-</span><span class="n">le</span><span class="o">-</span><span class="n">cutoff</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">iterative</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">sam</span><span class="o">-</span><span class="n">sort</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">restore</span><span class="o">-</span><span class="n">coverage</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">ligation</span><span class="o">-</span><span class="n">junction</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="nb">filter</span><span class="o">-</span><span class="n">pairs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">hic</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="n">run</span><span class="o">-</span><span class="k">with</span> <span class="n">RUN_WITH</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">job</span><span class="o">-</span><span class="n">prefix</span> <span class="n">JOB_PREFIX</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="n">grid</span><span class="o">-</span><span class="n">startup</span><span class="o">-</span><span class="n">commands</span> <span class="n">GRID_STARTUP_COMMANDS</span><span class="p">]</span>
-                 <span class="p">[</span><span class="o">--</span><span class="n">grid</span><span class="o">-</span><span class="n">cleanup</span><span class="o">-</span><span class="n">commands</span> <span class="n">GRID_CLEANUP_COMMANDS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">auto</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span> <span class="n">GENOME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RESTRICTION_ENZYME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">GENOME_INDEX</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">n</span> <span class="n">BASENAME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STEP_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BIN_SIZES</span> <span class="p">[</span><span class="n">BIN_SIZES</span> <span class="o">...</span><span class="p">]]</span>
+                 <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="nb">max</span><span class="o">-</span><span class="n">restriction</span><span class="o">-</span><span class="n">site</span><span class="o">-</span><span class="n">distance</span> <span class="n">MAX_RESTRICTION_SITE_DISTANCE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">fanc</span><span class="o">-</span><span class="n">parallel</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">fastq</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">memory</span><span class="o">-</span><span class="nb">map</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">ice</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">norm</span><span class="o">-</span><span class="n">method</span> <span class="n">NORM_METHOD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY_CUTOFF</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">iterative</span><span class="o">-</span><span class="n">quality</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">ITERATIVE_QUALITY_CUTOFF</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">le</span><span class="o">-</span><span class="n">inward</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">INWARD_CUTOFF</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">le</span><span class="o">-</span><span class="n">outward</span><span class="o">-</span><span class="n">cutoff</span> <span class="n">OUTWARD_CUTOFF</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">auto</span><span class="o">-</span><span class="n">le</span><span class="o">-</span><span class="n">cutoff</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">iterative</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">sam</span><span class="o">-</span><span class="n">sort</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">restore</span><span class="o">-</span><span class="n">coverage</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">ligation</span><span class="o">-</span><span class="n">junction</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="nb">filter</span><span class="o">-</span><span class="n">pairs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">hic</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">run</span><span class="o">-</span><span class="k">with</span> <span class="n">RUN_WITH</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">job</span><span class="o">-</span><span class="n">prefix</span> <span class="n">JOB_PREFIX</span><span class="p">]</span>
+                 <span class="p">[</span><span class="o">--</span><span class="n">grid</span><span class="o">-</span><span class="n">startup</span><span class="o">-</span><span class="n">commands</span> <span class="n">GRID_STARTUP_COMMANDS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">grid</span><span class="o">-</span><span class="n">cleanup</span><span class="o">-</span><span class="n">commands</span> <span class="n">GRID_CLEANUP_COMMANDS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
                  <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span> <span class="n">output_folder</span>
 </pre></div>
 </div>
-<div class="section" id="Positional Arguments">
-<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<section id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>input</kbd></dt>
 <dd><p>Input files. fanc will try to guess the file type by its extension.</p>
@@ -223,9 +134,9 @@ the processing and filtering of objects in the pipeline.</p>
 <dd><p>Output folder. All output files and folders will be generated under this directory.</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="Named Arguments">
-<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>-g, --genome</kbd></dt>
 <dd><p>Genome for the Hi-C object.Path to region-based file (BED, GFF, …) containing the non-overlapping regions to be used for Hi-C object construction. Typically restriction-enzyme fragments. Alternatively: Path to genome file (FASTA, folder with FASTA, hdf5 file), which will be used in conjunction with the type of restriction enzyme (-r) to calculate fragments directly.</p>
@@ -318,14 +229,14 @@ the processing and filtering of objects in the pipeline.</p>
 <dd><p>Force overwriting of existing files. Otherwise you will be prompted before files are overwritten.</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="mandatory-arguments">
-<h3>Mandatory arguments<a class="headerlink" href="#mandatory-arguments" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="mandatory-arguments">
+<h3>Mandatory arguments<a class="headerlink" href="#mandatory-arguments" title="Permalink to this heading"></a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fanc</span> <span class="n">auto</span> <span class="o">&lt;</span><span class="nb">input</span> <span class="mi">1</span><span class="o">&gt;</span> <span class="o">&lt;</span><span class="nb">input</span> <span class="mi">2</span><span class="o">&gt;</span> <span class="o">&lt;</span><span class="nb">input</span> <span class="mi">3</span><span class="o">&gt;</span> <span class="o">&lt;</span> <span class="o">...</span> <span class="o">&gt;</span> <span class="o">&lt;</span><span class="n">output</span> <span class="n">folder</span><span class="o">&gt;</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> accepts any number of input files, which will be discussed below.
-The last positional argument (without ‘-‘) <strong>must always be the output folder</strong> for
+The last positional argument (without ‘-’) <strong>must always be the output folder</strong> for
 all intermediate and final FAN-C files. <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> will generate the following
 folder structure in the output folder:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>output_folder
@@ -340,9 +251,9 @@ folder structure in the output folder:</p>
 </div>
 <p>You will find the processed files in these folders after completion of the pipeline -
 the folder names should be self-explanatory.</p>
-</div>
-<div class="section" id="general-arguments">
-<h3>General arguments<a class="headerlink" href="#general-arguments" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="general-arguments">
+<h3>General arguments<a class="headerlink" href="#general-arguments" title="Permalink to this heading"></a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> will name its output files using the <code class="docutils literal notranslate"><span class="pre">-n</span></code> parameter as prefix. If this is not
 provided, it will try to come up with a basename from the largest overlap of the input file
 names. As this can be surprising it is often best to specify the <code class="docutils literal notranslate"><span class="pre">-n</span></code> parameter directly.</p>
@@ -352,18 +263,18 @@ set this to a much higher value to enable parallel processing of large datasets.
 <p>If you are working on a network, or with multiple hard drives, you may want to use the <code class="docutils literal notranslate"><span class="pre">-tmp</span></code>
 option. It instructs <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> to perform as many calculations as possible in a temporary
 directory.</p>
-</div>
-</div>
-<div class="section" id="input-types">
-<h2>Input types<a class="headerlink" href="#input-types" title="Permalink to this headline">¶</a></h2>
+</section>
+</section>
+<section id="input-types">
+<h2>Input types<a class="headerlink" href="#input-types" title="Permalink to this heading"></a></h2>
 <p>For this tutorial, we are going to use the example data provided on our
 <a class="reference external" href="http://www.github.com/vaquerizaslab/fanc">GitHub page</a> in the <code class="docutils literal notranslate"><span class="pre">examples</span></code> folder.
 It is a downsampled Hi-C library of a previously published human adrenal tissue dataset
 (<a class="reference external" href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM2322539">SRR4271982 of GSM2322539</a>)
 that only contains chromosomes 18 and 19.</p>
 <p>Now let us discuss the different input types <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> can handle.</p>
-<div class="section" id="fastq-input">
-<h3>FASTQ input<a class="headerlink" href="#fastq-input" title="Permalink to this headline">¶</a></h3>
+<section id="fastq-input">
+<h3>FASTQ input<a class="headerlink" href="#fastq-input" title="Permalink to this heading"></a></h3>
 <p>To process FASTQ files with <code class="docutils literal notranslate"><span class="pre">fanc</span></code>, you must first have
 <a class="reference external" href="http://bowtie-bio.sourceforge.net/bowtie2/index.shtml">Bowtie2</a> or
 <a class="reference external" href="http://bio-bwa.sourceforge.net/">BWA</a> installed on your system and available in your PATH.
@@ -425,9 +336,9 @@ provide SAM/BAM files to <code class="docutils literal notranslate"><span class=
 You can also perform the mapping separately with the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">map</span></code> command, which also gives you
 additional options for controlling the mapping process, and which is described in
 <a class="reference internal" href="fanc_modular_steps.html#fanc-map"><span class="std std-ref">fanc map: Mapping FASTQ files</span></a>.</p>
-</div>
-<div class="section" id="sam-bam-input">
-<h3>SAM/BAM input<a class="headerlink" href="#sam-bam-input" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="sam-bam-input">
+<h3>SAM/BAM input<a class="headerlink" href="#sam-bam-input" title="Permalink to this heading"></a></h3>
 <p>To process SAM/BAM files, no additional external software is required. However, we do recommend
 the installation of <a class="reference external" href="http://lomereiter.github.io/sambamba/">Sambamba</a>, which can greatly speed
 up the SAM sorting step required for merging mate pairs into the Pairs object.</p>
@@ -462,9 +373,9 @@ unusable or misleading in interpreting Hi-C data. Additional filters for read pa
 described in the <a class="reference internal" href="#fanc-auto-pairs"><span class="std std-ref">Pairs input</span></a> section.</p>
 <p>You can run the SAM/BAM to Pairs step of the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> pipeline separately using
 <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pairs</span></code>, which is described in mor detail in <a class="reference internal" href="fanc_modular_steps.html#fanc-pairs"><span class="std std-ref">fanc pairs: Generating and filtering read Pairs</span></a>.</p>
-</div>
-<div class="section" id="valid-pairs-txt-input">
-<h3>“Valid pairs” txt input<a class="headerlink" href="#valid-pairs-txt-input" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="valid-pairs-txt-input">
+<h3>“Valid pairs” txt input<a class="headerlink" href="#valid-pairs-txt-input" title="Permalink to this heading"></a></h3>
 <p>Many tools for processing Hi-C data output “valid pairs” files, which are typically tab-delimited
 text files that contain read pair information. FAN-C supports valid pairs files from
 <a class="reference external" href="http://nservant.github.io/HiC-Pro/RESULTS.html#list-of-valid-interaction-products">HiC-Pro</a>
@@ -474,9 +385,9 @@ and the <a class="reference external" href="https://github.com/4dn-dcic/pairix/b
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> will attempt to automatically determine if you supply a valid pairs file.</p>
-</div>
-<div class="section" id="pairs-input">
-<span id="fanc-auto-pairs"></span><h3>Pairs input<a class="headerlink" href="#pairs-input" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="pairs-input">
+<span id="fanc-auto-pairs"></span><h3>Pairs input<a class="headerlink" href="#pairs-input" title="Permalink to this heading"></a></h3>
 <p>If you already have a FAN-C Pairs object, for example from a previous <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> run or
 from the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pairs</span></code> command, you can feed them to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> directly:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto output/pairs/fanc_example.pairs ./example_output/
@@ -491,9 +402,9 @@ filtering options are available in the description of the separate <code class="
 <a class="reference internal" href="fanc_modular_steps.html#fanc-pairs"><span class="std std-ref">fanc pairs: Generating and filtering read Pairs</span></a></p>
 <p>After filtering, Pairs files are converted to fragment-level Hic objects. The parameters
 applying to their processing are described in the next section.</p>
-</div>
-<div class="section" id="hic-input">
-<h3>Hic input<a class="headerlink" href="#hic-input" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="hic-input">
+<h3>Hic input<a class="headerlink" href="#hic-input" title="Permalink to this heading"></a></h3>
 <p>If you already have a FAN-C Hic object, for example from a previous <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> run or
 from the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span></code> command, you can feed them to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> directly:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc auto output/hic/fanc_example.hic ./example_output/
@@ -512,9 +423,9 @@ by default the corrected matrix entries correspond to contact probabilities. You
 total number of reads before correction.</p>
 <p>You can run the Hi-C processing step independently with the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span></code> command, as described
 in detail in <a class="reference internal" href="fanc_modular_steps.html#fanc-hic"><span class="std std-ref">fanc hic: Generating, binning, and filtering Hic objects</span></a></p>
-</div>
-<div class="section" id="mixed-input">
-<h3>Mixed input<a class="headerlink" href="#mixed-input" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="mixed-input">
+<h3>Mixed input<a class="headerlink" href="#mixed-input" title="Permalink to this heading"></a></h3>
 <p>Now that we have covered all the different input options fort <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code>, it is worth
 stressing that you can combined different types of input in the same command. <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code>
 will attempt to automatically determine the commands necessary for each input to run
@@ -529,10 +440,10 @@ case):</p>
           -i bwa-index/hg19_chr18_19.fa -n <span class="nb">test</span> -s <span class="m">20</span> -t <span class="m">16</span> -q <span class="m">3</span>
 </pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="test-runs-and-sun-oracle-slurm-grid-engine-support">
-<h2>Test runs and Sun/Oracle/Slurm Grid engine support<a class="headerlink" href="#test-runs-and-sun-oracle-slurm-grid-engine-support" title="Permalink to this headline">¶</a></h2>
+</section>
+</section>
+<section id="test-runs-and-sun-oracle-slurm-grid-engine-support">
+<h2>Test runs and Sun/Oracle/Slurm Grid engine support<a class="headerlink" href="#test-runs-and-sun-oracle-slurm-grid-engine-support" title="Permalink to this heading"></a></h2>
 <p>By default, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> runs tasks in parallel locally on the machine it was started on.
 If you want to perform a test run, without actually executing any commands, you can use
 the <code class="docutils literal notranslate"><span class="pre">--run-with</span> <span class="pre">test</span></code> option. This will not run any of the <code class="docutils literal notranslate"><span class="pre">fanc</span></code> pipeline steps, but
@@ -545,63 +456,45 @@ ensure each command waits for the output of its dependencies. You can configure 
 setup using <a class="reference internal" href="fanc_config.html#fanc-config"><span class="std std-ref">FAN-C config files</span></a></p>
 <p>There is also experimental support for <a class="reference external" href="https://slurm.schedmd.com/">Slurm</a>, which you can
 enable using <code class="docutils literal notranslate"><span class="pre">--run-with</span> <span class="pre">slurm</span></code>.</p>
-</div>
-<div class="section" id="next-steps">
-<h2>Next steps<a class="headerlink" href="#next-steps" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="next-steps">
+<h2>Next steps<a class="headerlink" href="#next-steps" title="Permalink to this heading"></a></h2>
 <p>Once you have generated your binned, filtered, and corrected Hic objects with <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code>,
 you may want to explore the data in those matrices. FAN-C provides a number of commands for
 data analysis and exploration. Continue with <a class="reference internal" href="../fanc_analyse_hic.html#analyse-hic"><span class="std std-ref">Analyse Hi-C matrices (API)</span></a> for further details.</p>
 <p>If you want to explore individual matrix generation pipeline steps, continue to <a class="reference internal" href="fanc_modular_steps.html#fanc-modular"><span class="std std-ref">Individual pipeline steps</span></a>.</p>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="fanc_modular_steps.html" class="btn btn-neutral float-right" title="Individual pipeline steps" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="../fanc_generate_hic.html" class="btn btn-neutral float-left" title="Generate Hi-C matrices" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../fanc_generate_hic.html" class="btn btn-neutral float-left" title="Generate Hi-C matrices" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="fanc_modular_steps.html" class="btn btn-neutral float-right" title="Individual pipeline steps" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
-
-    </p>
+    <p>&#169; Copyright 2020, Kai Kruse, Vaquerizas lab.</p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
-
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

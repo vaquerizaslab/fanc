@@ -1,71 +1,39 @@
-
-
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Generating and filtering read pairs &mdash; FAN-C 0.9.14-beta documentation</title>
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generating and filtering read pairs &mdash; FAN-C 0.9.26b1-beta documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../../_static/jquery.js"></script>
-        <script type="text/javascript" src="../../_static/underscore.js"></script>
-        <script type="text/javascript" src="../../_static/doctools.js"></script>
-        <script type="text/javascript" src="../../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../../_static/js/theme.js"></script>
-
-    
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="Generate, bin, filter, and correct Hic objects" href="hic.html" />
     <link rel="prev" title="Mapping FASTQ files" href="map.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../../index.html" class="icon icon-home"> FAN-C
-          
-
-          
           </a>
-
-          
-            
-            
               <div class="version">
-                0.9.14
+                0.9.26b1
               </div>
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -73,17 +41,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
@@ -111,78 +69,38 @@
 </li>
 </ul>
 
-            
-          
         </div>
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../index.html">FAN-C</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
-        
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../api.html">fanc Python module</a> &raquo;</li>
-        
           <li><a href="../generate.html">Generate Hi-C matrices (API)</a> &raquo;</li>
-        
       <li>Generating and filtering read pairs</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-            
             <a href="../../_sources/api/generate/pairs.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="generating-and-filtering-read-pairs">
-<span id="api-pairs"></span><h1>Generating and filtering read pairs<a class="headerlink" href="#generating-and-filtering-read-pairs" title="Permalink to this headline">¶</a></h1>
+             
+  <section id="generating-and-filtering-read-pairs">
+<span id="api-pairs"></span><h1>Generating and filtering read pairs<a class="headerlink" href="#generating-and-filtering-read-pairs" title="Permalink to this heading"></a></h1>
 <p>Once we have mapped and sorted BAM files (see <a class="reference internal" href="map.html#api-map"><span class="std std-ref">Mapping FASTQ files</span></a>) we can load the paired reads
 into a <a class="reference internal" href="../modules/pairs.html#fanc.pairs.ReadPairs" title="fanc.pairs.ReadPairs"><code class="xref py py-class docutils literal notranslate"><span class="pre">ReadPairs</span></code></a> object.</p>
-<div class="section" id="obtaining-fragments">
-<h2>Obtaining fragments<a class="headerlink" href="#obtaining-fragments" title="Permalink to this headline">¶</a></h2>
+<section id="obtaining-fragments">
+<h2>Obtaining fragments<a class="headerlink" href="#obtaining-fragments" title="Permalink to this heading"></a></h2>
 <p><a class="reference internal" href="../modules/pairs.html#fanc.pairs.ReadPairs" title="fanc.pairs.ReadPairs"><code class="xref py py-class docutils literal notranslate"><span class="pre">ReadPairs</span></code></a> map reads to restriction fragments, so first of all we are
 going to need a list of those. The <a class="reference internal" href="../modules/regions.html#fanc.regions.genome_regions" title="fanc.regions.genome_regions"><code class="xref py py-func docutils literal notranslate"><span class="pre">fanc.regions.genome_regions()</span></code></a> function has been
 made for that purpose. If you provide it with a FASTA file and a restriction enzyme name,
@@ -198,9 +116,9 @@ so don’t just use a list of restriction sites!</p>
 <p>The returned object is of class <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionBased</span></code>. See
 <a class="reference internal" href="../interfaces/regions_interface.html#genomic-regions"><span class="std std-ref">the main article</span></a>
 if you want to learn how to interact with objects of that class.</p>
-</div>
-<div class="section" id="setting-up-filters-at-the-read-level">
-<h2>Setting up filters at the read level<a class="headerlink" href="#setting-up-filters-at-the-read-level" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="setting-up-filters-at-the-read-level">
+<h2>Setting up filters at the read level<a class="headerlink" href="#setting-up-filters-at-the-read-level" title="Permalink to this heading"></a></h2>
 <p>Filters can be used to remove problematic reads, such as those with poor quality
 (<a class="reference internal" href="../modules/pairs.html#fanc.pairs.QualityFilter" title="fanc.pairs.QualityFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">QualityFilter</span></code></a>) or with multiple mapping locations throughout
 the genome (<a class="reference internal" href="../modules/pairs.html#fanc.pairs.UniquenessFilter" title="fanc.pairs.UniquenessFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">UniquenessFilter</span></code></a>). These filters (of class
@@ -208,7 +126,7 @@ the genome (<a class="reference internal" href="../modules/pairs.html#fanc.pairs
 as the necessary information is otherwise lost in later processing stages:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">fanc.pairs</span> <span class="kn">import</span> <span class="n">QualityFilter</span><span class="p">,</span> <span class="n">UniquenessFilter</span>
 <span class="n">quality_filter</span> <span class="o">=</span> <span class="n">QualityFilter</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="s1">&#39;MAPQ&#39;</span><span class="p">)</span>
-<span class="n">uniqueness_filter</span> <span class="o">=</span> <span class="n">UniquenessFilter</span><span class="p">(</span><span class="n">strict</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="s1">&#39;unique&#39;</span><span class="p">)</span>
+<span class="n">uniqueness_filter</span> <span class="o">=</span> <span class="n">UniquenessFilter</span><span class="p">(</span><span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="s1">&#39;unique&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="admonition warning">
@@ -227,9 +145,9 @@ reads has the <code class="docutils literal notranslate"><span class="pre">XS</s
 to the primary alignment score (<code class="docutils literal notranslate"><span class="pre">AS</span></code>). The latter setting is therefore more permissive.</p>
 <p>Now we have set up the necessary filters, we can start importing read pairs and match them
 to restriction fragments.</p>
-</div>
-<div class="section" id="importing-and-accessing-read-pairs">
-<h2>Importing and accessing read pairs<a class="headerlink" href="#importing-and-accessing-read-pairs" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="importing-and-accessing-read-pairs">
+<h2>Importing and accessing read pairs<a class="headerlink" href="#importing-and-accessing-read-pairs" title="Permalink to this heading"></a></h2>
 <p>For importing read pairs from SAM files we can use <a class="reference internal" href="../modules/pairs.html#fanc.pairs.generate_pairs_split" title="fanc.pairs.generate_pairs_split"><code class="xref py py-func docutils literal notranslate"><span class="pre">generate_pairs_split()</span></code></a>.
 It requires the two paired-end SAM (or BAM) files and fragment definitions. In addition, we
 provide it with the read filters we created above, so that only reads meeting our
@@ -241,7 +159,7 @@ for actual Hi-C libraries. Here, we request four threads to be used for the load
 <span class="n">pairs</span> <span class="o">=</span> <span class="n">generate_pairs</span><span class="p">(</span><span class="n">sam_1_file</span><span class="p">,</span> <span class="n">sam_2_file</span><span class="p">,</span> <span class="n">fragments</span><span class="p">,</span>
                        <span class="n">read_filters</span><span class="o">=</span><span class="p">(</span><span class="n">quality_filter</span><span class="p">,</span> <span class="n">uniqueness_filter</span><span class="p">),</span>
                        <span class="n">output_file</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pairs_folder</span><span class="p">,</span> <span class="s1">&#39;example.pairs&#39;</span><span class="p">),</span>
-                       <span class="n">check_sorted</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+                       <span class="n">check_sorted</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The resulting object is of the type <a class="reference internal" href="../modules/pairs.html#fanc.pairs.ReadPairs" title="fanc.pairs.ReadPairs"><code class="xref py py-class docutils literal notranslate"><span class="pre">ReadPairs</span></code></a>, which implements
@@ -249,31 +167,31 @@ for actual Hi-C libraries. Here, we request four threads to be used for the load
 restriction fragments.</p>
 <p>Let’s look at some basic information:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">chromosomes</span> <span class="o">=</span> <span class="n">pairs</span><span class="o">.</span><span class="n">chromosomes</span><span class="p">()</span>
-<span class="k">print</span><span class="p">(</span><span class="n">chromosomes</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">chromosomes</span><span class="p">)</span>
 <span class="c1"># [&#39;chr18&#39;, &#39;chr19&#39;]</span>
 
 <span class="n">pair</span> <span class="o">=</span> <span class="n">pairs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-<span class="k">print</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span>
 <span class="c1"># chr18: 3187827-(3191583[1])-3192106 -- chr18: 3187827-(3192073[-1])-3192106</span>
 <span class="nb">type</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span>
 <span class="c1"># fanc.pairs.FragmentReadPair</span>
 
-<span class="k">print</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">left</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">left</span><span class="p">)</span>
 <span class="c1"># chr18: 3187827-(3191583[1])-3192106</span>
 
-<span class="k">print</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">right</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">right</span><span class="p">)</span>
 <span class="c1"># chr18: 3187827-(3192073[-1])-3192106</span>
 <span class="nb">type</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">right</span><span class="p">)</span>
 <span class="c1"># fanc.pairs.FragmentRead</span>
-<span class="k">print</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">fragment</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">fragment</span><span class="p">)</span>
 <span class="c1"># chr18:3187827-3192106</span>
 <span class="nb">type</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">fragment</span><span class="p">)</span>
 <span class="c1"># genomic_regions.regions.GenomicRegion</span>
-<span class="k">print</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
 <span class="c1"># 3192073</span>
-<span class="k">print</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">re_distance</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">re_distance</span><span class="p">())</span>
 <span class="c1"># 33</span>
-<span class="k">print</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">strand</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">strand</span><span class="p">)</span>
 <span class="c1"># -1</span>
 </pre></div>
 </div>
@@ -295,17 +213,17 @@ in post-processing.</p>
 subsets with the <a class="reference internal" href="../modules/pairs.html#fanc.pairs.ReadPairs.pairs" title="fanc.pairs.ReadPairs.pairs"><code class="xref py py-func docutils literal notranslate"><span class="pre">fanc.pairs.ReadPairs.pairs()</span></code></a> function:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># all pairs</span>
 <span class="k">for</span> <span class="n">pair</span> <span class="ow">in</span> <span class="n">pairs</span><span class="o">.</span><span class="n">pairs</span><span class="p">:</span>
-    <span class="k">print</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span>
 <span class="c1"># pair subset (only pairs with both fragments on chromosome 18)</span>
 <span class="k">for</span> <span class="n">pair</span> <span class="ow">in</span> <span class="n">pairs</span><span class="o">.</span><span class="n">pairs</span><span class="p">((</span><span class="s1">&#39;chr18&#39;</span><span class="p">,</span> <span class="s1">&#39;chr18&#39;</span><span class="p">)):</span>
-    <span class="k">print</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The <a class="reference internal" href="../modules/pairs.html#fanc.pairs.ReadPairs.pairs" title="fanc.pairs.ReadPairs.pairs"><code class="xref py py-func docutils literal notranslate"><span class="pre">fanc.pairs.ReadPairs.pairs()</span></code></a> function supports <a class="reference internal" href="../interfaces/edges_interface.html#lazy-evaluation"><span class="std std-ref">lazy evaluation</span></a>
 with the <code class="docutils literal notranslate"><span class="pre">lazy=True</span></code> argument, but make sure to read the caveats in the main article!</p>
-</div>
-<div class="section" id="read-fragment-pair-filters">
-<h2>Read/fragment pair filters<a class="headerlink" href="#read-fragment-pair-filters" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="read-fragment-pair-filters">
+<h2>Read/fragment pair filters<a class="headerlink" href="#read-fragment-pair-filters" title="Permalink to this heading"></a></h2>
 <p>In addition to the quality and uniqueness filters, which had to be used during read pair import,
 FAN-C offers a number of <a class="reference internal" href="../modules/pairs.html#fanc.pairs.FragmentReadPairFilter" title="fanc.pairs.FragmentReadPairFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FragmentReadPairFilter</span></code></a> to remove problematic pairs.
 First of all, however, we’ll introduce one little function that you can use to reset all filters
@@ -333,30 +251,30 @@ them all in one go:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">fanc.pairs</span> <span class="kn">import</span> <span class="n">SelfLigationFilter</span><span class="p">,</span> <span class="n">ReDistanceFilter</span>
 <span class="n">sl_filter</span> <span class="o">=</span> <span class="n">SelfLigationFilter</span><span class="p">(</span><span class="n">mask</span><span class="o">=</span><span class="s1">&#39;self-ligation&#39;</span><span class="p">)</span>
 <span class="n">rd_filter</span> <span class="o">=</span> <span class="n">ReDistanceFilter</span><span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="s1">&#39;re-site-distance&#39;</span><span class="p">)</span>
-<span class="n">pairs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">sl_filter</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-<span class="n">pairs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">rd_filter</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">pairs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">sl_filter</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">pairs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">rd_filter</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">pairs</span><span class="o">.</span><span class="n">run_queued_filters</span><span class="p">()</span>
 </pre></div>
 </div>
 <p>Once the <a class="reference internal" href="../modules/pairs.html#fanc.pairs.ReadPairs.filter" title="fanc.pairs.ReadPairs.filter"><code class="xref py py-func docutils literal notranslate"><span class="pre">filter()</span></code></a> command has completed, the filtered pairs will
 appear to have been deleted from the object.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pair</span> <span class="o">=</span> <span class="n">pairs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-<span class="k">print</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span>
 <span class="c1"># chr18: 899140-(899308[-1])-899476 -- chr18: 1509911-(1510021[1])-1510076</span>
 </pre></div>
 </div>
 <p>In reality, filtering only masks (“hides”) edges, so we have the opportunity to reset filters
 or selectively disable them when iterating:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">pair</span> <span class="ow">in</span> <span class="n">pairs</span><span class="o">.</span><span class="n">pairs</span><span class="p">(</span><span class="n">excluded_filters</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;self-ligation&#39;</span><span class="p">]):</span>
-    <span class="k">print</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>To obtain a dictionary with the filter statistics, use <a class="reference internal" href="../modules/pairs.html#fanc.pairs.ReadPairs.filter_statistics" title="fanc.pairs.ReadPairs.filter_statistics"><code class="xref py py-func docutils literal notranslate"><span class="pre">filter_statistics()</span></code></a></p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">statistics</span> <span class="o">=</span> <span class="n">pairs</span><span class="o">.</span><span class="n">filter_statistics</span><span class="p">()</span>
 </pre></div>
 </div>
-<div class="section" id="filter-types">
-<h3>Filter types<a class="headerlink" href="#filter-types" title="Permalink to this headline">¶</a></h3>
+<section id="filter-types">
+<h3>Filter types<a class="headerlink" href="#filter-types" title="Permalink to this heading"></a></h3>
 <p>Here are the filters available in FAN-C for read/fragment pairs:</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="../modules/pairs.html#fanc.pairs.SelfLigationFilter" title="fanc.pairs.SelfLigationFilter"><code class="xref py py-class docutils literal notranslate"><span class="pre">SelfLigationFilter</span></code></a> removes all pairs where both reads map to the same fragment</p></li>
@@ -372,57 +290,39 @@ towards or away from each other (in terms of strand), respectively. This is desi
 ligation products that have likely arisen from uncut restriction sites or that are unligated.</p></li>
 </ul>
 <p>Next, we will convert the filtered pairs to a <a class="reference internal" href="../modules/hic.html#fanc.hic.Hic" title="fanc.hic.Hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code></a> object.</p>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="hic.html" class="btn btn-neutral float-right" title="Generate, bin, filter, and correct Hic objects" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="map.html" class="btn btn-neutral float-left" title="Mapping FASTQ files" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="map.html" class="btn btn-neutral float-left" title="Mapping FASTQ files" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="hic.html" class="btn btn-neutral float-right" title="Generate, bin, filter, and correct Hic objects" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
-
-    </p>
+    <p>&#169; Copyright 2020, Kai Kruse, Vaquerizas lab.</p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
-
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

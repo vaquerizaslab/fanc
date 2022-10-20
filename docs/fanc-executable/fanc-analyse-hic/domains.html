@@ -1,71 +1,39 @@
-
-
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Hi-C domain analysis &mdash; FAN-C 0.9.14-beta documentation</title>
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hi-C domain analysis &mdash; FAN-C 0.9.26b1-beta documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../../_static/jquery.js"></script>
-        <script type="text/javascript" src="../../_static/underscore.js"></script>
-        <script type="text/javascript" src="../../_static/doctools.js"></script>
-        <script type="text/javascript" src="../../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../../_static/js/theme.js"></script>
-
-    
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="Matrix and score comparisons" href="comparisons.html" />
     <link rel="prev" title="PCA analysis" href="pca.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../../index.html" class="icon icon-home"> FAN-C
-          
-
-          
           </a>
-
-          
-            
-            
               <div class="version">
-                0.9.14
+                0.9.26b1
               </div>
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -73,17 +41,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
@@ -112,74 +70,34 @@
 <li class="toctree-l1"><a class="reference internal" href="../../api/api.html">Python API</a></li>
 </ul>
 
-            
-          
         </div>
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../index.html">FAN-C</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
-        
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../../fanc.html">FAN-C command line tools</a> &raquo;</li>
-        
           <li><a href="../fanc_analyse_hic.html">Analyse Hi-C matrices (API)</a> &raquo;</li>
-        
       <li>Hi-C domain analysis</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-            
             <a href="../../_sources/fanc-executable/fanc-analyse-hic/domains.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="hi-c-domain-analysis">
-<span id="fanc-domains"></span><h1>Hi-C domain analysis<a class="headerlink" href="#hi-c-domain-analysis" title="Permalink to this headline">¶</a></h1>
+             
+  <section id="hi-c-domain-analysis">
+<span id="fanc-domains"></span><h1>Hi-C domain analysis<a class="headerlink" href="#hi-c-domain-analysis" title="Permalink to this heading"></a></h1>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The following examples use the matrix files in FAN-C format. If you want to try the same
@@ -199,24 +117,21 @@ genome organisation.</p>
 </div>
 <img alt="../../_images/fanc_example_100kb_tads.png" src="../../_images/fanc_example_100kb_tads.png" />
 <p>FAN-C provides multiple “scores” that are designed to find the boundaries between domains.</p>
-<div class="section" id="insulation-score">
-<h2>Insulation Score<a class="headerlink" href="#insulation-score" title="Permalink to this headline">¶</a></h2>
+<section id="insulation-score">
+<h2>Insulation Score<a class="headerlink" href="#insulation-score" title="Permalink to this heading"></a></h2>
 <p>The insulation score (<a class="reference external" href="http://www.nature.com/doifinder/10.1038/nature14450">Crane et al. 2015</a>)
 adds up contacts in a sliding window align the Hi-C matrix diagonal.</p>
 <img alt="../../_images/fanc_example_100kb_tads_insulation_score_example.png" src="../../_images/fanc_example_100kb_tads_insulation_score_example.png" />
 <p>Regions with low score are “insulating”, i.e. regions between domains. Regions with high scores
 are most likely found inside domains.</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code> to calculate the insulation score from the command line:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">insulation</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OUTPUT_FORMAT</span><span class="p">]</span>
-                       <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW_SIZES</span> <span class="p">[</span><span class="n">WINDOW_SIZES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">REGION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">]</span>
-                       <span class="p">[</span><span class="o">--</span><span class="n">offset</span> <span class="n">OFFSET</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">L</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">N</span><span class="p">]</span>
-                       <span class="p">[</span><span class="o">--</span><span class="n">normalisation</span><span class="o">-</span><span class="n">window</span> <span class="n">NORMALISATION_WINDOW</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span><span class="p">]</span>
-                       <span class="p">[</span><span class="o">--</span><span class="n">trim</span><span class="o">-</span><span class="n">mean</span> <span class="n">TRIM_MEAN</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">insulation</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OUTPUT_FORMAT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW_SIZES</span> <span class="p">[</span><span class="n">WINDOW_SIZES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">REGION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">offset</span> <span class="n">OFFSET</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">L</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">N</span><span class="p">]</span>
+                       <span class="p">[</span><span class="o">--</span><span class="n">normalisation</span><span class="o">-</span><span class="n">window</span> <span class="n">NORMALISATION_WINDOW</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">trim</span><span class="o">-</span><span class="n">mean</span> <span class="n">TRIM_MEAN</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
                        <span class="nb">input</span> <span class="p">[</span><span class="n">output</span><span class="p">]</span>
 </pre></div>
 </div>
-<div class="section" id="Positional Arguments">
-<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<section id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>input</kbd></dt>
 <dd><p>Input matrix (Hi-C, fold-change map, …)</p>
@@ -225,9 +140,9 @@ are most likely found inside domains.</p>
 <dd><p>Output file. Format will be determined by “-o”. By default, this is a FAN-C InsulationScores object, for maximum compatibility with other analyses. If you choose a text-based output format (BED, GFF, BigWig), this parameter will be the file prefix, and the window size will be appended.If not specified and output format is one of bed, gff, or bigwig, the input file name forms the output file prefix.</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="Named Arguments">
-<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>-o, --output-format</kbd></dt>
 <dd><p>Format of the output file. By default, this is a FAN-C InsulationScore object, for maximum compatibility with other analyses. Other options are “bed”, “bigwig”, and “gff”</p>
@@ -266,9 +181,9 @@ are most likely found inside domains.</p>
 <dd><p>Work in temporary directory</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="example">
-<h3>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this heading"></a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code> is typically used to calculate insulation scores with multiple window
 sizes at the same time, as a single window size might be prone to local matrix differences:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc insulation output/hic/binned/fanc_example_100kb.hic <span class="se">\</span>
@@ -284,9 +199,9 @@ sizes at the same time, as a single window size might be prone to local matrix d
 </pre></div>
 </div>
 <img alt="../../_images/fanc_example_50kb_tads_insulation.png" src="../../_images/fanc_example_50kb_tads_insulation.png" />
-</div>
-<div class="section" id="output-formats">
-<h3>Output formats<a class="headerlink" href="#output-formats" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="output-formats">
+<h3>Output formats<a class="headerlink" href="#output-formats" title="Permalink to this heading"></a></h3>
 <p>The default output format has maximum compatibility within FAN-C, but other tools like
 genome browsers won’t be able to read it. Export of insulation scores to a different
 format is simple. Just choose <code class="docutils literal notranslate"><span class="pre">-output-format</span> <span class="pre">bed</span></code> to export to BED file,
@@ -304,11 +219,11 @@ format. Example:</p>
 </pre></div>
 </div>
 <p>This produces the output files:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_1</span><span class="o">.</span><span class="mi">5</span><span class="n">mb</span><span class="o">.</span><span class="n">bed</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_1</span><span class="mf">.5</span><span class="n">mb</span><span class="o">.</span><span class="n">bed</span>
 <span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_1mb</span><span class="o">.</span><span class="n">bed</span>
-<span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_2</span><span class="o">.</span><span class="mi">5</span><span class="n">mb</span><span class="o">.</span><span class="n">bed</span>
+<span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_2</span><span class="mf">.5</span><span class="n">mb</span><span class="o">.</span><span class="n">bed</span>
 <span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_2mb</span><span class="o">.</span><span class="n">bed</span>
-<span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_3</span><span class="o">.</span><span class="mi">5</span><span class="n">mb</span><span class="o">.</span><span class="n">bed</span>
+<span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_3</span><span class="mf">.5</span><span class="n">mb</span><span class="o">.</span><span class="n">bed</span>
 <span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_3mb</span><span class="o">.</span><span class="n">bed</span>
 <span class="n">architecture</span><span class="o">/</span><span class="n">domains</span><span class="o">/</span><span class="n">fanc_example_100kb</span><span class="o">.</span><span class="n">insulation_4mb</span><span class="o">.</span><span class="n">bed</span>
 </pre></div>
@@ -343,9 +258,9 @@ parameters:</p>
 </pre></div>
 </div>
 <img alt="../../_images/fanc_example_50kb_tads_insulation_1mb.png" src="../../_images/fanc_example_50kb_tads_insulation_1mb.png" />
-</div>
-<div class="section" id="normalisation">
-<h3>Normalisation<a class="headerlink" href="#normalisation" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="normalisation">
+<h3>Normalisation<a class="headerlink" href="#normalisation" title="Permalink to this heading"></a></h3>
 <p>By default, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code> will normalise the insulation scores to the chromosomal
 average and the log-transform them. You can get raw, untransformed scores using <code class="docutils literal notranslate"><span class="pre">-N</span></code> and
 <code class="docutils literal notranslate"><span class="pre">--L</span></code>, respectively. If you want to normalise the scores, but to a smaller region on the
@@ -361,9 +276,9 @@ average.</p>
 <p>If you have a lot of outliers and sharp score changes, you may use a trimmed mean
 to calculate average scores with <code class="docutils literal notranslate"><span class="pre">--trim-mean</span> <span class="pre">&lt;f&gt;</span></code>, which will ignore the top and bottom
 fraction <em>f</em> of scores for calculating the average.</p>
-</div>
-<div class="section" id="impute-missing-values">
-<h3>Impute missing values<a class="headerlink" href="#impute-missing-values" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="impute-missing-values">
+<h3>Impute missing values<a class="headerlink" href="#impute-missing-values" title="Permalink to this heading"></a></h3>
 <p>In the above examples, you will notice the region on the left that is unmappable in the Hi-C
 matrix. In the insulation score calculation, if the insulation window is covered by more than
 50% of unmappable regions, the score will be NaN. <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code> offers the option to
@@ -383,31 +298,29 @@ this capability with caution!</p>
 </pre></div>
 </div>
 <img alt="../../_images/fanc_example_50kb_tads_insulation_imputed.png" src="../../_images/fanc_example_50kb_tads_insulation_imputed.png" />
-</div>
-</div>
-<div class="section" id="insulating-boundaries-tad-boundaries">
-<h2>Insulating boundaries (TAD boundaries)<a class="headerlink" href="#insulating-boundaries-tad-boundaries" title="Permalink to this headline">¶</a></h2>
+</section>
+</section>
+<section id="insulating-boundaries-tad-boundaries">
+<h2>Insulating boundaries (TAD boundaries)<a class="headerlink" href="#insulating-boundaries-tad-boundaries" title="Permalink to this heading"></a></h2>
 <p>Regions in the genome where the insulation score reaches a local minimum represent the region
 between two self-interacting domains, or TADs. You can use <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">boundaries</span></code> to identify these
 regions:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">boundaries</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">DELTA</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">MIN_SCORE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">x</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span>
-                       <span class="p">[</span><span class="o">-</span><span class="n">m</span><span class="p">]</span>
-                       <span class="nb">input</span> <span class="n">output</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">boundaries</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">DELTA</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">MIN_SCORE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">x</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span><span class="p">]</span> <span class="nb">input</span> <span class="n">output</span>
 </pre></div>
 </div>
-<div class="section" id="Positional Arguments">
-<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<section id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>input</kbd></dt>
-<dd><p>Input InsulationScores or regions file</p>
+<dd><p>Input InsulationScores or region-based file with scores (BED, BigWig, …)</p>
 </dd>
 <dt><kbd>output</kbd></dt>
 <dd><p>Path for boundary BED file. When specifying multiple window sizes or if input file has multiple scores in it, this forms the output file prefix and will be appended by ‘&lt;window size&gt;.bed’</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="Named Arguments">
-<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>-w, --window-sizes</kbd></dt>
 <dd><p>Insulation index window size to calculate boundaries on. Separate multiple window sizes with comma, e.g. 1mb,500kb,100kb</p>
@@ -428,7 +341,7 @@ regions:</p>
 <dd><p>Call maxima of the insulation score instead of minima.</p>
 </dd>
 </dl>
-</div>
+</section>
 <p>When we run <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">boundaries</span></code> on the above example using 1mb and 2mb as the window sizes:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc boundaries architecture/domains/fanc_example_100kb.insulation <span class="se">\</span>
                 architecture/domains/fanc_example_100kb.insulation_boundaries <span class="se">\</span>
@@ -461,9 +374,9 @@ scores greater than <em>s</em>.</p>
 <p>By default, <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">boundaries</span></code> will return minima as matrix bins. However, since the boundary
 calls rely on a smoothed insulation score track, it can attempt to identify the boundary location
 with sub-bin resolution. Use <code class="docutils literal notranslate"><span class="pre">-x</span></code> to try this, but be aware that this is not precise.</p>
-</div>
-<div class="section" id="directionality-index">
-<span id="id1"></span><h2>Directionality Index<a class="headerlink" href="#directionality-index" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="directionality-index">
+<span id="id1"></span><h2>Directionality Index<a class="headerlink" href="#directionality-index" title="Permalink to this heading"></a></h2>
 <p>The directionality index (<a class="reference external" href="http://www.nature.com/doifinder/10.1038/nature11082">Dixon et al. 2012</a>)
 measures the bias in contact frequency up- and downstream of an Hi-C region. When inside TADs,
 this measure tends towards zero, as interactions in either direction are equally frequent. However,
@@ -471,14 +384,11 @@ when approaching a TAD boundary this measure changes drastically, as one directi
 inside the TAD, where there is a high contact intensity, whereas the other direction will lie in
 a low intensity region outside the TAD.</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">directionality</span></code> to calculate the directionality index from the command line:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">directionality</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OUTPUT_FORMAT</span><span class="p">]</span>
-                           <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW_SIZES</span> <span class="p">[</span><span class="n">WINDOW_SIZES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">REGION</span><span class="p">]</span>
-                           <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
-                           <span class="nb">input</span> <span class="p">[</span><span class="n">output</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">directionality</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OUTPUT_FORMAT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span> <span class="n">WINDOW_SIZES</span> <span class="p">[</span><span class="n">WINDOW_SIZES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">REGION</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span> <span class="nb">input</span> <span class="p">[</span><span class="n">output</span><span class="p">]</span>
 </pre></div>
 </div>
-<div class="section" id="Positional Arguments">
-<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<section id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>input</kbd></dt>
 <dd><p>Input matrix (Hi-C, fold-change map, …)</p>
@@ -487,9 +397,9 @@ a low intensity region outside the TAD.</p>
 <dd><p>Output file. Format will be determined by “-o”. By default, this is a FAN-C DirectionalityIndexes object, for maximum compatibility with other analyses. If you choose a text-based output format (BED, GFF, BigWig), this parameter will be the file prefix, and the window size will be appended.If not specified and output format is one of bed, gff, or bigwig, the input file name forms the output file prefix.</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="Named Arguments">
-<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>-o, --output-format</kbd></dt>
 <dd><p>Format of the output file. By default, this is a FAN-C DirectionalityIndex object, for maximum compatibility with other analyses. Other options are “bed”, “bigwig”, and “gff”</p>
@@ -504,9 +414,9 @@ a low intensity region outside the TAD.</p>
 <dd><p>Work in temporary directory</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="id2">
-<h3>Example<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="id2">
+<h3>Example<a class="headerlink" href="#id2" title="Permalink to this heading"></a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">directionality</span></code> is very similar in syntax to <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code>.
 It is typically used to calculate directionality indexes with multiple window
 sizes at the same time, as a single window size might be prone to local matrix differences:</p>
@@ -525,10 +435,10 @@ sizes at the same time, as a single window size might be prone to local matrix d
 <img alt="../../_images/fanc_example_50kb_tads_directionality.png" src="../../_images/fanc_example_50kb_tads_directionality.png" />
 <p>To export the directionality index to other genomic formats using <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">directionality</span></code>
 follow the instructions as for <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">insulation</span></code>.</p>
-</div>
-</div>
-<div class="section" id="a-note-on-tad-calling">
-<h2>A note on TAD calling<a class="headerlink" href="#a-note-on-tad-calling" title="Permalink to this headline">¶</a></h2>
+</section>
+</section>
+<section id="a-note-on-tad-calling">
+<h2>A note on TAD calling<a class="headerlink" href="#a-note-on-tad-calling" title="Permalink to this heading"></a></h2>
 <p>There are a lot of tools available for calling TADs in Hi-C matrices, including one that
 we have written called <a class="reference external" href="https://github.com/vaquerizaslab/tadtool">TADtool</a>. However,
 and this is a point we are also making with TADtool specifically, TAD calling algorithms
@@ -536,56 +446,38 @@ often depend critically on their input parameters, and different TAD callers can
 very different results. We are therefore currently not bundling a TAD calling tool with
 FAN-C, and refer the user to one of the many available tools for TAD calling that offer
 a wide range of features.</p>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="comparisons.html" class="btn btn-neutral float-right" title="Matrix and score comparisons" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="pca.html" class="btn btn-neutral float-left" title="PCA analysis" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="pca.html" class="btn btn-neutral float-left" title="PCA analysis" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="comparisons.html" class="btn btn-neutral float-right" title="Matrix and score comparisons" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
-
-    </p>
+    <p>&#169; Copyright 2020, Kai Kruse, Vaquerizas lab.</p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
-
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

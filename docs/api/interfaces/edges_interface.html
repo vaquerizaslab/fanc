@@ -1,71 +1,39 @@
-
-
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>RegionPairsContainer &mdash; FAN-C 0.9.14-beta documentation</title>
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RegionPairsContainer &mdash; FAN-C 0.9.26b1-beta documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../../_static/jquery.js"></script>
-        <script type="text/javascript" src="../../_static/underscore.js"></script>
-        <script type="text/javascript" src="../../_static/doctools.js"></script>
-        <script type="text/javascript" src="../../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../../_static/js/theme.js"></script>
-
-    
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="RegionMatrixContainer" href="matrix_interface.html" />
     <link rel="prev" title="RegionBased" href="regions_interface.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../../index.html" class="icon icon-home"> FAN-C
-          
-
-          
           </a>
-
-          
-            
-            
               <div class="version">
-                0.9.14
+                0.9.26b1
               </div>
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -73,17 +41,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
@@ -110,74 +68,34 @@
 </li>
 </ul>
 
-            
-          
         </div>
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../index.html">FAN-C</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
-        
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../api.html">fanc Python module</a> &raquo;</li>
-        
           <li><a href="../interfaces.html">Common interfaces</a> &raquo;</li>
-        
       <li>RegionPairsContainer</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-            
             <a href="../../_sources/api/interfaces/edges_interface.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="regionpairscontainer">
-<span id="edges-interface"></span><h1>RegionPairsContainer<a class="headerlink" href="#regionpairscontainer" title="Permalink to this headline">¶</a></h1>
+             
+  <section id="regionpairscontainer">
+<span id="edges-interface"></span><h1>RegionPairsContainer<a class="headerlink" href="#regionpairscontainer" title="Permalink to this heading"></a></h1>
 <p>This interface provides common properties and functions to data based on pairs of regions.
 A typical example in this regard would be pairs of ligated fragments in a Hi-C library, as
 represented within FAN-C by the <a class="reference internal" href="../modules/pairs.html#fanc.pairs.ReadPairs" title="fanc.pairs.ReadPairs"><code class="xref py py-class docutils literal notranslate"><span class="pre">ReadPairs</span></code></a> class. But also matrix-based
@@ -200,8 +118,8 @@ support of the <a class="reference internal" href="../modules/matrix.html#fanc.m
 <a class="reference internal" href="../modules/peaks.html#fanc.peaks.PeakInfo" title="fanc.peaks.PeakInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">PeakInfo</span></code></a>,
 and
 <a class="reference internal" href="../modules/peaks.html#fanc.peaks.RaoPeakInfo" title="fanc.peaks.RaoPeakInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">RaoPeakInfo</span></code></a>.</p>
-<div class="section" id="the-edge-class">
-<h2>The Edge class<a class="headerlink" href="#the-edge-class" title="Permalink to this headline">¶</a></h2>
+<section id="the-edge-class">
+<h2>The Edge class<a class="headerlink" href="#the-edge-class" title="Permalink to this heading"></a></h2>
 <p>In <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code></a> objects, the basic data type is
 <a class="reference internal" href="../modules/matrix.html#fanc.matrix.Edge" title="fanc.matrix.Edge"><code class="xref py py-class docutils literal notranslate"><span class="pre">Edge</span></code></a>. It “connects” two <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>
 objects, called “nodes” within the context of the edge, and supports arbitrary
@@ -262,14 +180,14 @@ probability. This properties value is internally multiplied by the value of
 </div>
 <p>If, for example, an <a class="reference internal" href="../modules/matrix.html#fanc.matrix.Edge" title="fanc.matrix.Edge"><code class="xref py py-class docutils literal notranslate"><span class="pre">Edge</span></code></a> is created like this:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">Edge</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
-<span class="k">print</span><span class="p">(</span><span class="n">edge</span><span class="p">)</span>  <span class="c1"># 0--3; bias: 1.0; weight: 10.0</span>
-<span class="k">print</span><span class="p">(</span><span class="n">edge</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>  <span class="c1"># 10.0</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">edge</span><span class="p">)</span>  <span class="c1"># 0--3; bias: 1.0; weight: 10.0</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">edge</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>  <span class="c1"># 10.0</span>
 </pre></div>
 </div>
 <p>its weight will be as assigned at object creation time. We can modify that value
 indirectly by changing the bias:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="mf">0.5</span>
-<span class="k">print</span><span class="p">(</span><span class="n">edge</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>  <span class="c1"># 5.0</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">edge</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>  <span class="c1"># 5.0</span>
 </pre></div>
 </div>
 <p>Other properties are unaffected by the bias value, and can be assigned arbitrarily:</p>
@@ -282,9 +200,9 @@ indirectly by changing the bias:</p>
 container, and that most of the time you are working with copies of data stored in the
 container, which remains unmodified even if the edge object is changed. There are exemptions
 from this, which will be discussed below.</p>
-</div>
-<div class="section" id="the-edges-function">
-<h2>The edges function<a class="headerlink" href="#the-edges-function" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="the-edges-function">
+<h2>The edges function<a class="headerlink" href="#the-edges-function" title="Permalink to this heading"></a></h2>
 <p><a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code></a> compatible objects are built on lists of
 regions, which can be accessed and queried using the <code class="xref py py-func docutils literal notranslate"><span class="pre">regions()</span></code>
 function (see <a class="reference internal" href="regions_interface.html#genomic-regions"><span class="std std-ref">RegionBased</span></a>), and lists of edges. This section shows how these
@@ -313,7 +231,7 @@ a function:</p>
 we can introduce additional arguments. For example, to only iterate over intra-chromosomal
 edges, simply do:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge_counter</span> <span class="o">=</span> <span class="mi">0</span>
-<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">inter_chromosomal</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">inter_chromosomal</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="n">edge_counter</span> <span class="o">+=</span> <span class="mi">1</span>
 </pre></div>
 </div>
@@ -356,13 +274,13 @@ the <code class="code docutils literal notranslate"><span class="pre">inter_chro
 are already normalised. You can disable the normalisation on the fly using the
 <code class="code docutils literal notranslate"><span class="pre">norm=False</span></code> argument:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">valid_pairs</span> <span class="o">=</span> <span class="mi">0</span>
-<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="n">valid_pairs</span> <span class="o">+=</span> <span class="n">edge</span><span class="o">.</span><span class="n">weight</span>  <span class="c1"># here, the edge weight is an unnormalised integer</span>
 </pre></div>
 </div>
 <p>As shown above, this can be used to count the number of valid pairs in the object, for example.</p>
-<div class="section" id="lazy-evaluation">
-<span id="id1"></span><h3>Lazy evaluation<a class="headerlink" href="#lazy-evaluation" title="Permalink to this headline">¶</a></h3>
+<section id="lazy-evaluation">
+<span id="id1"></span><h3>Lazy evaluation<a class="headerlink" href="#lazy-evaluation" title="Permalink to this heading"></a></h3>
 <p>Hi-C datasets are often very large, with hundreds of millions, even billions of valid pairs
 in the matrix. The process of creating a unique <code class="xref py py-class docutils literal notranslate"><span class="pre">Edge</span></code> object for every
 matrix entry can thus cumulatively take a significant amount of time. For this reason, FAN-C
@@ -371,7 +289,7 @@ read when it is requested. This, for example, avoids reading from file when it i
 necessary, and saves on time during object creation and population. Edge iterators support
 lazy evaluation through the <code class="code docutils literal notranslate"><span class="pre">lazy</span></code> argument:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">weights</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="n">weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">edge</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -380,14 +298,14 @@ lazy iterators it is easy to encounter confusing situations. Because data is onl
 when explicitly requested from an edge, the following code does not work as intended:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># THIS IS WRONG!</span>
 <span class="n">edges</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="n">edges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">edge</span><span class="p">)</span>
 
-<span class="k">print</span><span class="p">(</span><span class="n">edges</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sink</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">edges</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sink</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
 <span class="c1"># (159, 248, 0.002386864930511163)</span>
-<span class="k">print</span><span class="p">(</span><span class="n">edges</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">sink</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">edges</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">sink</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
 <span class="c1"># (159, 248, 0.002386864930511163)</span>
-<span class="k">print</span><span class="p">(</span><span class="n">edges</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">sink</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">edges</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">sink</span><span class="p">,</span> <span class="n">edges</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
 <span class="c1"># (159, 248, 0.002386864930511163)</span>
 <span class="c1"># ...</span>
 </pre></div>
@@ -400,14 +318,14 @@ is a list of the same <a class="reference internal" href="../modules/matrix.html
 data.</p>
 <p>Here is the correct way of obtaining data using lazy iterators:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">edge_data</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+<span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="n">edge_data</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">edge</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">edge</span><span class="o">.</span><span class="n">sink</span><span class="p">,</span> <span class="n">edge</span><span class="o">.</span><span class="n">weight</span><span class="p">))</span>
 
-<span class="k">print</span><span class="p">(</span><span class="n">edge_data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">edge_data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
 <span class="c1"># 84 85 0.08227859035794333</span>
-<span class="k">print</span><span class="p">(</span><span class="n">edge_data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">edge_data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
 <span class="c1"># 48 56 0.012760965147510347</span>
-<span class="k">print</span><span class="p">(</span><span class="n">edge_data</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">edge_data</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">edge_data</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
 <span class="c1"># 10 153 0.0056418570804748725</span>
 <span class="c1"># ...</span>
 </pre></div>
@@ -418,7 +336,7 @@ but <strong>be very careful</strong> working with them!</p>
 <p>Another useful feature of lazy iterators is that they support data modification for
 native FAN-C objects. For example, you double the edge weight of each edge in the
 object like this:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">hic</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">lazy</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="n">edge</span><span class="o">.</span><span class="n">weight</span> <span class="o">*=</span> <span class="mi">2</span>
     <span class="n">edge</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
 </pre></div>
@@ -434,15 +352,15 @@ with unknown effect on analysis functions, messed up mappability calculations an
 We always recommend to create an object from scratch with the properties you want instead
 of modifying an existing one.</p>
 </div>
-</div>
-</div>
-<div class="section" id="other-functions">
-<h2>Other functions<a class="headerlink" href="#other-functions" title="Permalink to this headline">¶</a></h2>
+</section>
+</section>
+<section id="other-functions">
+<h2>Other functions<a class="headerlink" href="#other-functions" title="Permalink to this heading"></a></h2>
 <p>The <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.edges" title="fanc.matrix.RegionPairsContainer.edges"><code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></a> iterator is the most versatile and useful
 function in the <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code></a> interface, but by far not the only one.
 We will briefly list the most useful other functions with a brief description and examples here.</p>
-<div class="section" id="regions-and-edges">
-<h3>regions_and_edges<a class="headerlink" href="#regions-and-edges" title="Permalink to this headline">¶</a></h3>
+<section id="regions-and-edges">
+<h3>regions_and_edges<a class="headerlink" href="#regions-and-edges" title="Permalink to this heading"></a></h3>
 <p>The <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.regions_and_edges" title="fanc.matrix.RegionPairsContainer.regions_and_edges"><code class="xref py py-func docutils literal notranslate"><span class="pre">regions_and_edges()</span></code></a> function returns three objects:
 a list of regions corresponding to the selected matrix rows; a list of regions corresponding to
 the selected matrix columns; and an edge iterator over the matrix subset spanned by the selector.</p>
@@ -455,9 +373,9 @@ the selected matrix columns; and an edge iterator over the matrix subset spanned
 </div>
 <p>This is simpler and saves computation time over having separate function calls to
 <code class="xref py py-func docutils literal notranslate"><span class="pre">regions()</span></code> and <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.edges" title="fanc.matrix.RegionPairsContainer.edges"><code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></a>.</p>
-</div>
-<div class="section" id="edge-data">
-<h3>edge_data<a class="headerlink" href="#edge-data" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="edge-data">
+<h3>edge_data<a class="headerlink" href="#edge-data" title="Permalink to this heading"></a></h3>
 <p>The function <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.edge_data" title="fanc.matrix.RegionPairsContainer.edge_data"><code class="xref py py-func docutils literal notranslate"><span class="pre">edge_data()</span></code></a> iterates over only a specific
 edge attribute for a selection of edges:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">weights</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">hic</span><span class="o">.</span><span class="n">edge_data</span><span class="p">(</span><span class="s1">&#39;weight&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">)))</span>
@@ -473,9 +391,9 @@ edge attribute for a selection of edges:</p>
 <span class="c1">#     weights.append(edge.weight)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="mappable">
-<h3>mappable<a class="headerlink" href="#mappable" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="mappable">
+<h3>mappable<a class="headerlink" href="#mappable" title="Permalink to this heading"></a></h3>
 <p><a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.mappable" title="fanc.matrix.RegionPairsContainer.mappable"><code class="xref py py-func docutils literal notranslate"><span class="pre">mappable()</span></code></a> returns a boolean vector where each entry
 corresponds to a region in the object. If the vector entry is <code class="code docutils literal notranslate"><span class="pre">True</span></code>, the regions has
 at least one edge connected to it, i.e. a non-zero matrix entry, otherwise the entry is <code class="code docutils literal notranslate"><span class="pre">False</span></code>.</p>
@@ -486,57 +404,39 @@ at least one edge connected to it, i.e. a non-zero matrix entry, otherwise the e
 </div>
 <p>The next interface builds on the <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-func docutils literal notranslate"><span class="pre">RegionPairsContainer()</span></code></a> structure to populate
 matrices with edge weights: <a class="reference internal" href="matrix_interface.html#matrix-interface"><span class="std std-ref">RegionMatrixContainer</span></a>.</p>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="matrix_interface.html" class="btn btn-neutral float-right" title="RegionMatrixContainer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="regions_interface.html" class="btn btn-neutral float-left" title="RegionBased" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="regions_interface.html" class="btn btn-neutral float-left" title="RegionBased" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="matrix_interface.html" class="btn btn-neutral float-right" title="RegionMatrixContainer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
-
-    </p>
+    <p>&#169; Copyright 2020, Kai Kruse, Vaquerizas lab.</p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
-
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

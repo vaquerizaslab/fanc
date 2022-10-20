@@ -1,71 +1,39 @@
-
-
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>TADs and TAD boundaries &mdash; FAN-C 0.9.14-beta documentation</title>
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TADs and TAD boundaries &mdash; FAN-C 0.9.26b1-beta documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../../_static/jquery.js"></script>
-        <script type="text/javascript" src="../../_static/underscore.js"></script>
-        <script type="text/javascript" src="../../_static/doctools.js"></script>
-        <script type="text/javascript" src="../../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../../_static/js/theme.js"></script>
-
-    
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="Matrix and score comparisons" href="comparisons.html" />
     <link rel="prev" title="PCA" href="pca.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../../index.html" class="icon icon-home"> FAN-C
-          
-
-          
           </a>
-
-          
-            
-            
               <div class="version">
-                0.9.14
+                0.9.26b1
               </div>
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -73,17 +41,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
@@ -114,83 +72,43 @@
 </li>
 </ul>
 
-            
-          
         </div>
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../index.html">FAN-C</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
-        
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../api.html">fanc Python module</a> &raquo;</li>
-        
           <li><a href="../analyse.html">Analyse Hi-C matrices using the API</a> &raquo;</li>
-        
       <li>TADs and TAD boundaries</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-            
             <a href="../../_sources/api/analyse/domains.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="tads-and-tad-boundaries">
-<span id="api-tads"></span><h1>TADs and TAD boundaries<a class="headerlink" href="#tads-and-tad-boundaries" title="Permalink to this headline">¶</a></h1>
+             
+  <section id="tads-and-tad-boundaries">
+<span id="api-tads"></span><h1>TADs and TAD boundaries<a class="headerlink" href="#tads-and-tad-boundaries" title="Permalink to this heading"></a></h1>
 <p>To follow this tutorial, download the FAN-C example data, for example through our
 <a class="reference external" href="https://keeper.mpdl.mpg.de/d/147906745b634c779ed3/">Keeper library</a>. Then run the
 example <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> command in  <a class="reference internal" href="../../getting_started.html#example-fanc-auto"><span class="std std-ref">Example analysis</span></a> to generate all the
 necessary files, and set up your Python session like this:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
-<span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="kn">as</span> <span class="nn">fancplot</span>
+<span class="kn">import</span> <span class="nn">fanc.plotting</span> <span class="k">as</span> <span class="nn">fancplot</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 
-<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%(asctime)s</span><span class="s2"> </span><span class="si">%(levelname)s</span><span class="s2"> </span><span class="si">%(message)s</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%(asctime)s</span><span class="s2"> </span><span class="si">%(levelname)s</span><span class="s2"> </span><span class="si">%(message)s</span><span class="s2">&quot;</span><span class="p">)</span>
 
 <span class="n">hic_100kb</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;output/hic/binned/fanc_example_100kb.hic&quot;</span><span class="p">)</span>
 </pre></div>
@@ -209,8 +127,8 @@ applied by the different tools.</p>
 <p>Also have a look at the command line documentation at <a class="reference internal" href="../../fanc-executable/fanc-analyse-hic/domains.html#fanc-domains"><span class="std std-ref">Hi-C domain analysis</span></a>, which explains
 a lot of the principles behind insulation scores and directionality indexes with a couple
 of helpful illustrations.</p>
-<div class="section" id="insulation-scores">
-<h2>Insulation scores<a class="headerlink" href="#insulation-scores" title="Permalink to this headline">¶</a></h2>
+<section id="insulation-scores">
+<h2>Insulation scores<a class="headerlink" href="#insulation-scores" title="Permalink to this heading"></a></h2>
 <p>Insulation scores are calculated and saved to disk using the <a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.InsulationScores" title="fanc.architecture.domains.InsulationScores"><code class="xref py py-class docutils literal notranslate"><span class="pre">InsulationScores</span></code></a>
 class. To run a basic insulation score calculation on a Hi-C object, use
 <a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.InsulationScores.from_hic" title="fanc.architecture.domains.InsulationScores.from_hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">from_hic</span></code></a>:</p>
@@ -250,8 +168,8 @@ accessible via the <code class="docutils literal notranslate"><span class="pre">
     <span class="n">score</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">score</span>
 </pre></div>
 </div>
-<div class="section" id="insulation-calculation-parameters">
-<h3>Insulation calculation parameters<a class="headerlink" href="#insulation-calculation-parameters" title="Permalink to this headline">¶</a></h3>
+<section id="insulation-calculation-parameters">
+<h3>Insulation calculation parameters<a class="headerlink" href="#insulation-calculation-parameters" title="Permalink to this heading"></a></h3>
 <p><a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.InsulationScores.from_hic" title="fanc.architecture.domains.InsulationScores.from_hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">from_hic</span></code></a> has several parameters that
 allow you to customise the insulation score calculation. You can read everything them in the
 linked API reference, and we will highlight the most important ones here.</p>
@@ -283,9 +201,9 @@ calculating the mean.</p>
 <p>If you intend to compare scores from different samples (and have the <code class="docutils literal notranslate"><span class="pre">normalise</span></code> and
 <code class="docutils literal notranslate"><span class="pre">log</span></code> options enabled), a mathematically more accurate normalisation would be to use the
 geometric mean instead. You can enable this by setting <code class="docutils literal notranslate"><span class="pre">geometric_mean=True</span></code>.</p>
-</div>
-<div class="section" id="insulation-score-export">
-<h3>Insulation score export<a class="headerlink" href="#insulation-score-export" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="insulation-score-export">
+<h3>Insulation score export<a class="headerlink" href="#insulation-score-export" title="Permalink to this heading"></a></h3>
 <p>You can export scores to a human-readable file format using one of
 <a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.InsulationScores.to_bed" title="fanc.architecture.domains.InsulationScores.to_bed"><code class="xref py py-func docutils literal notranslate"><span class="pre">to_bed()</span></code></a>, or
 <a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.InsulationScores.to_gff" title="fanc.architecture.domains.InsulationScores.to_gff"><code class="xref py py-func docutils literal notranslate"><span class="pre">to_gff()</span></code></a>. Export to a fast BigWig track using
@@ -293,12 +211,12 @@ geometric mean instead. You can enable this by setting <code class="docutils lit
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">insulation</span><span class="o">.</span><span class="n">to_bed</span><span class="p">(</span><span class="s2">&quot;architecture/domains/fanc_example_100kb.insulation_1mb.bed&quot;</span><span class="p">,</span> <span class="mi">1000000</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="insulation-score-plots">
-<h3>Insulation score plots<a class="headerlink" href="#insulation-score-plots" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="insulation-score-plots">
+<h3>Insulation score plots<a class="headerlink" href="#insulation-score-plots" title="Permalink to this heading"></a></h3>
 <p>You can plot all calculated insulation scores using <a class="reference internal" href="../modules/plotting.html#fanc.plotting.GenomicVectorArrayPlot" title="fanc.plotting.GenomicVectorArrayPlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicVectorArrayPlot</span></code></a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenomicVectorArrayPlot</span><span class="p">(</span><span class="n">insulation</span><span class="p">,</span> <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;RdBu_r&#39;</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-                                    <span class="n">genomic_format</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                                    <span class="n">genomic_format</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">p</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr18:18mb-28mb&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -311,10 +229,10 @@ geometric mean instead. You can enable this by setting <code class="docutils lit
 </div>
 <img alt="../../_images/domains_single.png" src="../../_images/domains_single.png" />
 <p>You can read more about different plot types in <a class="reference internal" href="../plot.html#api-plot"><span class="std std-ref">Plotting (API)</span></a>.</p>
-</div>
-</div>
-<div class="section" id="boundary-calls">
-<h2>Boundary calls<a class="headerlink" href="#boundary-calls" title="Permalink to this headline">¶</a></h2>
+</section>
+</section>
+<section id="boundary-calls">
+<h2>Boundary calls<a class="headerlink" href="#boundary-calls" title="Permalink to this heading"></a></h2>
 <p>Once you have the <code class="docutils literal notranslate"><span class="pre">insulation</span></code> object, you can call insulating boundaries in the genome
 using <a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.Boundaries" title="fanc.architecture.domains.Boundaries"><code class="xref py py-class docutils literal notranslate"><span class="pre">Boundaries</span></code></a>, specifically
 <a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.Boundaries.from_insulation_score" title="fanc.architecture.domains.Boundaries.from_insulation_score"><code class="xref py py-func docutils literal notranslate"><span class="pre">from_insulation_score()</span></code></a>:</p>
@@ -353,9 +271,9 @@ manually like this</p>
                                                           <span class="n">min_score</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="directionality-index">
-<h2>Directionality index<a class="headerlink" href="#directionality-index" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="directionality-index">
+<h2>Directionality index<a class="headerlink" href="#directionality-index" title="Permalink to this heading"></a></h2>
 <p>For a short explanation of the directionality index, please read <a class="reference internal" href="../../fanc-executable/fanc-analyse-hic/domains.html#directionality-index"><span class="std std-ref">Directionality Index</span></a>.
 The principle to compute the directionality index is highly similar to the insulation score.
 The dedicated class <a class="reference internal" href="../modules/architecture/domains.html#fanc.architecture.domains.DirectionalityIndexes" title="fanc.architecture.domains.DirectionalityIndexes"><code class="xref py py-class docutils literal notranslate"><span class="pre">DirectionalityIndexes</span></code></a> handles all
@@ -370,7 +288,7 @@ compute it for multiple window sizes:</p>
 </div>
 <p>Plotting also works the same way, for all indexes:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">fancplot</span><span class="o">.</span><span class="n">GenomicVectorArrayPlot</span><span class="p">(</span><span class="n">directionality</span><span class="p">,</span> <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;RdBu_r&#39;</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=-</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
-                                    <span class="n">genomic_format</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                                    <span class="n">genomic_format</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">p</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;chr18:18mb-28mb&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -382,56 +300,38 @@ compute it for multiple window sizes:</p>
 </pre></div>
 </div>
 <img alt="../../_images/directionality_single.png" src="../../_images/directionality_single.png" />
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="comparisons.html" class="btn btn-neutral float-right" title="Matrix and score comparisons" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="pca.html" class="btn btn-neutral float-left" title="PCA" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="pca.html" class="btn btn-neutral float-left" title="PCA" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="comparisons.html" class="btn btn-neutral float-right" title="Matrix and score comparisons" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
-
-    </p>
+    <p>&#169; Copyright 2020, Kai Kruse, Vaquerizas lab.</p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
-
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

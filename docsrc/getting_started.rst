@@ -79,6 +79,17 @@ need to set an environment variable pointing to the installation directory:
 FAN-C
 =====
 
+We strongly recommend installing FAN-C in a fresh virtual environment to prevent dependency 
+issues. You can do this with tools like `pyenv <https://github.com/pyenv/pyenv>_` or manually 
+using `venv`, for example:
+
+.. code:: bash
+
+   # create local virtual environment in current folder
+   python -m venv ./venv
+   # activate virtual environment
+   source venv/bin/activate
+
 The simplest way to install FAN-C is via pip:
 
 .. code:: bash
@@ -91,6 +102,13 @@ try:
 .. code:: bash
 
    pip install --user fanc
+
+In some cases when using a virtual environment executables aren't in the proper ``PATH``,
+then you can use
+
+.. code:: bash
+
+   python -m pip install fanc
 
 You can also directly download the FAN-C source code from Github by cloning its repository.
 The installation is then done via setup.py:
@@ -122,20 +140,6 @@ GitHub for any issue that you encounter.
    pip install -e .
 
 
-.. _conda_note:
-
-.. warning::
-
-    An older FAN-C package is also available via `Bioconda <https://bioconda.github.io/>`_, 
-    but due to an unresolved dependency issue it is currently limited to Python 3.7.X and will not be 
-    updated. Please refer to the
-    `pull request thread <https://github.com/bioconda/bioconda-recipes/pull/23911>`_ for additional
-    details.
-
-    We strongly recommend installing FAN-C via ``pip`` - only then you will obtain the latest bug fixes 
-    and features!
-
-
 .. warning::
 
     On some systems the installation of FAN-C using the above method will fail with a Cython
@@ -151,6 +155,27 @@ GitHub for any issue that you encounter.
 
     If you are still experiencing problems during the installation, please raise an
     `issue on GitHub <https://github.com/vaquerizaslab/fanc/issues>`_.
+
+
+~~~~~~~~
+Bioconda
+~~~~~~~~
+
+.. _conda_note:
+
+.. warning::
+
+    We no longer support installations via ``conda`` due to a large amount of dependency 
+    issues - please use a fresh virtual Python environment as detailed above!
+
+    An older FAN-C package is also available via `Bioconda <https://bioconda.github.io/>`_, 
+    but due to an unresolved dependency issue it is currently limited to Python 3.7.X and will not be 
+    updated. Please refer to the
+    `pull request thread <https://github.com/bioconda/bioconda-recipes/pull/23911>`_ for additional
+    details.
+
+    We strongly recommend installing FAN-C via ``pip`` - only then you will obtain the latest bug fixes 
+    and features!
 
 
 ***************************

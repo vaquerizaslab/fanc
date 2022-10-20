@@ -1,71 +1,39 @@
-
-
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>RegionMatrixContainer &mdash; FAN-C 0.9.14-beta documentation</title>
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RegionMatrixContainer &mdash; FAN-C 0.9.26b1-beta documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../../_static/jquery.js"></script>
-        <script type="text/javascript" src="../../_static/underscore.js"></script>
-        <script type="text/javascript" src="../../_static/doctools.js"></script>
-        <script type="text/javascript" src="../../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../../_static/js/theme.js"></script>
-
-    
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="Generate Hi-C matrices (API)" href="../generate.html" />
     <link rel="prev" title="RegionPairsContainer" href="edges_interface.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../../index.html" class="icon icon-home"> FAN-C
-          
-
-          
           </a>
-
-          
-            
-            
               <div class="version">
-                0.9.14
+                0.9.26b1
               </div>
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -73,17 +41,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
@@ -108,74 +66,34 @@
 </li>
 </ul>
 
-            
-          
         </div>
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../index.html">FAN-C</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
-        
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../api.html">fanc Python module</a> &raquo;</li>
-        
           <li><a href="../interfaces.html">Common interfaces</a> &raquo;</li>
-        
       <li>RegionMatrixContainer</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-            
             <a href="../../_sources/api/interfaces/matrix_interface.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="regionmatrixcontainer">
-<span id="matrix-interface"></span><h1>RegionMatrixContainer<a class="headerlink" href="#regionmatrixcontainer" title="Permalink to this headline">¶</a></h1>
+             
+  <section id="regionmatrixcontainer">
+<span id="matrix-interface"></span><h1>RegionMatrixContainer<a class="headerlink" href="#regionmatrixcontainer" title="Permalink to this heading"></a></h1>
 <p>This interface simplifies and unifies working with matrix data in the context of genomic
 region pairs, such as you would find in a Hi-C matrix. It builds on the
 <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer" title="fanc.matrix.RegionPairsContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code></a> (see previous section <a class="reference internal" href="edges_interface.html#edges-interface"><span class="std std-ref">RegionPairsContainer</span></a>),
@@ -197,8 +115,8 @@ support of the <a class="reference internal" href="../modules/matrix.html#fanc.m
 <a class="reference internal" href="../modules/peaks.html#fanc.peaks.PeakInfo" title="fanc.peaks.PeakInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">PeakInfo</span></code></a>,
 and
 <a class="reference internal" href="../modules/peaks.html#fanc.peaks.RaoPeakInfo" title="fanc.peaks.RaoPeakInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">RaoPeakInfo</span></code></a>.</p>
-<div class="section" id="the-matrix-function">
-<h2>The matrix function<a class="headerlink" href="#the-matrix-function" title="Permalink to this headline">¶</a></h2>
+<section id="the-matrix-function">
+<h2>The matrix function<a class="headerlink" href="#the-matrix-function" title="Permalink to this heading"></a></h2>
 <p>To obtain the whole-genome, normalised matrix from an object, use the
 <code class="xref py py-func docutils literal notranslate"><span class="pre">matrix()</span></code> function:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">()</span>
@@ -234,7 +152,7 @@ close to 1)</p>
 are ignored for most downstream analysis to prevent artifacts. By default, FAN-C masks
 regions that have no edges (after filtering), typically due to mappability issues.
 You can turn off masking using the <code class="code docutils literal notranslate"><span class="pre">mask=False</span></code> parameter:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_unmasked</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">mask</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_unmasked</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">mask</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>However, we recommend working with masked matrices to ensure no unwanted edges are
@@ -276,13 +194,13 @@ has a 1 base overlap with the requested interval).</p>
 <p><a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer.matrix" title="fanc.matrix.RegionMatrixContainer.matrix"><code class="xref py py-func docutils literal notranslate"><span class="pre">matrix()</span></code></a> supports all arguments also available for
 <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionPairsContainer.edges" title="fanc.matrix.RegionPairsContainer.edges"><code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code></a>, but it is not necessary to use lazy loading.
 You can, for example, output an uncorrected matrix with</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_chr19_uncorr</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">),</span> <span class="n">norm</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_chr19_uncorr</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">),</span> <span class="n">norm</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>In addition, there are several parameters specific to
 <a class="reference internal" href="../modules/matrix.html#fanc.matrix.RegionMatrixContainer.matrix" title="fanc.matrix.RegionMatrixContainer.matrix"><code class="xref py py-func docutils literal notranslate"><span class="pre">matrix()</span></code></a>. Most notably, you can use the
 <code class="code docutils literal notranslate"><span class="pre">oe=True</span></code> parameter to return an observed/expected (O/E) matrix:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_chr19_oe</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">),</span> <span class="n">oe</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_chr19_oe</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">),</span> <span class="n">oe</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Internally, <code class="code docutils literal notranslate"><span class="pre">oe=True</span></code> uses
@@ -290,59 +208,41 @@ You can, for example, output an uncorrected matrix with</p>
 (average) weight of all edges connecting regions at a certain distance. The matrix
 is then simply divided by the expected matrix. You may want to log2-transform the
 matrix for a symmetric scale of values:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_chr19_log_oe</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">),</span> <span class="n">oe</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m_chr19_log_oe</span> <span class="o">=</span> <span class="n">hic</span><span class="o">.</span><span class="n">matrix</span><span class="p">((</span><span class="s1">&#39;chr19&#39;</span><span class="p">,</span> <span class="s1">&#39;chr19&#39;</span><span class="p">),</span> <span class="n">oe</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="../generate.html" class="btn btn-neutral float-right" title="Generate Hi-C matrices (API)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="edges_interface.html" class="btn btn-neutral float-left" title="RegionPairsContainer" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="edges_interface.html" class="btn btn-neutral float-left" title="RegionPairsContainer" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../generate.html" class="btn btn-neutral float-right" title="Generate Hi-C matrices (API)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
-
-    </p>
+    <p>&#169; Copyright 2020, Kai Kruse, Vaquerizas lab.</p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
-
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

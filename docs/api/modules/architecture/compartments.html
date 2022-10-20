@@ -1,71 +1,39 @@
-
-
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Compartments module &mdash; FAN-C 0.9.14-beta documentation</title>
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compartments module &mdash; FAN-C 0.9.26b1-beta documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../../../_static/jquery.js"></script>
-        <script type="text/javascript" src="../../../_static/underscore.js"></script>
-        <script type="text/javascript" src="../../../_static/doctools.js"></script>
-        <script type="text/javascript" src="../../../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
-
-    
-
-  
-  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
     <link rel="next" title="Domains module" href="domains.html" />
     <link rel="prev" title="Comparisons module" href="comparisons.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../../../index.html" class="icon icon-home"> FAN-C
-          
-
-          
           </a>
-
-          
-            
-            
               <div class="version">
-                0.9.14
+                0.9.26b1
               </div>
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -73,17 +41,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../fanc.html">fanc: command line tools</a></li>
@@ -119,80 +77,39 @@
 </li>
 </ul>
 
-            
-          
         </div>
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../../index.html">FAN-C</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="../../../index.html">Docs</a> &raquo;</li>
-        
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../../api.html">fanc Python module</a> &raquo;</li>
-        
           <li><a href="../../modules.html">FAN-C Python modules</a> &raquo;</li>
-        
           <li><a href="../architecture.html">FAN-C Python architecture modules</a> &raquo;</li>
-        
       <li>Compartments module</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-            
             <a href="../../../_sources/api/modules/architecture/compartments.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="module-fanc.architecture.compartments">
-<span id="compartments-module"></span><h1>Compartments module<a class="headerlink" href="#module-fanc.architecture.compartments" title="Permalink to this headline">¶</a></h1>
-<dl class="class">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix">
-<em class="property">class </em><code class="sig-prename descclassname">fanc.architecture.compartments.</code><code class="sig-name descname">ABCompartmentMatrix</code><span class="sig-paren">(</span><em class="sig-param">file_name=None</em>, <em class="sig-param">mode='r'</em>, <em class="sig-param">tmpdir=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="../matrix.html#fanc.matrix.RegionMatrixTable" title="fanc.matrix.RegionMatrixTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.matrix.RegionMatrixTable</span></code></a></p>
+             
+  <section id="module-fanc.architecture.compartments">
+<span id="compartments-module"></span><h1>Compartments module<a class="headerlink" href="#module-fanc.architecture.compartments" title="Permalink to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fanc.architecture.compartments.</span></span><span class="sig-name descname"><span class="pre">ABCompartmentMatrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'r'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../matrix.html#fanc.matrix.RegionMatrixTable" title="fanc.matrix.RegionMatrixTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrixTable</span></code></a></p>
 <p>Class representing O/E correlation matrix used to derive AB compartments.</p>
 <p>You can generate an <a class="reference internal" href="#fanc.architecture.compartments.ABCompartmentMatrix" title="fanc.architecture.compartments.ABCompartmentMatrix"><code class="xref py py-class docutils literal notranslate"><span class="pre">ABCompartmentMatrix</span></code></a> from a Hic object
 using the <a class="reference internal" href="#fanc.architecture.compartments.ABCompartmentMatrix.from_hic" title="fanc.architecture.compartments.ABCompartmentMatrix.from_hic"><code class="xref py py-func docutils literal notranslate"><span class="pre">from_hic()</span></code></a> class method.</p>
@@ -220,29 +137,29 @@ get assigned positive EV values:</p>
 <span class="n">profile</span><span class="p">,</span> <span class="n">ev_cutoffs</span> <span class="o">=</span> <span class="n">ab</span><span class="o">.</span><span class="n">enrichment_profile</span><span class="p">(</span><span class="n">hic</span><span class="p">,</span> <span class="n">genome</span><span class="o">=</span><span class="s2">&quot;path/to/genome.fa&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<dl class="class">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.ChromosomeDescription">
-<em class="property">class </em><code class="sig-name descname">ChromosomeDescription</code><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.ChromosomeDescription" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">tables.description.IsDescription</span></code></p>
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.ChromosomeDescription">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ChromosomeDescription</span></span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.ChromosomeDescription" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">IsDescription</span></code></p>
 <p>Description of the chromosomes in this object.</p>
 </dd></dl>
 
-<dl class="class">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.MaskDescription">
-<em class="property">class </em><code class="sig-name descname">MaskDescription</code><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.MaskDescription" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">tables.description.IsDescription</span></code></p>
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.MaskDescription">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MaskDescription</span></span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.MaskDescription" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">IsDescription</span></code></p>
 </dd></dl>
 
-<dl class="class">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.RegionDescription">
-<em class="property">class </em><code class="sig-name descname">RegionDescription</code><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.RegionDescription" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">tables.description.IsDescription</span></code></p>
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.RegionDescription">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">RegionDescription</span></span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.RegionDescription" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">IsDescription</span></code></p>
 <p>Description of a genomic region for PyTables Table</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.add_contact">
-<code class="sig-name descname">add_contact</code><span class="sig-paren">(</span><em class="sig-param">contact</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_contact" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.add_contact">
+<span class="sig-name descname"><span class="pre">add_contact</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">contact</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_contact" title="Permalink to this definition"></a></dt>
 <dd><p>Alias for <code class="xref py py-func docutils literal notranslate"><span class="pre">add_edge()</span></code></p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -257,15 +174,15 @@ get assigned positive EV values:</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.add_contacts">
-<code class="sig-name descname">add_contacts</code><span class="sig-paren">(</span><em class="sig-param">contacts</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_contacts" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.add_contacts">
+<span class="sig-name descname"><span class="pre">add_contacts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">contacts</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_contacts" title="Permalink to this definition"></a></dt>
 <dd><p>Alias for <code class="xref py py-func docutils literal notranslate"><span class="pre">add_edges()</span></code></p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.add_edge">
-<code class="sig-name descname">add_edge</code><span class="sig-paren">(</span><em class="sig-param">edge</em>, <em class="sig-param">check_nodes_exist=True</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_edge" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.add_edge">
+<span class="sig-name descname"><span class="pre">add_edge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">check_nodes_exist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_edge" title="Permalink to this definition"></a></dt>
 <dd><p>Add an edge / contact between two regions to this object.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -285,9 +202,9 @@ that match source and sink indexes</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.add_edge_from_dict">
-<code class="sig-name descname">add_edge_from_dict</code><span class="sig-paren">(</span><em class="sig-param">edge</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_edge_from_dict" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.add_edge_from_dict">
+<span class="sig-name descname"><span class="pre">add_edge_from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edge</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_edge_from_dict" title="Permalink to this definition"></a></dt>
 <dd><p>Direct method to add an edge from dict input.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -298,9 +215,9 @@ as edge attributes</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.add_edge_from_edge">
-<code class="sig-name descname">add_edge_from_edge</code><span class="sig-paren">(</span><em class="sig-param">edge</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_edge_from_edge" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.add_edge_from_edge">
+<span class="sig-name descname"><span class="pre">add_edge_from_edge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edge</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_edge_from_edge" title="Permalink to this definition"></a></dt>
 <dd><p>Direct method to add an edge from <code class="xref py py-class docutils literal notranslate"><span class="pre">Edge</span></code> input.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -309,9 +226,9 @@ as edge attributes</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.add_edge_from_list">
-<code class="sig-name descname">add_edge_from_list</code><span class="sig-paren">(</span><em class="sig-param">edge</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_edge_from_list" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.add_edge_from_list">
+<span class="sig-name descname"><span class="pre">add_edge_from_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edge</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_edge_from_list" title="Permalink to this definition"></a></dt>
 <dd><p>Direct method to add an edge from list or tuple input.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -321,9 +238,9 @@ as edge attributes</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.add_edge_simple">
-<code class="sig-name descname">add_edge_simple</code><span class="sig-paren">(</span><em class="sig-param">source</em>, <em class="sig-param">sink</em>, <em class="sig-param">weight=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_edge_simple" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.add_edge_simple">
+<span class="sig-name descname"><span class="pre">add_edge_simple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sink</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_edge_simple" title="Permalink to this definition"></a></dt>
 <dd><p>Direct method to add an edge from <code class="xref py py-class docutils literal notranslate"><span class="pre">Edge</span></code> input.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -336,9 +253,9 @@ as edge attributes</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.add_edges">
-<code class="sig-name descname">add_edges</code><span class="sig-paren">(</span><em class="sig-param">edges</em>, <em class="sig-param">flush=True</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_edges" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.add_edges">
+<span class="sig-name descname"><span class="pre">add_edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edges</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flush</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_edges" title="Permalink to this definition"></a></dt>
 <dd><p>Bulk-add edges from a list.</p>
 <p>List items can be any of the supported edge types,
 list, tuple, dict, or <code class="xref py py-class docutils literal notranslate"><span class="pre">Edge</span></code>. Repeatedly
@@ -353,9 +270,9 @@ for details</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.add_mask_description">
-<code class="sig-name descname">add_mask_description</code><span class="sig-paren">(</span><em class="sig-param">name</em>, <em class="sig-param">description</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_mask_description" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.add_mask_description">
+<span class="sig-name descname"><span class="pre">add_mask_description</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_mask_description" title="Permalink to this definition"></a></dt>
 <dd><p>Add a mask description to the _mask table and return its ID.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -373,9 +290,9 @@ for details</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.add_region">
-<code class="sig-name descname">add_region</code><span class="sig-paren">(</span><em class="sig-param">region</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_region" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.add_region">
+<span class="sig-name descname"><span class="pre">add_region</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_region" title="Permalink to this definition"></a></dt>
 <dd><p>Add a genomic region to this object.</p>
 <p>This method offers some flexibility in the types of objects
 that can be loaded. See parameters for details.</p>
@@ -391,9 +308,9 @@ start, end).</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.add_regions">
-<code class="sig-name descname">add_regions</code><span class="sig-paren">(</span><em class="sig-param">regions</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_regions" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.add_regions">
+<span class="sig-name descname"><span class="pre">add_regions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regions</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.add_regions" title="Permalink to this definition"></a></dt>
 <dd><p>Bulk insert multiple genomic regions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -404,9 +321,9 @@ describe a genomic region. See
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.bin_intervals">
-<em class="property">static </em><code class="sig-name descname">bin_intervals</code><span class="sig-paren">(</span><em class="sig-param">intervals</em>, <em class="sig-param">bins</em>, <em class="sig-param">interval_range=None</em>, <em class="sig-param">smoothing_window=None</em>, <em class="sig-param">nan_replacement=None</em>, <em class="sig-param">zero_to_nan=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.bin_intervals" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.bin_intervals">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bin_intervals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intervals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bins</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interval_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_replacement</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_to_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.bin_intervals" title="Permalink to this definition"></a></dt>
 <dd><p>Bin a given set of intervals into a fixed number of bins.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -430,9 +347,9 @@ with this value</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.bin_intervals_equidistant">
-<em class="property">static </em><code class="sig-name descname">bin_intervals_equidistant</code><span class="sig-paren">(</span><em class="sig-param">intervals</em>, <em class="sig-param">bin_size</em>, <em class="sig-param">interval_range=None</em>, <em class="sig-param">smoothing_window=None</em>, <em class="sig-param">nan_replacement=None</em>, <em class="sig-param">zero_to_nan=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.bin_intervals_equidistant" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.bin_intervals_equidistant">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bin_intervals_equidistant</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intervals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bin_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interval_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_replacement</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_to_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.bin_intervals_equidistant" title="Permalink to this definition"></a></dt>
 <dd><p>Bin a given set of intervals into bins with a fixed size.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -456,9 +373,9 @@ with this value</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.bin_size">
-<em class="property">property </em><code class="sig-name descname">bin_size</code><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.bin_size" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.bin_size">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bin_size</span></span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.bin_size" title="Permalink to this definition"></a></dt>
 <dd><p>Return the length of the first region in the dataset.</p>
 <p>Assumes all bins have equal size.</p>
 <dl class="field-list simple">
@@ -468,9 +385,9 @@ with this value</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.binned_regions">
-<code class="sig-name descname">binned_regions</code><span class="sig-paren">(</span><em class="sig-param">region=None</em>, <em class="sig-param">bins=None</em>, <em class="sig-param">bin_size=None</em>, <em class="sig-param">smoothing_window=None</em>, <em class="sig-param">nan_replacement=None</em>, <em class="sig-param">zero_to_nan=False</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.binned_regions" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.binned_regions">
+<span class="sig-name descname"><span class="pre">binned_regions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bin_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_replacement</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_to_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.binned_regions" title="Permalink to this definition"></a></dt>
 <dd><p>Same as region_intervals, but returns <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>
 objects instead of tuples.</p>
 <dl class="field-list simple">
@@ -495,9 +412,9 @@ with this value</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.bins_to_distance">
-<code class="sig-name descname">bins_to_distance</code><span class="sig-paren">(</span><em class="sig-param">bins</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.bins_to_distance" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.bins_to_distance">
+<span class="sig-name descname"><span class="pre">bins_to_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bins</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.bins_to_distance" title="Permalink to this definition"></a></dt>
 <dd><p>Convert fraction of bins to base pairs</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -509,32 +426,32 @@ with this value</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.chromosome_bins">
-<em class="property">property </em><code class="sig-name descname">chromosome_bins</code><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.chromosome_bins" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.chromosome_bins">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">chromosome_bins</span></span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.chromosome_bins" title="Permalink to this definition"></a></dt>
 <dd><p>Returns a dictionary of chromosomes and the start
 and end index of the bins they cover.</p>
 <p>Returned list is range-compatible, i.e. chromosome
 bins [0,5] cover chromosomes 1, 2, 3, and 4, not 5.</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.chromosome_lengths">
-<em class="property">property </em><code class="sig-name descname">chromosome_lengths</code><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.chromosome_lengths" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.chromosome_lengths">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">chromosome_lengths</span></span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.chromosome_lengths" title="Permalink to this definition"></a></dt>
 <dd><p>Returns a dictionary of chromosomes and their length
 in bp.</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.chromosomes">
-<code class="sig-name descname">chromosomes</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.chromosomes" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.chromosomes">
+<span class="sig-name descname"><span class="pre">chromosomes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.chromosomes" title="Permalink to this definition"></a></dt>
 <dd><p>List all chromosomes in this regions table.
 :return: list of chromosome names.</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.close">
-<code class="sig-name descname">close</code><span class="sig-paren">(</span><em class="sig-param">copy_tmp=True</em>, <em class="sig-param">remove_tmp=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.close" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">copy_tmp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_tmp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.close" title="Permalink to this definition"></a></dt>
 <dd><p>Close this HDF5 file and run exit operations.</p>
 <p>If file was opened with tmpdir in read-only mode:
 close file and delete temporary copy.</p>
@@ -550,9 +467,9 @@ Replace original file with copy and delete copy.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.distance_to_bins">
-<code class="sig-name descname">distance_to_bins</code><span class="sig-paren">(</span><em class="sig-param">distance</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.distance_to_bins" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.distance_to_bins">
+<span class="sig-name descname"><span class="pre">distance_to_bins</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">distance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.distance_to_bins" title="Permalink to this definition"></a></dt>
 <dd><p>Convert base pairs to fraction of bins.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -564,9 +481,9 @@ Replace original file with copy and delete copy.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.domains">
-<code class="sig-name descname">domains</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.domains" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.domains">
+<span class="sig-name descname"><span class="pre">domains</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.domains" title="Permalink to this definition"></a></dt>
 <dd><p>Get the AB domain regions of the compartment matrix.</p>
 <p>This returns a <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionWrapper</span></code> object, where you can
 iterate over the domains using</p>
@@ -589,9 +506,9 @@ iterate over the domains using</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.downsample">
-<code class="sig-name descname">downsample</code><span class="sig-paren">(</span><em class="sig-param">n</em>, <em class="sig-param">file_name=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.downsample" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.downsample">
+<span class="sig-name descname"><span class="pre">downsample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.downsample" title="Permalink to this definition"></a></dt>
 <dd><p>Sample edges from this object.</p>
 <p>Sampling is always done on uncorrected Hi-C matrices.</p>
 <dl class="field-list simple">
@@ -608,9 +525,9 @@ a fraction of total reads in this object.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.edge_data">
-<code class="sig-name descname">edge_data</code><span class="sig-paren">(</span><em class="sig-param">attribute</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.edge_data" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.edge_data">
+<span class="sig-name descname"><span class="pre">edge_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">attribute</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.edge_data" title="Permalink to this definition"></a></dt>
 <dd><p>Iterate over specific edge attribute.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -626,9 +543,9 @@ a fraction of total reads in this object.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.edge_subset">
-<code class="sig-name descname">edge_subset</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.edge_subset" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.edge_subset">
+<span class="sig-name descname"><span class="pre">edge_subset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.edge_subset" title="Permalink to this definition"></a></dt>
 <dd><p>Get a subset of edges.</p>
 <p>This is an alias for <code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code>.</p>
 <dl class="field-list simple">
@@ -638,9 +555,9 @@ a fraction of total reads in this object.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.edges">
-<em class="property">property </em><code class="sig-name descname">edges</code><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.edges" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.edges">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">edges</span></span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.edges" title="Permalink to this definition"></a></dt>
 <dd><p>Iterate over contacts / edges.</p>
 <p><code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code> is the central function of
 <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code>. Here, we will use the
@@ -769,9 +686,9 @@ parameter:</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.edges_dict">
-<code class="sig-name descname">edges_dict</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.edges_dict" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.edges_dict">
+<span class="sig-name descname"><span class="pre">edges_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.edges_dict" title="Permalink to this definition"></a></dt>
 <dd><p>Edges iterator with access by bracket notation.</p>
 <p>This iterator <strong>always</strong> returns unnormalised edges.</p>
 <dl class="field-list simple">
@@ -781,9 +698,9 @@ parameter:</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.eigenvector">
-<code class="sig-name descname">eigenvector</code><span class="sig-paren">(</span><em class="sig-param">sub_region=None</em>, <em class="sig-param">genome=None</em>, <em class="sig-param">eigenvector=0</em>, <em class="sig-param">per_chromosome=None</em>, <em class="sig-param">oe_per_chromosome=None</em>, <em class="sig-param">exclude_chromosomes=None</em>, <em class="sig-param">force=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.eigenvector" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.eigenvector">
+<span class="sig-name descname"><span class="pre">eigenvector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sub_region</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">genome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eigenvector</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">per_chromosome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">oe_per_chromosome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_chromosomes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.eigenvector" title="Permalink to this definition"></a></dt>
 <dd><p>Calculate the eigenvector (EV) of this AB matrix.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -821,9 +738,9 @@ calculated with the same parameters and is stored in the object.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.enrichment_profile">
-<code class="sig-name descname">enrichment_profile</code><span class="sig-paren">(</span><em class="sig-param">hic</em>, <em class="sig-param">percentiles=(20.0</em>, <em class="sig-param">40.0</em>, <em class="sig-param">60.0</em>, <em class="sig-param">80.0</em>, <em class="sig-param">100.0)</em>, <em class="sig-param">only_gc=False</em>, <em class="sig-param">symmetric_at=None</em>, <em class="sig-param">exclude_chromosomes=()</em>, <em class="sig-param">intra_chromosomal=True</em>, <em class="sig-param">inter_chromosomal=False</em>, <em class="sig-param">eigenvector=None</em>, <em class="sig-param">collapse_identical_breakpoints=False</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.enrichment_profile" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.enrichment_profile">
+<span class="sig-name descname"><span class="pre">enrichment_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hic</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">percentiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(20.0,</span> <span class="pre">40.0,</span> <span class="pre">60.0,</span> <span class="pre">80.0,</span> <span class="pre">100.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">only_gc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">symmetric_at</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_chromosomes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intra_chromosomal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inter_chromosomal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eigenvector</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collapse_identical_breakpoints</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.enrichment_profile" title="Permalink to this definition"></a></dt>
 <dd><p>Generate a compartment enrichment profile for the compartment matrix.</p>
 <p>This returns a <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code> with the enrichment profile matrix,
 and a list of cutoffs used to bin regions according to the eigenvector (EV)
@@ -875,9 +792,9 @@ cleaner.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.expected_values">
-<code class="sig-name descname">expected_values</code><span class="sig-paren">(</span><em class="sig-param">selected_chromosome=None</em>, <em class="sig-param">norm=True</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.expected_values" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.expected_values">
+<span class="sig-name descname"><span class="pre">expected_values</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">selected_chromosome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.expected_values" title="Permalink to this definition"></a></dt>
 <dd><p>Calculate the expected values for genomic contacts at all distances.</p>
 <p>This calculates the expected values between genomic regions
 separated by a specific distance. Expected values are calculated
@@ -908,9 +825,9 @@ inter-chromosomal expected value</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.expected_values_and_marginals">
-<code class="sig-name descname">expected_values_and_marginals</code><span class="sig-paren">(</span><em class="sig-param">selected_chromosome=None</em>, <em class="sig-param">norm=True</em>, <em class="sig-param">force=False</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.expected_values_and_marginals" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.expected_values_and_marginals">
+<span class="sig-name descname"><span class="pre">expected_values_and_marginals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">selected_chromosome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.expected_values_and_marginals" title="Permalink to this definition"></a></dt>
 <dd><p>Calculate the expected values for genomic contacts at all distances
 and the whole matrix marginals.</p>
 <p>This calculates the expected values between genomic regions
@@ -942,9 +859,9 @@ inter-chromosomal expected value</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.filter">
-<code class="sig-name descname">filter</code><span class="sig-paren">(</span><em class="sig-param">edge_filter</em>, <em class="sig-param">queue=False</em>, <em class="sig-param">log_progress=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.filter" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.filter">
+<span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edge_filter</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">queue</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.filter" title="Permalink to this definition"></a></dt>
 <dd><p>Filter edges in this object by using a
 <code class="xref py py-class docutils literal notranslate"><span class="pre">MaskFilter</span></code>.</p>
 <dl class="field-list simple">
@@ -961,9 +878,9 @@ will be continuously reported.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.find_region">
-<code class="sig-name descname">find_region</code><span class="sig-paren">(</span><em class="sig-param">query_regions</em>, <em class="sig-param">_regions_dict=None</em>, <em class="sig-param">_region_ends=None</em>, <em class="sig-param">_chromosomes=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.find_region" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.find_region">
+<span class="sig-name descname"><span class="pre">find_region</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query_regions</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_regions_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_region_ends</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_chromosomes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.find_region" title="Permalink to this definition"></a></dt>
 <dd><p>Find the region that is at the center of a region.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -977,9 +894,9 @@ query region</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.flush">
-<code class="sig-name descname">flush</code><span class="sig-paren">(</span><em class="sig-param">silent=False</em>, <em class="sig-param">update_mappability=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.flush" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.flush">
+<span class="sig-name descname"><span class="pre">flush</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_mappability</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.flush" title="Permalink to this definition"></a></dt>
 <dd><p>Write data to file and flush buffers.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -991,9 +908,9 @@ query region</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.from_hic">
-<em class="property">classmethod </em><code class="sig-name descname">from_hic</code><span class="sig-paren">(</span><em class="sig-param">hic</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">per_chromosome=True</em>, <em class="sig-param">oe_per_chromosome=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.from_hic" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.from_hic">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_hic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hic</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">per_chromosome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">oe_per_chromosome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_chromosomes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.from_hic" title="Permalink to this definition"></a></dt>
 <dd><p>Generate an AB compartment matrix from a Hi-C object.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1006,7 +923,8 @@ on a per-chromosome basis (recommended). Otherwise calculates
 profile on the whole matrix - make sure your normalisation
 is suitable for this (i.e. whole matrix!)</p></li>
 <li><p><strong>oe_per_chromosome</strong> – Use the expected value vector matching each chromosome.
-Do not modify this unless you know what you are doing.</p></li>
+Do not modify this unless you know what you are doing.+</p></li>
+<li><p><strong>exclude_chromosomes</strong> – Exclude these chromosomes from compartment calculations.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -1015,9 +933,9 @@ Do not modify this unless you know what you are doing.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.get_mask">
-<code class="sig-name descname">get_mask</code><span class="sig-paren">(</span><em class="sig-param">key</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.get_mask" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.get_mask">
+<span class="sig-name descname"><span class="pre">get_mask</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.get_mask" title="Permalink to this definition"></a></dt>
 <dd><p>Search _mask table for key and return Mask.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1032,9 +950,9 @@ Do not modify this unless you know what you are doing.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.get_masks">
-<code class="sig-name descname">get_masks</code><span class="sig-paren">(</span><em class="sig-param">ix</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.get_masks" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.get_masks">
+<span class="sig-name descname"><span class="pre">get_masks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ix</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.get_masks" title="Permalink to this definition"></a></dt>
 <dd><p>Extract mask IDs encoded in parameter and return masks.</p>
 <p>IDs are powers of 2, so a single int field in the table can hold
 multiple masks by simply adding up the IDs. Similar principle to
@@ -1053,15 +971,15 @@ is not necessarily itself a power of 2.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.intervals">
-<code class="sig-name descname">intervals</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.intervals" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.intervals">
+<span class="sig-name descname"><span class="pre">intervals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.intervals" title="Permalink to this definition"></a></dt>
 <dd><p>Alias for region_intervals.</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.mappable">
-<code class="sig-name descname">mappable</code><span class="sig-paren">(</span><em class="sig-param">region=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.mappable" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.mappable">
+<span class="sig-name descname"><span class="pre">mappable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.mappable" title="Permalink to this definition"></a></dt>
 <dd><p>Get the mappability of regions in this object.</p>
 <p>A “mappable” region has at least one contact to another region
 in the genome.</p>
@@ -1073,9 +991,9 @@ and False unmappable</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.marginals">
-<code class="sig-name descname">marginals</code><span class="sig-paren">(</span><em class="sig-param">masked=True</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.marginals" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.marginals">
+<span class="sig-name descname"><span class="pre">marginals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">masked</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.marginals" title="Permalink to this definition"></a></dt>
 <dd><p>Get the marginals vector of this Hic matrix.</p>
 <p>Sums up all contacts for each bin of the Hi-C matrix.
 Unmappable regoins will be masked in the returned vector unless
@@ -1095,9 +1013,9 @@ corresponding to unmappable regions</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.matrix">
-<code class="sig-name descname">matrix</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">log=False</em>, <em class="sig-param">default_value=None</em>, <em class="sig-param">mask=True</em>, <em class="sig-param">log_base=2</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.matrix" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.matrix">
+<span class="sig-name descname"><span class="pre">matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_base</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.matrix" title="Permalink to this definition"></a></dt>
 <dd><p>Assemble a <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrix</span></code> from region pairs.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1122,9 +1040,9 @@ that have no associated edge/contact</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.merge">
-<em class="property">classmethod </em><code class="sig-name descname">merge</code><span class="sig-paren">(</span><em class="sig-param">matrices</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.merge" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.merge">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">merge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matrices</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.merge" title="Permalink to this definition"></a></dt>
 <dd><p>Merge multiple <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrixContainer</span></code> objects.</p>
 <p>Merging is done by adding the weight of edges in each object.</p>
 <dl class="field-list simple">
@@ -1137,9 +1055,9 @@ that have no associated edge/contact</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.possible_contacts">
-<code class="sig-name descname">possible_contacts</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.possible_contacts" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.possible_contacts">
+<span class="sig-name descname"><span class="pre">possible_contacts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.possible_contacts" title="Permalink to this definition"></a></dt>
 <dd><p>Calculate the possible number of contacts in the genome.</p>
 <p>This calculates the number of potential region pairs in
 a genome for any possible separation distance, taking into
@@ -1157,9 +1075,9 @@ possible inter-chromosomal pairs</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.region_bins">
-<code class="sig-name descname">region_bins</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.region_bins" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.region_bins">
+<span class="sig-name descname"><span class="pre">region_bins</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.region_bins" title="Permalink to this definition"></a></dt>
 <dd><p>Return slice of start and end indices spanned by a region.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1173,9 +1091,9 @@ To get the slice over all regions leave this blank.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.region_data">
-<code class="sig-name descname">region_data</code><span class="sig-paren">(</span><em class="sig-param">key</em>, <em class="sig-param">value=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.region_data" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.region_data">
+<span class="sig-name descname"><span class="pre">region_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.region_data" title="Permalink to this definition"></a></dt>
 <dd><p>Retrieve or add vector-data to this object. If there is existing data in this
 object with the same name, it will be replaced</p>
 <dl class="field-list simple">
@@ -1188,9 +1106,9 @@ object with the same name, it will be replaced</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.region_intervals">
-<code class="sig-name descname">region_intervals</code><span class="sig-paren">(</span><em class="sig-param">region</em>, <em class="sig-param">bins=None</em>, <em class="sig-param">bin_size=None</em>, <em class="sig-param">smoothing_window=None</em>, <em class="sig-param">nan_replacement=None</em>, <em class="sig-param">zero_to_nan=False</em>, <em class="sig-param">score_field='score'</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.region_intervals" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.region_intervals">
+<span class="sig-name descname"><span class="pre">region_intervals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bin_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_replacement</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_to_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">score_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'score'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.region_intervals" title="Permalink to this definition"></a></dt>
 <dd><p>Return equally-sized genomic intervals and associated scores.</p>
 <p>Use either bins or bin_size argument to control binning.</p>
 <dl class="field-list simple">
@@ -1215,9 +1133,9 @@ with this value</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.region_subset">
-<code class="sig-name descname">region_subset</code><span class="sig-paren">(</span><em class="sig-param">region</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.region_subset" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.region_subset">
+<span class="sig-name descname"><span class="pre">region_subset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.region_subset" title="Permalink to this definition"></a></dt>
 <dd><p>Takes a class:<cite>~GenomicRegion</cite> and returns all regions that
 overlap with the supplied region.</p>
 <dl class="field-list simple">
@@ -1229,9 +1147,9 @@ be returned.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.regions">
-<em class="property">property </em><code class="sig-name descname">regions</code><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.regions" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.regions">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">regions</span></span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.regions" title="Permalink to this definition"></a></dt>
 <dd><p>Iterate over genomic regions in this object.</p>
 <p>Will return a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> object in every iteration.
 Can also be used to get the number of regions by calling
@@ -1243,9 +1161,9 @@ len() on the object returned by this method.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.regions_and_edges">
-<code class="sig-name descname">regions_and_edges</code><span class="sig-paren">(</span><em class="sig-param">key</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.regions_and_edges" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.regions_and_edges">
+<span class="sig-name descname"><span class="pre">regions_and_edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.regions_and_edges" title="Permalink to this definition"></a></dt>
 <dd><p>Convenient access to regions and edges selected by key.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1261,9 +1179,9 @@ len() on the object returned by this method.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.regions_and_matrix_entries">
-<code class="sig-name descname">regions_and_matrix_entries</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">score_field=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.regions_and_matrix_entries" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.regions_and_matrix_entries">
+<span class="sig-name descname"><span class="pre">regions_and_matrix_entries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">score_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.regions_and_matrix_entries" title="Permalink to this definition"></a></dt>
 <dd><p>Convenient access to non-zero matrix entries and associated regions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1288,9 +1206,9 @@ attribute of the matrix class.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.regions_dict">
-<em class="property">property </em><code class="sig-name descname">regions_dict</code><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.regions_dict" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.regions_dict">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">regions_dict</span></span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.regions_dict" title="Permalink to this definition"></a></dt>
 <dd><p>Return a dictionary with region index as keys
 and regions as values.</p>
 <dl class="field-list simple">
@@ -1300,9 +1218,9 @@ and regions as values.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.regions_identical">
-<em class="property">static </em><code class="sig-name descname">regions_identical</code><span class="sig-paren">(</span><em class="sig-param">pairs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.regions_identical" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.regions_identical">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">regions_identical</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pairs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.regions_identical" title="Permalink to this definition"></a></dt>
 <dd><p>Check if the regions in all objects in the list are identical.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1316,9 +1234,9 @@ all regions in the same list positions.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.run_queued_filters">
-<code class="sig-name descname">run_queued_filters</code><span class="sig-paren">(</span><em class="sig-param">log_progress=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.run_queued_filters" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.run_queued_filters">
+<span class="sig-name descname"><span class="pre">run_queued_filters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log_progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.run_queued_filters" title="Permalink to this definition"></a></dt>
 <dd><p>Run queued filters.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1328,9 +1246,9 @@ will be continuously reported.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.scaling_factor">
-<code class="sig-name descname">scaling_factor</code><span class="sig-paren">(</span><em class="sig-param">matrix</em>, <em class="sig-param">weight_column=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.scaling_factor" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.scaling_factor">
+<span class="sig-name descname"><span class="pre">scaling_factor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_column</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.scaling_factor" title="Permalink to this definition"></a></dt>
 <dd><p>Compute the scaling factor to another matrix.</p>
 <p>Calculates the ratio between the number of contacts in
 this Hic object to the number of contacts in another
@@ -1348,9 +1266,9 @@ Hic object.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.subset">
-<code class="sig-name descname">subset</code><span class="sig-paren">(</span><em class="sig-param">*regions</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.subset" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.subset">
+<span class="sig-name descname"><span class="pre">subset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">regions</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.subset" title="Permalink to this definition"></a></dt>
 <dd><p>Subset a Hic object by specifying one or more subset regions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1369,9 +1287,9 @@ additional parameters are passed to
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.to_bed">
-<code class="sig-name descname">to_bed</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">subset=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.to_bed" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.to_bed">
+<span class="sig-name descname"><span class="pre">to_bed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.to_bed" title="Permalink to this definition"></a></dt>
 <dd><p>Export regions as BED file</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1385,9 +1303,9 @@ write only regions overlapping this region</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.to_bigwig">
-<code class="sig-name descname">to_bigwig</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">subset=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.to_bigwig" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.to_bigwig">
+<span class="sig-name descname"><span class="pre">to_bigwig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.to_bigwig" title="Permalink to this definition"></a></dt>
 <dd><p>Export regions as BigWig file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1401,9 +1319,9 @@ write only regions overlapping this region</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.architecture.compartments.ABCompartmentMatrix.to_gff">
-<code class="sig-name descname">to_gff</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">subset=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.to_gff" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.architecture.compartments.ABCompartmentMatrix.to_gff">
+<span class="sig-name descname"><span class="pre">to_gff</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.architecture.compartments.ABCompartmentMatrix.to_gff" title="Permalink to this definition"></a></dt>
 <dd><p>Export regions as GFF file</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1419,55 +1337,37 @@ write only regions overlapping this region</p></li>
 
 </dd></dl>
 
-</div>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="domains.html" class="btn btn-neutral float-right" title="Domains module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="comparisons.html" class="btn btn-neutral float-left" title="Comparisons module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="comparisons.html" class="btn btn-neutral float-left" title="Comparisons module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="domains.html" class="btn btn-neutral float-right" title="Domains module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
-
-    </p>
+    <p>&#169; Copyright 2020, Kai Kruse, Vaquerizas lab.</p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
-
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

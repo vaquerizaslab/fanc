@@ -1,71 +1,39 @@
-
-
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Basic usage &mdash; FAN-C 0.9.14-beta documentation</title>
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Basic usage &mdash; FAN-C 0.9.26b1-beta documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../_static/jquery.js"></script>
-        <script type="text/javascript" src="../_static/underscore.js"></script>
-        <script type="text/javascript" src="../_static/doctools.js"></script>
-        <script type="text/javascript" src="../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../_static/js/theme.js"></script>
-
-    
-
-  
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Working with Cooler, Juicer, and text files" href="compatibility.html" />
     <link rel="prev" title="FAN-C command line tools" href="../fanc.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../index.html" class="icon icon-home"> FAN-C
-          
-
-          
           </a>
-
-          
-            
-            
               <div class="version">
-                0.9.14
+                0.9.26b1
               </div>
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -73,17 +41,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../fanc.html">fanc: command line tools</a><ul class="current">
@@ -113,77 +71,38 @@
 <li class="toctree-l1"><a class="reference internal" href="../api/api.html">Python API</a></li>
 </ul>
 
-            
-          
         </div>
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../index.html">FAN-C</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="../index.html">Docs</a> &raquo;</li>
-        
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../fanc.html">FAN-C command line tools</a> &raquo;</li>
-        
       <li>Basic usage</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-            
             <a href="../_sources/fanc-executable/fanc_basic.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="basic-usage">
-<h1>Basic usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline">¶</a></h1>
+             
+  <section id="basic-usage">
+<h1>Basic usage<a class="headerlink" href="#basic-usage" title="Permalink to this heading"></a></h1>
 <p><code class="docutils literal notranslate"><span class="pre">fanc</span></code> uses subcommands to run all of its analyses. The <code class="docutils literal notranslate"><span class="pre">fanc</span></code> command itself can
 be used to get an overview of available subcommands, to print the current FAN-C version,
 or to set logging and notification parameters that affect all subcommands.</p>
-<div class="section" id="overview">
-<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this heading"></a></h2>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="o">&lt;</span><span class="n">command</span><span class="o">&gt;</span> <span class="p">[</span><span class="n">options</span><span class="p">]</span>
 
 <span class="o">--</span> <span class="n">Matrix</span> <span class="n">generation</span> <span class="o">--</span>
@@ -207,30 +126,33 @@ or to set logging and notification parameters that affect all subcommands.</p>
 <span class="o">--</span> <span class="n">Other</span> <span class="n">helpers</span> <span class="o">--</span>
 <span class="n">fragments</span>         <span class="n">In</span><span class="o">-</span><span class="n">silico</span> <span class="n">genome</span> <span class="n">digestion</span>
 <span class="n">sort</span><span class="o">-</span><span class="n">sam</span>          <span class="n">Convenience</span> <span class="n">function</span> <span class="n">to</span> <span class="n">sort</span> <span class="n">a</span> <span class="n">SAM</span> <span class="n">file</span> <span class="n">by</span> <span class="n">name</span>
-<span class="n">from</span><span class="o">-</span><span class="n">juicer</span>       <span class="n">Import</span> <span class="n">a</span> <span class="n">Hi</span><span class="o">-</span><span class="n">C</span> <span class="nb">object</span> <span class="kn">from</span> <span class="nn">juicer</span> <span class="p">(</span><span class="n">Aiden</span> <span class="n">lab</span><span class="p">)</span>
 <span class="n">from</span><span class="o">-</span><span class="n">txt</span>          <span class="n">Import</span> <span class="n">a</span> <span class="n">Hi</span><span class="o">-</span><span class="n">C</span> <span class="nb">object</span> <span class="kn">from</span> <span class="nn">a</span> <span class="n">sparse</span> <span class="n">matrix</span> <span class="n">txt</span> <span class="nb">format</span>
-<span class="n">from</span><span class="o">-</span><span class="n">cooler</span>       <span class="n">Convert</span> <span class="n">a</span> <span class="n">Cooler</span> <span class="p">(</span>
-<span class="n">to</span><span class="o">-</span><span class="n">cooler</span>         <span class="n">Convert</span> <span class="n">a</span> <span class="n">Hic</span> <span class="n">file</span> <span class="n">into</span> <span class="n">cooler</span> <span class="nb">format</span>
+<span class="n">to</span><span class="o">-</span><span class="n">fanc</span>           <span class="n">Convert</span> <span class="n">a</span> <span class="n">matrix</span> <span class="n">file</span> <span class="p">(</span><span class="n">Cooler</span><span class="p">,</span> <span class="n">Juicer</span><span class="p">)</span> <span class="n">file</span> <span class="n">to</span> <span class="n">FAN</span><span class="o">-</span><span class="n">C</span> <span class="nb">format</span>
+<span class="n">to</span><span class="o">-</span><span class="n">cooler</span>         <span class="n">Convert</span> <span class="n">a</span> <span class="n">binned</span> <span class="n">Hic</span> <span class="n">file</span> <span class="n">into</span> <span class="n">cooler</span> <span class="nb">format</span>
 <span class="n">to</span><span class="o">-</span><span class="n">juicer</span>         <span class="n">Convert</span> <span class="n">a</span> <span class="n">ReadPairs</span> <span class="n">file</span> <span class="n">to</span> <span class="n">Juicer</span> 
 <span class="n">dump</span>              <span class="n">Dump</span> <span class="n">Hic</span> <span class="n">file</span> <span class="n">to</span> <span class="n">txt</span> <span class="n">file</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
 <span class="n">overlap</span><span class="o">-</span><span class="n">peaks</span>     <span class="n">Overlap</span> <span class="n">peaks</span> <span class="kn">from</span> <span class="nn">multiple</span> <span class="n">samples</span>
-<span class="n">subset</span>            <span class="n">Create</span> <span class="n">a</span> <span class="n">new</span> <span class="n">Hic</span> <span class="nb">object</span> <span class="n">by</span> <span class="n">subsetting</span>
-<span class="n">stats</span>             <span class="n">Get</span> <span class="n">statistics</span> <span class="n">on</span> <span class="n">number</span> <span class="n">of</span> <span class="n">reads</span> <span class="n">used</span> <span class="n">at</span> <span class="n">each</span> <span class="n">step</span> <span class="n">of</span> <span class="n">a</span> <span class="n">pipeline</span>
 <span class="n">write</span><span class="o">-</span><span class="n">config</span>      <span class="n">Write</span> <span class="n">default</span> <span class="n">config</span> <span class="n">file</span> <span class="n">to</span> <span class="n">specified</span> <span class="n">location</span>
 <span class="n">downsample</span>        <span class="n">Downsample</span> <span class="n">contacts</span> <span class="kn">from</span> <span class="nn">a</span> <span class="n">Hic</span> <span class="nb">object</span>
 <span class="n">upgrade</span>           <span class="n">Upgrade</span> <span class="n">objects</span> <span class="kn">from</span> <span class="nn">old</span> <span class="n">FAN</span><span class="o">-</span><span class="n">C</span> <span class="n">versions</span>
+
+<span class="o">--</span> <span class="n">Deprecated</span> <span class="o">--</span>
+<span class="n">from</span><span class="o">-</span><span class="n">juicer</span>       <span class="p">[</span><span class="n">deprecated</span><span class="p">]</span> <span class="n">Convert</span> <span class="n">Juicer</span> <span class="n">Hi</span><span class="o">-</span><span class="n">C</span> <span class="n">file</span> <span class="n">to</span> <span class="n">FAN</span><span class="o">-</span><span class="n">C</span> <span class="nb">format</span>
+<span class="n">from</span><span class="o">-</span><span class="n">cooler</span>       <span class="p">[</span><span class="n">deprecated</span><span class="p">]</span> <span class="n">Convert</span> <span class="n">a</span> <span class="n">Cooler</span> <span class="n">file</span> <span class="n">to</span> <span class="n">FAN</span><span class="o">-</span><span class="n">C</span> <span class="nb">format</span>
+<span class="n">stats</span>             <span class="p">[</span><span class="n">deprecated</span><span class="p">]</span> <span class="n">Get</span> <span class="n">statistics</span> <span class="n">on</span> <span class="n">FAN</span><span class="o">-</span><span class="n">C</span> <span class="n">pipeline</span> <span class="n">steps</span>
+<span class="n">subset</span>            <span class="p">[</span><span class="n">deprecated</span><span class="p">]</span> <span class="n">Create</span> <span class="n">a</span> <span class="n">new</span> <span class="n">Hic</span> <span class="nb">object</span> <span class="n">by</span> <span class="n">subsetting</span>
 </pre></div>
 </div>
-<div class="section" id="Positional Arguments">
-<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<section id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>command</kbd></dt>
 <dd><p>Subcommand to run</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="Named Arguments">
-<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>-V, --version</kbd></dt>
 <dd><p>Print version information</p>
@@ -260,10 +182,10 @@ or to set logging and notification parameters that affect all subcommands.</p>
 <dd><p>SMTP sender email address.</p>
 </dd>
 </dl>
-</div>
-</div>
-<div class="section" id="logging">
-<h2>Logging<a class="headerlink" href="#logging" title="Permalink to this headline">¶</a></h2>
+</section>
+</section>
+<section id="logging">
+<h2>Logging<a class="headerlink" href="#logging" title="Permalink to this heading"></a></h2>
 <p>You can set the verbosity level of any <code class="docutils literal notranslate"><span class="pre">fanc</span></code> subcommand with the <code class="docutils literal notranslate"><span class="pre">-v</span></code> option. Use
 more or less v’s for more or less logging output. The default is <code class="docutils literal notranslate"><span class="pre">-vv</span></code>, which
 corresponds to error, warning, and info messages. <code class="docutils literal notranslate"><span class="pre">-vvv</span></code> also displays debug messages,
@@ -271,18 +193,18 @@ which might be helpful to identify issues with an analysis. <code class="docutil
 and warning messages. To disable logging completely, use the <code class="docutils literal notranslate"><span class="pre">-s</span></code> option.</p>
 <p>By default, logging output is sent to <code class="docutils literal notranslate"><span class="pre">stderr</span></code>. You can redirect log messages to a file
 using <code class="docutils literal notranslate"><span class="pre">-l</span> <span class="pre">&lt;file</span> <span class="pre">name&gt;</span></code>.</p>
-</div>
-<div class="section" id="email-notifications">
-<h2>Email notifications<a class="headerlink" href="#email-notifications" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="email-notifications">
+<h2>Email notifications<a class="headerlink" href="#email-notifications" title="Permalink to this heading"></a></h2>
 <p>Sometimes it is convenient to be notified by email if a <code class="docutils literal notranslate"><span class="pre">fanc</span></code> command finishes,
 especially for long-running commands such as <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pairs</span></code> or <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">map</span></code>. You can
 instruct <code class="docutils literal notranslate"><span class="pre">fanc</span></code> to send an email when a command finished using <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">&lt;email</span> <span class="pre">address&gt;</span></code>.
 You must also specify the SMTP server settings using the options
 <code class="docutils literal notranslate"><span class="pre">--smtp-&lt;server|username|password|sender-address&gt;</span></code>, or you can pre-configure these using
 the <a class="reference internal" href="#fanc-config-files"><span class="std std-ref">FAN-C config files</span></a>.</p>
-</div>
-<div class="section" id="temporary-files">
-<h2>Temporary files<a class="headerlink" href="#temporary-files" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="temporary-files">
+<h2>Temporary files<a class="headerlink" href="#temporary-files" title="Permalink to this heading"></a></h2>
 <p>Many of the more computationally intensive FAN-C commands support the <code class="code docutils literal notranslate"><span class="pre">-tmp</span></code>
 argument. This instructs the command to copy all input files to a temporary directory
 before processing. Similarly, output files will intitially generated in the temporary
@@ -295,9 +217,9 @@ at the start of the command, thus avoiding the slow file system access throughou
 remainder of the processing steps.</p>
 <p>You can change the default temporary directory by setting the <code class="code docutils literal notranslate"><span class="pre">TMPDIR</span></code> environment
 variable on your local system to a folder of your choice.</p>
-</div>
-<div class="section" id="fan-c-config-files">
-<span id="fanc-config-files"></span><h2>FAN-C config files<a class="headerlink" href="#fan-c-config-files" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="fan-c-config-files">
+<span id="fanc-config-files"></span><h2>FAN-C config files<a class="headerlink" href="#fan-c-config-files" title="Permalink to this heading"></a></h2>
 <p>FAN-C supports configuration files, which can be located (in descending order of priority)</p>
 <ul class="simple">
 <li><p>in the current directory, named <code class="docutils literal notranslate"><span class="pre">fanc.conf</span></code></p></li>
@@ -311,27 +233,27 @@ variable on your local system to a folder of your choice.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">write</span><span class="o">-</span><span class="n">config</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span> <span class="p">[</span><span class="n">config_file</span><span class="p">]</span>
 </pre></div>
 </div>
-<div class="section" id="Positional Arguments">
-<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<section id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>config_file</kbd></dt>
 <dd><p>Output file for default configuration.</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="Named Arguments">
-<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>-f, --force</kbd></dt>
 <dd><p>Force overwrite of existing config file.</p>
 </dd>
 </dl>
-</div>
+</section>
 <p>An explanation of the different settings can be found as comments in the default config file.
 The file is written in <a class="reference external" href="https://yaml.org/">YAML</a></p>
-</div>
-<div class="section" id="numexpr-threadpool-configuration">
-<span id="fanc-numexpr"></span><h2>NumExpr ThreadPool configuration<a class="headerlink" href="#numexpr-threadpool-configuration" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="numexpr-threadpool-configuration">
+<span id="fanc-numexpr"></span><h2>NumExpr ThreadPool configuration<a class="headerlink" href="#numexpr-threadpool-configuration" title="Permalink to this heading"></a></h2>
 <p>FAN-C uses PyTables for fast querying of most of its storage classes. <a class="reference external" href="https://www.pytables.org/usersguide/libref/structured_storage.html#tables.Table.where">Condition-based queries
 in PyTables</a>,
 which are used, for example, to find regions and pixels in certain matrix subsets,
@@ -341,56 +263,38 @@ preset, but if you want to optimise every single aspect of your pipeline, you ma
 take a look at
 <a class="reference external" href="https://numexpr.readthedocs.io/projects/NumExpr3/en/latest/user_guide.html#threadpool-configuration">this NumExpr help page</a>
 .</p>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="compatibility.html" class="btn btn-neutral float-right" title="Working with Cooler, Juicer, and text files" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="../fanc.html" class="btn btn-neutral float-left" title="FAN-C command line tools" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../fanc.html" class="btn btn-neutral float-left" title="FAN-C command line tools" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="compatibility.html" class="btn btn-neutral float-right" title="Working with Cooler, Juicer, and text files" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
-
-    </p>
+    <p>&#169; Copyright 2020, Kai Kruse, Vaquerizas lab.</p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
-
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

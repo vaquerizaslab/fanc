@@ -1,71 +1,39 @@
-
-
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Cooler module &mdash; FAN-C 0.9.14-beta documentation</title>
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cooler module &mdash; FAN-C 0.9.26b1-beta documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../../../_static/jquery.js"></script>
-        <script type="text/javascript" src="../../../_static/underscore.js"></script>
-        <script type="text/javascript" src="../../../_static/doctools.js"></script>
-        <script type="text/javascript" src="../../../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
-
-    
-
-  
-  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
     <link rel="next" title="FAN-C Python architecture modules" href="../architecture.html" />
     <link rel="prev" title="Juicer module" href="juicer.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../../../index.html" class="icon icon-home"> FAN-C
-          
-
-          
           </a>
-
-          
-            
-            
               <div class="version">
-                0.9.14
+                0.9.26b1
               </div>
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -73,17 +41,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../fanc.html">fanc: command line tools</a></li>
@@ -117,83 +75,42 @@
 </li>
 </ul>
 
-            
-          
         </div>
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../../index.html">FAN-C</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="../../../index.html">Docs</a> &raquo;</li>
-        
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../../api.html">fanc Python module</a> &raquo;</li>
-        
           <li><a href="../../modules.html">FAN-C Python modules</a> &raquo;</li>
-        
           <li><a href="../compatibility.html">FAN-C compatibility modules</a> &raquo;</li>
-        
       <li>Cooler module</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-            
             <a href="../../../_sources/api/modules/compatibility/cooler.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="module-fanc.compatibility.cooler">
-<span id="cooler-module"></span><h1>Cooler module<a class="headerlink" href="#module-fanc.compatibility.cooler" title="Permalink to this headline">¶</a></h1>
-<dl class="class">
-<dt id="fanc.compatibility.cooler.CoolerHic">
-<em class="property">class </em><code class="sig-prename descclassname">fanc.compatibility.cooler.</code><code class="sig-name descname">CoolerHic</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="../matrix.html#fanc.matrix.RegionMatrixContainer" title="fanc.matrix.RegionMatrixContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.matrix.RegionMatrixContainer</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">cooler.api.Cooler</span></code></p>
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.add_contact">
-<code class="sig-name descname">add_contact</code><span class="sig-paren">(</span><em class="sig-param">contact</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_contact" title="Permalink to this definition">¶</a></dt>
+             
+  <section id="module-fanc.compatibility.cooler">
+<span id="cooler-module"></span><h1>Cooler module<a class="headerlink" href="#module-fanc.compatibility.cooler" title="Permalink to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fanc.compatibility.cooler.</span></span><span class="sig-name descname"><span class="pre">CoolerHic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../matrix.html#fanc.matrix.RegionMatrixContainer" title="fanc.matrix.RegionMatrixContainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrixContainer</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Cooler</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.add_contact">
+<span class="sig-name descname"><span class="pre">add_contact</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">contact</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_contact" title="Permalink to this definition"></a></dt>
 <dd><p>Alias for <code class="xref py py-func docutils literal notranslate"><span class="pre">add_edge()</span></code></p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -208,15 +125,15 @@
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.add_contacts">
-<code class="sig-name descname">add_contacts</code><span class="sig-paren">(</span><em class="sig-param">contacts</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_contacts" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.add_contacts">
+<span class="sig-name descname"><span class="pre">add_contacts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">contacts</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_contacts" title="Permalink to this definition"></a></dt>
 <dd><p>Alias for <code class="xref py py-func docutils literal notranslate"><span class="pre">add_edges()</span></code></p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.add_edge">
-<code class="sig-name descname">add_edge</code><span class="sig-paren">(</span><em class="sig-param">edge</em>, <em class="sig-param">check_nodes_exist=True</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_edge" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.add_edge">
+<span class="sig-name descname"><span class="pre">add_edge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">check_nodes_exist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_edge" title="Permalink to this definition"></a></dt>
 <dd><p>Add an edge / contact between two regions to this object.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -236,9 +153,9 @@ that match source and sink indexes</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.add_edge_from_dict">
-<code class="sig-name descname">add_edge_from_dict</code><span class="sig-paren">(</span><em class="sig-param">edge</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_edge_from_dict" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.add_edge_from_dict">
+<span class="sig-name descname"><span class="pre">add_edge_from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edge</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_edge_from_dict" title="Permalink to this definition"></a></dt>
 <dd><p>Direct method to add an edge from dict input.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -249,9 +166,9 @@ as edge attributes</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.add_edge_from_edge">
-<code class="sig-name descname">add_edge_from_edge</code><span class="sig-paren">(</span><em class="sig-param">edge</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_edge_from_edge" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.add_edge_from_edge">
+<span class="sig-name descname"><span class="pre">add_edge_from_edge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edge</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_edge_from_edge" title="Permalink to this definition"></a></dt>
 <dd><p>Direct method to add an edge from <code class="xref py py-class docutils literal notranslate"><span class="pre">Edge</span></code> input.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -260,9 +177,9 @@ as edge attributes</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.add_edge_from_list">
-<code class="sig-name descname">add_edge_from_list</code><span class="sig-paren">(</span><em class="sig-param">edge</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_edge_from_list" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.add_edge_from_list">
+<span class="sig-name descname"><span class="pre">add_edge_from_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edge</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_edge_from_list" title="Permalink to this definition"></a></dt>
 <dd><p>Direct method to add an edge from list or tuple input.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -272,9 +189,9 @@ as edge attributes</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.add_edge_simple">
-<code class="sig-name descname">add_edge_simple</code><span class="sig-paren">(</span><em class="sig-param">source</em>, <em class="sig-param">sink</em>, <em class="sig-param">weight=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_edge_simple" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.add_edge_simple">
+<span class="sig-name descname"><span class="pre">add_edge_simple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sink</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_edge_simple" title="Permalink to this definition"></a></dt>
 <dd><p>Direct method to add an edge from <code class="xref py py-class docutils literal notranslate"><span class="pre">Edge</span></code> input.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -287,9 +204,9 @@ as edge attributes</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.add_edges">
-<code class="sig-name descname">add_edges</code><span class="sig-paren">(</span><em class="sig-param">edges</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_edges" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.add_edges">
+<span class="sig-name descname"><span class="pre">add_edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edges</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_edges" title="Permalink to this definition"></a></dt>
 <dd><p>Bulk-add edges from a list.</p>
 <p>List items can be any of the supported edge types,
 list, tuple, dict, or <code class="xref py py-class docutils literal notranslate"><span class="pre">Edge</span></code>. Repeatedly
@@ -304,9 +221,9 @@ for details</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.add_region">
-<code class="sig-name descname">add_region</code><span class="sig-paren">(</span><em class="sig-param">region</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_region" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.add_region">
+<span class="sig-name descname"><span class="pre">add_region</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.add_region" title="Permalink to this definition"></a></dt>
 <dd><p>Add a genomic region to this object.</p>
 <p>This method offers some flexibility in the types of objects
 that can be loaded. See parameters for details.</p>
@@ -322,9 +239,9 @@ start, end).</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.bin_intervals">
-<em class="property">static </em><code class="sig-name descname">bin_intervals</code><span class="sig-paren">(</span><em class="sig-param">intervals</em>, <em class="sig-param">bins</em>, <em class="sig-param">interval_range=None</em>, <em class="sig-param">smoothing_window=None</em>, <em class="sig-param">nan_replacement=None</em>, <em class="sig-param">zero_to_nan=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.bin_intervals" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.bin_intervals">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bin_intervals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intervals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bins</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interval_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_replacement</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_to_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.bin_intervals" title="Permalink to this definition"></a></dt>
 <dd><p>Bin a given set of intervals into a fixed number of bins.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -348,9 +265,9 @@ with this value</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.bin_intervals_equidistant">
-<em class="property">static </em><code class="sig-name descname">bin_intervals_equidistant</code><span class="sig-paren">(</span><em class="sig-param">intervals</em>, <em class="sig-param">bin_size</em>, <em class="sig-param">interval_range=None</em>, <em class="sig-param">smoothing_window=None</em>, <em class="sig-param">nan_replacement=None</em>, <em class="sig-param">zero_to_nan=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.bin_intervals_equidistant" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.bin_intervals_equidistant">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bin_intervals_equidistant</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intervals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bin_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interval_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_replacement</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_to_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.bin_intervals_equidistant" title="Permalink to this definition"></a></dt>
 <dd><p>Bin a given set of intervals into bins with a fixed size.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -374,9 +291,9 @@ with this value</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.bin_size">
-<em class="property">property </em><code class="sig-name descname">bin_size</code><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.bin_size" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.bin_size">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bin_size</span></span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.bin_size" title="Permalink to this definition"></a></dt>
 <dd><p>Return the length of the first region in the dataset.</p>
 <p>Assumes all bins have equal size.</p>
 <dl class="field-list simple">
@@ -386,9 +303,9 @@ with this value</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.binned_regions">
-<code class="sig-name descname">binned_regions</code><span class="sig-paren">(</span><em class="sig-param">region=None</em>, <em class="sig-param">bins=None</em>, <em class="sig-param">bin_size=None</em>, <em class="sig-param">smoothing_window=None</em>, <em class="sig-param">nan_replacement=None</em>, <em class="sig-param">zero_to_nan=False</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.binned_regions" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.binned_regions">
+<span class="sig-name descname"><span class="pre">binned_regions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bin_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_replacement</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_to_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.binned_regions" title="Permalink to this definition"></a></dt>
 <dd><p>Same as region_intervals, but returns <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>
 objects instead of tuples.</p>
 <dl class="field-list simple">
@@ -413,23 +330,20 @@ with this value</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.bins">
-<code class="sig-name descname">bins</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.bins" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.bins">
+<span class="sig-name descname"><span class="pre">bins</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.bins" title="Permalink to this definition"></a></dt>
 <dd><p>Bin table selector</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p></p>
-</dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>Table selector</p>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Table selector</p>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.bins_to_distance">
-<code class="sig-name descname">bins_to_distance</code><span class="sig-paren">(</span><em class="sig-param">bins</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.bins_to_distance" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.bins_to_distance">
+<span class="sig-name descname"><span class="pre">bins_to_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bins</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.bins_to_distance" title="Permalink to this definition"></a></dt>
 <dd><p>Convert fraction of bins to base pairs</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -441,63 +355,60 @@ with this value</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.binsize">
-<em class="property">property </em><code class="sig-name descname">binsize</code><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.binsize" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.binsize">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">binsize</span></span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.binsize" title="Permalink to this definition"></a></dt>
 <dd><p>Resolution in base pairs if uniform else None</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.chromnames">
-<em class="property">property </em><code class="sig-name descname">chromnames</code><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chromnames" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.chromnames">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">chromnames</span></span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chromnames" title="Permalink to this definition"></a></dt>
 <dd><p>List of reference sequence names</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.chromosome_bins">
-<em class="property">property </em><code class="sig-name descname">chromosome_bins</code><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chromosome_bins" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.chromosome_bins">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">chromosome_bins</span></span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chromosome_bins" title="Permalink to this definition"></a></dt>
 <dd><p>Returns a dictionary of chromosomes and the start
 and end index of the bins they cover.</p>
 <p>Returned list is range-compatible, i.e. chromosome
 bins [0,5] cover chromosomes 1, 2, 3, and 4, not 5.</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.chromosome_lengths">
-<em class="property">property </em><code class="sig-name descname">chromosome_lengths</code><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chromosome_lengths" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.chromosome_lengths">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">chromosome_lengths</span></span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chromosome_lengths" title="Permalink to this definition"></a></dt>
 <dd><p>Returns a dictionary of chromosomes and their length
 in bp.</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.chromosomes">
-<code class="sig-name descname">chromosomes</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chromosomes" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.chromosomes">
+<span class="sig-name descname"><span class="pre">chromosomes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chromosomes" title="Permalink to this definition"></a></dt>
 <dd><p>Get a list of chromosome names.</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.chroms">
-<code class="sig-name descname">chroms</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chroms" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.chroms">
+<span class="sig-name descname"><span class="pre">chroms</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chroms" title="Permalink to this definition"></a></dt>
 <dd><p>Chromosome table selector</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p></p>
-</dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>Table selector</p>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Table selector</p>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.chromsizes">
-<em class="property">property </em><code class="sig-name descname">chromsizes</code><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chromsizes" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.chromsizes">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">chromsizes</span></span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.chromsizes" title="Permalink to this definition"></a></dt>
 <dd><p>Ordered mapping of reference sequences to their lengths in bp</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.close">
-<code class="sig-name descname">close</code><span class="sig-paren">(</span><em class="sig-param">remove_tmp=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.close" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">remove_tmp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.close" title="Permalink to this definition"></a></dt>
 <dd><p>Close this Juicer file and run exit operations.</p>
 <p>If file was opened with tmpdir in read-only mode:
 close file and delete temporary copy.</p>
@@ -508,9 +419,9 @@ close file and delete temporary copy.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.distance_to_bins">
-<code class="sig-name descname">distance_to_bins</code><span class="sig-paren">(</span><em class="sig-param">distance</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.distance_to_bins" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.distance_to_bins">
+<span class="sig-name descname"><span class="pre">distance_to_bins</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">distance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.distance_to_bins" title="Permalink to this definition"></a></dt>
 <dd><p>Convert base pairs to fraction of bins.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -522,9 +433,9 @@ close file and delete temporary copy.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.edge_data">
-<code class="sig-name descname">edge_data</code><span class="sig-paren">(</span><em class="sig-param">attribute</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.edge_data" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.edge_data">
+<span class="sig-name descname"><span class="pre">edge_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">attribute</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.edge_data" title="Permalink to this definition"></a></dt>
 <dd><p>Iterate over specific edge attribute.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -540,9 +451,9 @@ close file and delete temporary copy.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.edge_subset">
-<code class="sig-name descname">edge_subset</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.edge_subset" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.edge_subset">
+<span class="sig-name descname"><span class="pre">edge_subset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.edge_subset" title="Permalink to this definition"></a></dt>
 <dd><p>Get a subset of edges.</p>
 <p>This is an alias for <code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code>.</p>
 <dl class="field-list simple">
@@ -552,9 +463,9 @@ close file and delete temporary copy.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.edges">
-<em class="property">property </em><code class="sig-name descname">edges</code><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.edges" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.edges">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">edges</span></span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.edges" title="Permalink to this definition"></a></dt>
 <dd><p>Iterate over contacts / edges.</p>
 <p><code class="xref py py-func docutils literal notranslate"><span class="pre">edges()</span></code> is the central function of
 <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code>. Here, we will use the
@@ -683,9 +594,9 @@ parameter:</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.edges_dict">
-<code class="sig-name descname">edges_dict</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.edges_dict" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.edges_dict">
+<span class="sig-name descname"><span class="pre">edges_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.edges_dict" title="Permalink to this definition"></a></dt>
 <dd><p>Edges iterator with access by bracket notation.</p>
 <p>This iterator <strong>always</strong> returns unnormalised edges.</p>
 <dl class="field-list simple">
@@ -695,9 +606,9 @@ parameter:</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.expected_values">
-<code class="sig-name descname">expected_values</code><span class="sig-paren">(</span><em class="sig-param">selected_chromosome=None</em>, <em class="sig-param">norm=True</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.expected_values" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.expected_values">
+<span class="sig-name descname"><span class="pre">expected_values</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">selected_chromosome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.expected_values" title="Permalink to this definition"></a></dt>
 <dd><p>Calculate the expected values for genomic contacts at all distances.</p>
 <p>This calculates the expected values between genomic regions
 separated by a specific distance. Expected values are calculated
@@ -728,9 +639,9 @@ inter-chromosomal expected value</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.expected_values_and_marginals">
-<code class="sig-name descname">expected_values_and_marginals</code><span class="sig-paren">(</span><em class="sig-param">selected_chromosome=None</em>, <em class="sig-param">norm=True</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.expected_values_and_marginals" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.expected_values_and_marginals">
+<span class="sig-name descname"><span class="pre">expected_values_and_marginals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">selected_chromosome</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.expected_values_and_marginals" title="Permalink to this definition"></a></dt>
 <dd><p>Calculate the expected values for genomic contacts at all distances
 and the whole matrix marginals.</p>
 <p>This calculates the expected values between genomic regions
@@ -762,31 +673,28 @@ inter-chromosomal expected value</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.extent">
-<code class="sig-name descname">extent</code><span class="sig-paren">(</span><em class="sig-param">region</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.extent" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.extent">
+<span class="sig-name descname"><span class="pre">extent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.extent" title="Permalink to this definition"></a></dt>
 <dd><p>Bin IDs containing the left and right ends of a genomic region</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>region</strong> (<em>str</em><em> or </em><em>tuple</em>) – Genomic range</p>
 </dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p></p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>2-tuple of ints</p>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>2-tuple of ints</p>
 </dd>
 </dl>
 <p class="rubric">Examples</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">c</span><span class="o">.</span><span class="n">extent</span><span class="p">(</span><span class="s1">&#39;chr3&#39;</span><span class="p">)</span>  
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">c</span><span class="o">.</span><span class="n">extent</span><span class="p">(</span><span class="s1">&#39;chr3&#39;</span><span class="p">)</span>  
 <span class="go">(1311, 2131)</span>
 </pre></div>
 </div>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.find_region">
-<code class="sig-name descname">find_region</code><span class="sig-paren">(</span><em class="sig-param">query_regions</em>, <em class="sig-param">_regions_dict=None</em>, <em class="sig-param">_region_ends=None</em>, <em class="sig-param">_chromosomes=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.find_region" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.find_region">
+<span class="sig-name descname"><span class="pre">find_region</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query_regions</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_regions_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_region_ends</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_chromosomes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.find_region" title="Permalink to this definition"></a></dt>
 <dd><p>Find the region that is at the center of a region.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -800,35 +708,32 @@ query region</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.info">
-<em class="property">property </em><code class="sig-name descname">info</code><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.info" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.info">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">info</span></span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.info" title="Permalink to this definition"></a></dt>
 <dd><p>File information and metadata</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p></p>
-</dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>dict</p>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dict</p>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.intervals">
-<code class="sig-name descname">intervals</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.intervals" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.intervals">
+<span class="sig-name descname"><span class="pre">intervals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.intervals" title="Permalink to this definition"></a></dt>
 <dd><p>Alias for region_intervals.</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.mappable">
-<code class="sig-name descname">mappable</code><span class="sig-paren">(</span><em class="sig-param">region=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.mappable" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.mappable">
+<span class="sig-name descname"><span class="pre">mappable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.mappable" title="Permalink to this definition"></a></dt>
 <dd><p>Get the mappability vector of this matrix.</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.marginals">
-<code class="sig-name descname">marginals</code><span class="sig-paren">(</span><em class="sig-param">masked=True</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.marginals" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.marginals">
+<span class="sig-name descname"><span class="pre">marginals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">masked</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.marginals" title="Permalink to this definition"></a></dt>
 <dd><p>Get the marginals vector of this Hic matrix.</p>
 <p>Sums up all contacts for each bin of the Hi-C matrix.
 Unmappable regoins will be masked in the returned vector unless
@@ -848,9 +753,9 @@ corresponding to unmappable regions</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.matrix">
-<code class="sig-name descname">matrix</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">log=False</em>, <em class="sig-param">default_value=None</em>, <em class="sig-param">mask=True</em>, <em class="sig-param">log_base=2</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.matrix" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.matrix">
+<span class="sig-name descname"><span class="pre">matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_base</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.matrix" title="Permalink to this definition"></a></dt>
 <dd><p>Assemble a <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionMatrix</span></code> from region pairs.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -875,9 +780,9 @@ that have no associated edge/contact</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.merge">
-<em class="property">classmethod </em><code class="sig-name descname">merge</code><span class="sig-paren">(</span><em class="sig-param">pairs</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.merge" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.merge">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">merge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pairs</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.merge" title="Permalink to this definition"></a></dt>
 <dd><p>Merge two or more <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionPairsContainer</span></code> objects.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -892,31 +797,28 @@ class</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.offset">
-<code class="sig-name descname">offset</code><span class="sig-paren">(</span><em class="sig-param">region</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.offset" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.offset">
+<span class="sig-name descname"><span class="pre">offset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.offset" title="Permalink to this definition"></a></dt>
 <dd><p>Bin ID containing the left end of a genomic region</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>region</strong> (<em>str</em><em> or </em><em>tuple</em>) – Genomic range</p>
 </dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p></p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>int</p>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>int</p>
 </dd>
 </dl>
 <p class="rubric">Examples</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">c</span><span class="o">.</span><span class="n">offset</span><span class="p">(</span><span class="s1">&#39;chr3&#39;</span><span class="p">)</span>  
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">c</span><span class="o">.</span><span class="n">offset</span><span class="p">(</span><span class="s1">&#39;chr3&#39;</span><span class="p">)</span>  
 <span class="go">1311</span>
 </pre></div>
 </div>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.open">
-<code class="sig-name descname">open</code><span class="sig-paren">(</span><em class="sig-param">mode='r'</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.open" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.open">
+<span class="sig-name descname"><span class="pre">open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'r'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.open" title="Permalink to this definition"></a></dt>
 <dd><p>Open the HDF5 group containing the Cooler with <code class="xref py py-mod docutils literal notranslate"><span class="pre">h5py</span></code></p>
 <p>Functions as a context manager. Any <code class="docutils literal notranslate"><span class="pre">open_kws</span></code> passed during
 construction are ignored.</p>
@@ -933,27 +835,24 @@ construction are ignored.</p>
 <p>For other parameters, see <code class="xref py py-class docutils literal notranslate"><span class="pre">h5py.File</span></code>.</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.pixels">
-<code class="sig-name descname">pixels</code><span class="sig-paren">(</span><em class="sig-param">join=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.pixels" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.pixels">
+<span class="sig-name descname"><span class="pre">pixels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">join</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.pixels" title="Permalink to this definition"></a></dt>
 <dd><p>Pixel table selector</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>join</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to expand bin ID columns into chrom, start, and end columns.
-Default is <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
+<dd class="field-odd"><p><strong>join</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to expand bin ID columns into chrom, start, and end
+columns. Default is <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
 </dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p></p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>Table selector</p>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>Table selector</p>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.possible_contacts">
-<code class="sig-name descname">possible_contacts</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.possible_contacts" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.possible_contacts">
+<span class="sig-name descname"><span class="pre">possible_contacts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.possible_contacts" title="Permalink to this definition"></a></dt>
 <dd><p>Calculate the possible number of contacts in the genome.</p>
 <p>This calculates the number of potential region pairs in
 a genome for any possible separation distance, taking into
@@ -971,9 +870,9 @@ possible inter-chromosomal pairs</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.region_bins">
-<code class="sig-name descname">region_bins</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.region_bins" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.region_bins">
+<span class="sig-name descname"><span class="pre">region_bins</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.region_bins" title="Permalink to this definition"></a></dt>
 <dd><p>Return slice of start and end indices spanned by a region.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -987,9 +886,9 @@ To get the slice over all regions leave this blank.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.region_intervals">
-<code class="sig-name descname">region_intervals</code><span class="sig-paren">(</span><em class="sig-param">region</em>, <em class="sig-param">bins=None</em>, <em class="sig-param">bin_size=None</em>, <em class="sig-param">smoothing_window=None</em>, <em class="sig-param">nan_replacement=None</em>, <em class="sig-param">zero_to_nan=False</em>, <em class="sig-param">score_field='score'</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.region_intervals" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.region_intervals">
+<span class="sig-name descname"><span class="pre">region_intervals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bin_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_replacement</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_to_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">score_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'score'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.region_intervals" title="Permalink to this definition"></a></dt>
 <dd><p>Return equally-sized genomic intervals and associated scores.</p>
 <p>Use either bins or bin_size argument to control binning.</p>
 <dl class="field-list simple">
@@ -1014,9 +913,9 @@ with this value</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.region_subset">
-<code class="sig-name descname">region_subset</code><span class="sig-paren">(</span><em class="sig-param">region</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.region_subset" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.region_subset">
+<span class="sig-name descname"><span class="pre">region_subset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.region_subset" title="Permalink to this definition"></a></dt>
 <dd><p>Takes a class:<cite>~GenomicRegion</cite> and returns all regions that
 overlap with the supplied region.</p>
 <dl class="field-list simple">
@@ -1028,9 +927,9 @@ be returned.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.regions">
-<em class="property">property </em><code class="sig-name descname">regions</code><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.regions" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.regions">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">regions</span></span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.regions" title="Permalink to this definition"></a></dt>
 <dd><p>Iterate over genomic regions in this object.</p>
 <p>Will return a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> object in every iteration.
 Can also be used to get the number of regions by calling
@@ -1042,9 +941,9 @@ len() on the object returned by this method.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.regions_and_edges">
-<code class="sig-name descname">regions_and_edges</code><span class="sig-paren">(</span><em class="sig-param">key</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.regions_and_edges" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.regions_and_edges">
+<span class="sig-name descname"><span class="pre">regions_and_edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.regions_and_edges" title="Permalink to this definition"></a></dt>
 <dd><p>Convenient access to regions and edges selected by key.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1060,9 +959,9 @@ len() on the object returned by this method.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.regions_and_matrix_entries">
-<code class="sig-name descname">regions_and_matrix_entries</code><span class="sig-paren">(</span><em class="sig-param">key=None</em>, <em class="sig-param">score_field=None</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.regions_and_matrix_entries" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.regions_and_matrix_entries">
+<span class="sig-name descname"><span class="pre">regions_and_matrix_entries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">score_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.regions_and_matrix_entries" title="Permalink to this definition"></a></dt>
 <dd><p>Convenient access to non-zero matrix entries and associated regions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1087,9 +986,9 @@ attribute of the matrix class.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.regions_dict">
-<em class="property">property </em><code class="sig-name descname">regions_dict</code><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.regions_dict" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.regions_dict">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">regions_dict</span></span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.regions_dict" title="Permalink to this definition"></a></dt>
 <dd><p>Return a dictionary with region index as keys
 and regions as values.</p>
 <dl class="field-list simple">
@@ -1099,9 +998,9 @@ and regions as values.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.regions_identical">
-<em class="property">static </em><code class="sig-name descname">regions_identical</code><span class="sig-paren">(</span><em class="sig-param">pairs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.regions_identical" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.regions_identical">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">regions_identical</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pairs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.regions_identical" title="Permalink to this definition"></a></dt>
 <dd><p>Check if the regions in all objects in the list are identical.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1115,9 +1014,9 @@ all regions in the same list positions.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.scaling_factor">
-<code class="sig-name descname">scaling_factor</code><span class="sig-paren">(</span><em class="sig-param">matrix</em>, <em class="sig-param">weight_column=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.scaling_factor" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.scaling_factor">
+<span class="sig-name descname"><span class="pre">scaling_factor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_column</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.scaling_factor" title="Permalink to this definition"></a></dt>
 <dd><p>Compute the scaling factor to another matrix.</p>
 <p>Calculates the ratio between the number of contacts in
 this Hic object to the number of contacts in another
@@ -1135,17 +1034,17 @@ Hic object.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.storage_mode">
-<em class="property">property </em><code class="sig-name descname">storage_mode</code><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.storage_mode" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.storage_mode">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">storage_mode</span></span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.storage_mode" title="Permalink to this definition"></a></dt>
 <dd><p>Indicates whether ordinary sparse matrix encoding is used
 (<code class="docutils literal notranslate"><span class="pre">&quot;square&quot;</span></code>) or whether a symmetric matrix is encoded by storing only
 the upper triangular elements (<code class="docutils literal notranslate"><span class="pre">&quot;symmetric-upper&quot;</span></code>).</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.to_bed">
-<code class="sig-name descname">to_bed</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">subset=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.to_bed" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.to_bed">
+<span class="sig-name descname"><span class="pre">to_bed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.to_bed" title="Permalink to this definition"></a></dt>
 <dd><p>Export regions as BED file</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1159,9 +1058,9 @@ write only regions overlapping this region</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.to_bigwig">
-<code class="sig-name descname">to_bigwig</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">subset=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.to_bigwig" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.to_bigwig">
+<span class="sig-name descname"><span class="pre">to_bigwig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.to_bigwig" title="Permalink to this definition"></a></dt>
 <dd><p>Export regions as BigWig file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1175,9 +1074,9 @@ write only regions overlapping this region</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.CoolerHic.to_gff">
-<code class="sig-name descname">to_gff</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">subset=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.to_gff" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.CoolerHic.to_gff">
+<span class="sig-name descname"><span class="pre">to_gff</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.CoolerHic.to_gff" title="Permalink to this definition"></a></dt>
 <dd><p>Export regions as GFF file</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1193,13 +1092,13 @@ write only regions overlapping this region</p></li>
 
 </dd></dl>
 
-<dl class="class">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion">
-<em class="property">class </em><code class="sig-prename descclassname">fanc.compatibility.cooler.</code><code class="sig-name descname">LazyCoolerRegion</code><span class="sig-paren">(</span><em class="sig-param">series</em>, <em class="sig-param">ix=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">genomic_regions.regions.GenomicRegion</span></code></p>
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.as_bed_line">
-<code class="sig-name descname">as_bed_line</code><span class="sig-paren">(</span><em class="sig-param">score_field='score'</em>, <em class="sig-param">name_field='name'</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.as_bed_line" title="Permalink to this definition">¶</a></dt>
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fanc.compatibility.cooler.</span></span><span class="sig-name descname"><span class="pre">LazyCoolerRegion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">series</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.as_bed_line">
+<span class="sig-name descname"><span class="pre">as_bed_line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">score_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'score'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'name'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.as_bed_line" title="Permalink to this definition"></a></dt>
 <dd><p>Return a representation of this object as line in a BED file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1216,9 +1115,9 @@ write only regions overlapping this region</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.as_gff_line">
-<code class="sig-name descname">as_gff_line</code><span class="sig-paren">(</span><em class="sig-param">source_field='source'</em>, <em class="sig-param">feature_field='feature'</em>, <em class="sig-param">score_field='score'</em>, <em class="sig-param">frame_field='frame'</em>, <em class="sig-param">float_format='.2e'</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.as_gff_line" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.as_gff_line">
+<span class="sig-name descname"><span class="pre">as_gff_line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'source'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'feature'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">score_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'score'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'frame'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">float_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.2e'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.as_gff_line" title="Permalink to this definition"></a></dt>
 <dd><p>Return a representation of this object as line in a GFF file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1240,17 +1139,17 @@ write only regions overlapping this region</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.attributes">
-<em class="property">property </em><code class="sig-name descname">attributes</code><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.attributes" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.attributes">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">attributes</span></span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.attributes" title="Permalink to this definition"></a></dt>
 <dd><p>Return all visible attributes of this <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>.</p>
 <p>Returns all attribute names that do not start with an underscore.
 :return: list of attribute names</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.center">
-<em class="property">property </em><code class="sig-name descname">center</code><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.center" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.center">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">center</span></span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.center" title="Permalink to this definition"></a></dt>
 <dd><p>Return the center coordinate of the <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -1259,9 +1158,9 @@ write only regions overlapping this region</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.contains">
-<code class="sig-name descname">contains</code><span class="sig-paren">(</span><em class="sig-param">region</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.contains" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.contains">
+<span class="sig-name descname"><span class="pre">contains</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.contains" title="Permalink to this definition"></a></dt>
 <dd><p>Check if the specified region is completely contained in this region.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1270,9 +1169,9 @@ write only regions overlapping this region</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.copy">
-<code class="sig-name descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.copy" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.copy" title="Permalink to this definition"></a></dt>
 <dd><p>Return a (shallow) copy of this <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code></p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -1281,9 +1180,9 @@ write only regions overlapping this region</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.expand">
-<code class="sig-name descname">expand</code><span class="sig-paren">(</span><em class="sig-param">absolute=None</em>, <em class="sig-param">relative=None</em>, <em class="sig-param">absolute_left=0</em>, <em class="sig-param">absolute_right=0</em>, <em class="sig-param">relative_left=0.0</em>, <em class="sig-param">relative_right=0.0</em>, <em class="sig-param">copy=True</em>, <em class="sig-param">from_center=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.expand" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.expand">
+<span class="sig-name descname"><span class="pre">expand</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">absolute</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">absolute_left</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">absolute_right</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_left</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_right</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">from_center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.expand" title="Permalink to this definition"></a></dt>
 <dd><p>Expand this region by a relative or an absolute amount.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1329,9 +1228,9 @@ than start and end of the old region</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.five_prime">
-<em class="property">property </em><code class="sig-name descname">five_prime</code><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.five_prime" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.five_prime">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">five_prime</span></span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.five_prime" title="Permalink to this definition"></a></dt>
 <dd><p>Return the position of the 5’ end of this <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>
 on the reference.</p>
 <dl class="field-list simple">
@@ -1341,9 +1240,9 @@ on the reference.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.fix_chromosome">
-<code class="sig-name descname">fix_chromosome</code><span class="sig-paren">(</span><em class="sig-param">copy=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.fix_chromosome" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.fix_chromosome">
+<span class="sig-name descname"><span class="pre">fix_chromosome</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.fix_chromosome" title="Permalink to this definition"></a></dt>
 <dd><p>Change chromosome representation from chr&lt;NN&gt; to &lt;NN&gt; or vice versa.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1356,9 +1255,9 @@ will modify existing region in place.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.from_string">
-<em class="property">classmethod </em><code class="sig-name descname">from_string</code><span class="sig-paren">(</span><em class="sig-param">region_string</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.from_string" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.from_string">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_string</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.from_string" title="Permalink to this definition"></a></dt>
 <dd><p>Convert a string into a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>.</p>
 <p>This is a very useful convenience function to quickly
 define a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> object from a descriptor
@@ -1378,9 +1277,9 @@ defaults will be chosen.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.is_forward">
-<code class="sig-name descname">is_forward</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.is_forward" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.is_forward">
+<span class="sig-name descname"><span class="pre">is_forward</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.is_forward" title="Permalink to this definition"></a></dt>
 <dd><p>Return True if this region is on the forward strand
 of the reference genome.</p>
 <dl class="field-list simple">
@@ -1390,21 +1289,21 @@ of the reference genome.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.is_reverse">
-<code class="sig-name descname">is_reverse</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.is_reverse" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.is_reverse">
+<span class="sig-name descname"><span class="pre">is_reverse</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.is_reverse" title="Permalink to this definition"></a></dt>
 <dd><p>Return True if this region is on the reverse strand
 of the reference genome.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>True if on ‘-‘ strand, False otherwise.</p>
+<dd class="field-odd"><p>True if on ‘-’ strand, False otherwise.</p>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.overlap">
-<code class="sig-name descname">overlap</code><span class="sig-paren">(</span><em class="sig-param">region</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.overlap" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.overlap">
+<span class="sig-name descname"><span class="pre">overlap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.overlap" title="Permalink to this definition"></a></dt>
 <dd><p>Return the overlap in base pairs between this
 region and another region.</p>
 <dl class="field-list simple">
@@ -1417,9 +1316,9 @@ region and another region.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.overlaps">
-<code class="sig-name descname">overlaps</code><span class="sig-paren">(</span><em class="sig-param">region</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.overlaps" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.overlaps">
+<span class="sig-name descname"><span class="pre">overlaps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.overlaps" title="Permalink to this definition"></a></dt>
 <dd><p>Check if this region overlaps with the specified region.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1428,9 +1327,9 @@ region and another region.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.set_attribute">
-<code class="sig-name descname">set_attribute</code><span class="sig-paren">(</span><em class="sig-param">attribute</em>, <em class="sig-param">value</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.set_attribute" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.set_attribute">
+<span class="sig-name descname"><span class="pre">set_attribute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">attribute</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.set_attribute" title="Permalink to this definition"></a></dt>
 <dd><p>Safely set an attribute on the <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> object.</p>
 <p>This automatically decodes bytes objects into UTF-8 strings.
 If you do not care about this, you can also use
@@ -1445,20 +1344,20 @@ region.&lt;attribute&gt; = &lt;value&gt; directly.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.strand_string">
-<em class="property">property </em><code class="sig-name descname">strand_string</code><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.strand_string" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.strand_string">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">strand_string</span></span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.strand_string" title="Permalink to this definition"></a></dt>
 <dd><p>Return the ‘strand’ attribute as string.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>strand as str (‘+’, ‘-‘, or ‘.’)</p>
+<dd class="field-odd"><p>strand as str (‘+’, ‘-’, or ‘.’)</p>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.three_prime">
-<em class="property">property </em><code class="sig-name descname">three_prime</code><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.three_prime" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.three_prime">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">three_prime</span></span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.three_prime" title="Permalink to this definition"></a></dt>
 <dd><p>Return the position of the 3’ end of this <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>
 on the reference.</p>
 <dl class="field-list simple">
@@ -1468,9 +1367,9 @@ on the reference.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.compatibility.cooler.LazyCoolerRegion.to_string">
-<code class="sig-name descname">to_string</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.to_string" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.LazyCoolerRegion.to_string">
+<span class="sig-name descname"><span class="pre">to_string</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.LazyCoolerRegion.to_string" title="Permalink to this definition"></a></dt>
 <dd><p>Convert this <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> to its string representation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -1481,9 +1380,9 @@ on the reference.</p>
 
 </dd></dl>
 
-<dl class="function">
-<dt id="fanc.compatibility.cooler.to_cooler">
-<code class="sig-prename descclassname">fanc.compatibility.cooler.</code><code class="sig-name descname">to_cooler</code><span class="sig-paren">(</span><em class="sig-param">hic</em>, <em class="sig-param">path</em>, <em class="sig-param">balance=True</em>, <em class="sig-param">multires=True</em>, <em class="sig-param">resolutions=None</em>, <em class="sig-param">n_zooms=10</em>, <em class="sig-param">threads=1</em>, <em class="sig-param">chunksize=100000</em>, <em class="sig-param">max_resolution=5000000</em>, <em class="sig-param">natural_order=True</em>, <em class="sig-param">chromosomes=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.to_cooler" title="Permalink to this definition">¶</a></dt>
+<dl class="py function">
+<dt class="sig sig-object py" id="fanc.compatibility.cooler.to_cooler">
+<span class="sig-prename descclassname"><span class="pre">fanc.compatibility.cooler.</span></span><span class="sig-name descname"><span class="pre">to_cooler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hic</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">balance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multires</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolutions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_zooms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threads</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunksize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5000000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">natural_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chromosomes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.compatibility.cooler.to_cooler" title="Permalink to this definition"></a></dt>
 <dd><p>Export Hi-C data as Cooler file.</p>
 <p>Only contacts that have not been
 filtered are exported. <a class="reference external" href="https://github.com/mirnylab/cooler/">https://github.com/mirnylab/cooler/</a></p>
@@ -1509,55 +1408,37 @@ iterative correction (multi res)</p></li>
 </dl>
 </dd></dl>
 
-</div>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="../architecture.html" class="btn btn-neutral float-right" title="FAN-C Python architecture modules" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="juicer.html" class="btn btn-neutral float-left" title="Juicer module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="juicer.html" class="btn btn-neutral float-left" title="Juicer module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../architecture.html" class="btn btn-neutral float-right" title="FAN-C Python architecture modules" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
-
-    </p>
+    <p>&#169; Copyright 2020, Kai Kruse, Vaquerizas lab.</p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
-
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

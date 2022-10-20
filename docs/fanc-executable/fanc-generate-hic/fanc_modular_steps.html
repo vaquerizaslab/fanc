@@ -1,71 +1,39 @@
-
-
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Individual pipeline steps &mdash; FAN-C 0.9.14-beta documentation</title>
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Individual pipeline steps &mdash; FAN-C 0.9.26b1-beta documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../../_static/jquery.js"></script>
-        <script type="text/javascript" src="../../_static/underscore.js"></script>
-        <script type="text/javascript" src="../../_static/doctools.js"></script>
-        <script type="text/javascript" src="../../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../../_static/js/theme.js"></script>
-
-    
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="Helper tools in fanc" href="fanc_helpers.html" />
     <link rel="prev" title="Generating Hi-C matrices with fanc" href="fanc_auto.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../../index.html" class="icon icon-home"> FAN-C
-          
-
-          
           </a>
-
-          
-            
-            
               <div class="version">
-                0.9.14
+                0.9.26b1
               </div>
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -73,17 +41,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a><ul class="current">
@@ -108,76 +66,36 @@
 <li class="toctree-l1"><a class="reference internal" href="../../api/api.html">Python API</a></li>
 </ul>
 
-            
-          
         </div>
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../index.html">FAN-C</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
-        
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../../fanc.html">FAN-C command line tools</a> &raquo;</li>
-        
           <li><a href="../fanc_generate_hic.html">Generate Hi-C matrices</a> &raquo;</li>
-        
       <li>Individual pipeline steps</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-            
             <a href="../../_sources/fanc-executable/fanc-generate-hic/fanc_modular_steps.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="individual-pipeline-steps">
-<span id="fanc-modular"></span><h1>Individual pipeline steps<a class="headerlink" href="#individual-pipeline-steps" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="fanc-map-mapping-fastq-files">
-<span id="fanc-map"></span><h2>fanc map: Mapping FASTQ files<a class="headerlink" href="#fanc-map-mapping-fastq-files" title="Permalink to this headline">¶</a></h2>
+             
+  <section id="individual-pipeline-steps">
+<span id="fanc-modular"></span><h1>Individual pipeline steps<a class="headerlink" href="#individual-pipeline-steps" title="Permalink to this heading"></a></h1>
+<section id="fanc-map-mapping-fastq-files">
+<span id="fanc-map"></span><h2>fanc map: Mapping FASTQ files<a class="headerlink" href="#fanc-map-mapping-fastq-files" title="Permalink to this heading"></a></h2>
 <p>To (iteratively) map FASTQ files directly with FAN-C, use the <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">map</span></code> command.</p>
 <p>Here is a minimal example:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc map SRR4271982_chr18_19_1.fastq.gzip bwa-index/hg19_chr18_19.fa <span class="se">\</span>
@@ -203,15 +121,13 @@ the following command would use Bowtie2 as a mapper:</p>
 </pre></div>
 </div>
 <p>You can use additional parameters to control the mapping process:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="nb">map</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span> <span class="n">MIN_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STEP_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">trim</span><span class="o">-</span><span class="n">front</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RESTRICTION_ENZYME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">k</span> <span class="n">MAX_ALIGNMENTS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">a</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BATCH_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">fanc</span><span class="o">-</span><span class="n">parallel</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">fastq</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">--</span><span class="n">memory</span><span class="o">-</span><span class="nb">map</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">iterative</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="nb">map</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span> <span class="n">MIN_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STEP_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">trim</span><span class="o">-</span><span class="n">front</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RESTRICTION_ENZYME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">k</span> <span class="n">MAX_ALIGNMENTS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">a</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BATCH_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">fanc</span><span class="o">-</span><span class="n">parallel</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">split</span><span class="o">-</span><span class="n">fastq</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">memory</span><span class="o">-</span><span class="nb">map</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">iterative</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">mapper</span><span class="o">-</span><span class="nb">type</span> <span class="n">MAPPER_TYPE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
                 <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span> <span class="n">index</span> <span class="n">output</span>
 </pre></div>
 </div>
-<div class="section" id="Positional Arguments">
-<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<section id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>input</kbd></dt>
 <dd><p>File name of the input FASTQ file (or gzipped FASTQ)</p>
@@ -223,9 +139,9 @@ the following command would use Bowtie2 as a mapper:</p>
 <dd><p>Output file or folder. When providing multiple input files, this must be the path to an output folder.</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="Named Arguments">
-<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>-m, --min-size</kbd></dt>
 <dd><p>Minimum length of read before extension. Default 25.</p>
@@ -261,16 +177,19 @@ the following command would use Bowtie2 as a mapper:</p>
 <dd><p>Split FASTQ file into 10M chunks before mapping. Easier on tmp partitions.</p>
 </dd>
 <dt><kbd>--memory-map</kbd></dt>
-<dd><p>Map Bowtie2 index to memory. Enable if you you system has enough memory to hold the entire Bowtie2 index.</p>
+<dd><p>Map Bowtie2 index to memory. Only enable if your system has enough memory to hold the entire Bowtie2 index.</p>
 </dd>
 <dt><kbd>--no-iterative</kbd></dt>
 <dd><p>Do not use iterative mapping strategy. (much faster, less sensitive).</p>
+</dd>
+<dt><kbd>--mapper-type</kbd></dt>
+<dd><p>Manually set mapper type. Currently supported: bowtie2, bwa, and bwa-mem2. Not that this is generally auto-detected from the index path.</p>
 </dd>
 <dt><kbd>-tmp, --work-in-tmp</kbd></dt>
 <dd><p>Copy original file to temporary directory.Reduces network I/O.</p>
 </dd>
 </dl>
-</div>
+</section>
 <p>Most importantly, assign more threads to the mapping process using the <code class="docutils literal notranslate"><span class="pre">-t</span></code> parameter.
 <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> parallelises mapping by spawning multiple mapping processes internally.
 This can result in high disk I/O - if you have issues with poor performance,
@@ -319,9 +238,9 @@ this option if your system has a lot of memory available to speed up the mapping
 are using the <code class="docutils literal notranslate"><span class="pre">-tmp</span></code> option, which causes <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">auto</span></code> to perform most pipeline steps in a
 temporary directory, you may want to use the <code class="docutils literal notranslate"><span class="pre">--split-fastq</span></code> option to split the FASTQ files into
 smaller chunks before mapping, so you can save space on your <code class="docutils literal notranslate"><span class="pre">tmp</span></code> partition.</p>
-</div>
-<div class="section" id="fanc-pairs-generating-and-filtering-read-pairs">
-<span id="fanc-pairs"></span><h2>fanc pairs: Generating and filtering read Pairs<a class="headerlink" href="#fanc-pairs-generating-and-filtering-read-pairs" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="fanc-pairs-generating-and-filtering-read-pairs">
+<span id="fanc-pairs"></span><h2>fanc pairs: Generating and filtering read Pairs<a class="headerlink" href="#fanc-pairs-generating-and-filtering-read-pairs" title="Permalink to this heading"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pairs</span></code> command handles the creation and modification of Pairs objects, which represent
 the mate pairs in a Hi-C library mapped to restriction fragments. Possible inputs are: two SAM/BAM
 files (paired-end reads, sorted by read name), a
@@ -370,26 +289,23 @@ to the read name. This interferes with the sorting and read pairing step in FAN-
 need to remove those endings before import.</p>
 </div>
 <p>Additional parameters primarily control the filtering of read pairs:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">pairs</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span> <span class="n">GENOME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RESTRICTION_ENZYME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">u</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">us</span><span class="p">]</span>
-                  <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">CONTAMINANT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">INWARD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OUTWARD</span><span class="p">]</span>
-                  <span class="p">[</span><span class="o">--</span><span class="nb">filter</span><span class="o">-</span><span class="n">ligation</span><span class="o">-</span><span class="n">auto</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">REDIST</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">DUP_THRESH</span><span class="p">]</span>
-                  <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STATS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">reset</span><span class="o">-</span><span class="n">filters</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">statistics</span><span class="o">-</span><span class="n">plot</span> <span class="n">STATS_PLOT</span><span class="p">]</span>
-                  <span class="p">[</span><span class="o">--</span><span class="n">re</span><span class="o">-</span><span class="n">dist</span><span class="o">-</span><span class="n">plot</span> <span class="n">RE_DIST_PLOT</span><span class="p">]</span>
-                  <span class="p">[</span><span class="o">--</span><span class="n">ligation</span><span class="o">-</span><span class="n">error</span><span class="o">-</span><span class="n">plot</span> <span class="n">LIGATION_ERROR_PLOT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span>
-                  <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BATCH_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">S</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">bwa</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">pairs</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">g</span> <span class="n">GENOME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">RESTRICTION_ENZYME</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">m</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">u</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">us</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">q</span> <span class="n">QUALITY</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">CONTAMINANT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="n">INWARD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OUTWARD</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="nb">filter</span><span class="o">-</span><span class="n">ligation</span><span class="o">-</span><span class="n">auto</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">REDIST</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">p</span> <span class="n">DUP_THRESH</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STATS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">reset</span><span class="o">-</span><span class="n">filters</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">statistics</span><span class="o">-</span><span class="n">plot</span> <span class="n">STATS_PLOT</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">--</span><span class="n">re</span><span class="o">-</span><span class="n">dist</span><span class="o">-</span><span class="n">plot</span> <span class="n">RE_DIST_PLOT</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">ligation</span><span class="o">-</span><span class="n">error</span><span class="o">-</span><span class="n">plot</span> <span class="n">LIGATION_ERROR_PLOT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BATCH_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">S</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">bwa</span><span class="p">]</span>
+                  <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
                   <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span>
 </pre></div>
 </div>
-<div class="section" id="Positional Arguments">
-<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<section id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>input</kbd></dt>
 <dd><p>IMPORTANT: The last positional argument will be the output file, unless only a single Pairs object is provided. In that case, filtering and correcting will be done in place. Possible inputs are: two SAM/BAM files (paired-end reads, sorted by read name using “samtools sort -n” or equivalent) and an output file; a HiC-Pro pairs file (format: name&lt;tab&gt;chr1&lt;tab&gt;pos1&lt;tab&gt;strand1&lt;tab&gt;chr2&lt;tab&gt;pos2&lt;tab&gt;strand2) and an output file; a pairs file in 4D Nucleome format (<a class="reference external" href="https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md">https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md</a>) and an output file, or an existing fanc Pairs object. In case of SAM/BAM, HiC-Pro, or 4D Nucleome you must also provide the –genome argument, and if –genome is not a file with restriction fragments (or Hi-C bins), you must also provide the –restriction-enzyme argument.</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="Named Arguments">
-<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>-g, --genome</kbd></dt>
 <dd><p>Path to region-based file (BED, GFF, …) containing the non-overlapping regions to be used for Hi-C binning. Typically restriction-enzyme fragments. Alternatively: Path to genome file (FASTA, folder with FASTA, HDF5 file), which will be used in conjunction with the type of restriction enzyme to calculate fragments directly.</p>
@@ -464,9 +380,9 @@ need to remove those endings before import.</p>
 <dd><p>Work in temporary directory</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="filtering">
-<h3>Filtering<a class="headerlink" href="#filtering" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="filtering">
+<h3>Filtering<a class="headerlink" href="#filtering" title="Permalink to this heading"></a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">pairs</span></code> provides a lot of parameters for filtering read pairs according to different
 criteria. By default, if not specified otherwise, no filtering is performed on the read pairs
 (passthrough). Typically, however, you will at least want to filter out unmappable (<code class="docutils literal notranslate"><span class="pre">-m</span></code>)
@@ -532,10 +448,10 @@ cutoffs based on the over-representation of certain ligation products using the
 </pre></div>
 </div>
 <img alt="../../_images/pairs.stats.png" src="../../_images/pairs.stats.png" />
-</div>
-</div>
-<div class="section" id="fanc-hic-generating-binning-and-filtering-hic-objects">
-<span id="fanc-hic"></span><h2>fanc hic: Generating, binning, and filtering Hic objects<a class="headerlink" href="#fanc-hic-generating-binning-and-filtering-hic-objects" title="Permalink to this headline">¶</a></h2>
+</section>
+</section>
+<section id="fanc-hic-generating-binning-and-filtering-hic-objects">
+<span id="fanc-hic"></span><h2>fanc hic: Generating, binning, and filtering Hic objects<a class="headerlink" href="#fanc-hic-generating-binning-and-filtering-hic-objects" title="Permalink to this heading"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span></code> command is used to generate fragment-level and binned Hi-C matrices.</p>
 <p>You can use FAN-C Pairs files as input for <code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span></code>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>fanc hic output/pairs/SRR4271982_chr18_19.pairs output/hic/fragment_level.hic
@@ -552,27 +468,23 @@ or matrix balancing, you can also use this as input:</p>
 <p>You have to explicitly provide the binning, filtering and correcting parameters, otherwise
 the command will exit after it has obtained a single fragment-level Hic object. Here is an
 overview of all parameters:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">hic</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BIN_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span> <span class="n">FILTER_LOW_COVERAGE</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">FILTER_LOW_COVERAGE_RELATIVE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">a</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">FILTER_DIAGONAL</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">--</span><span class="n">marginals</span><span class="o">-</span><span class="n">plot</span> <span class="n">MARGINALS_PLOT</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">reset</span><span class="o">-</span><span class="n">filters</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">--</span><span class="n">downsample</span> <span class="n">DOWNSAMPLE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">subset</span> <span class="n">SUBSET</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">k</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">n</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">-</span><span class="n">m</span> <span class="n">NORM_METHOD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">only</span><span class="o">-</span><span class="n">inter</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STATS</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">--</span><span class="n">statistics</span><span class="o">-</span><span class="n">plot</span> <span class="n">STATS_PLOT</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">--</span><span class="n">chromosomes</span> <span class="n">CHROMOSOMES</span> <span class="p">[</span><span class="n">CHROMOSOMES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
-                <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">deepcopy</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">fanc</span> <span class="n">hic</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">b</span> <span class="n">BIN_SIZE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span> <span class="n">FILTER_LOW_COVERAGE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">r</span> <span class="n">FILTER_LOW_COVERAGE_RELATIVE</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">a</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">FILTER_DIAGONAL</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">marginals</span><span class="o">-</span><span class="n">plot</span> <span class="n">MARGINALS_PLOT</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">reset</span><span class="o">-</span><span class="n">filters</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">downsample</span> <span class="n">DOWNSAMPLE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">subset</span> <span class="n">SUBSET</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">k</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">n</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">-</span><span class="n">m</span> <span class="n">NORM_METHOD</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">w</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">only</span><span class="o">-</span><span class="n">inter</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">STATS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">statistics</span><span class="o">-</span><span class="n">plot</span> <span class="n">STATS_PLOT</span><span class="p">]</span>
+                <span class="p">[</span><span class="o">--</span><span class="n">chromosomes</span> <span class="n">CHROMOSOMES</span> <span class="p">[</span><span class="n">CHROMOSOMES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">t</span> <span class="n">THREADS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">deepcopy</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">tmp</span><span class="p">]</span>
                 <span class="nb">input</span> <span class="p">[</span><span class="nb">input</span> <span class="o">...</span><span class="p">]</span>
 </pre></div>
 </div>
-<div class="section" id="Positional Arguments">
-<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this headline">¶</a></h3>
+<section id="Positional Arguments">
+<h3>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>input</kbd></dt>
 <dd><p>IMPORTANT: The last positional argument will be the output file, unless only a single Hic object is provided. In that case, binning, filtering and correcting will be done in place. Input files. If these are FAN-C Pairs objects (see “fanc pairs”), they will be turned into Hic objects. Hic objects (also the ones converted from Pairs) will first be merged and the merged object will be binned, filtered and corrected as specified in the remaining parameters.</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="Named Arguments">
-<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading"></a></h3>
 <dl class="option-list">
 <dt><kbd>-b, --bin-size</kbd></dt>
 <dd><p>Bin size in base pairs. You can use human-readable formats,such as 10k, or 1mb. If omitted, the command will end after the merging step.</p>
@@ -599,7 +511,7 @@ overview of all parameters:</p>
 <dd><p>Downsample a binned Hi-C object before filtering and correcting. Sample size or reference Hi-C object. If sample size is &lt; 1,will be interpreted as a fraction of valid pairs.</p>
 </dd>
 <dt><kbd>--subset</kbd></dt>
-<dd><p>Comma-separated list of regions that will be used in the output Hic object. All contacts between these regions will be in the output object. For example, “chr1,chr3” will result in a Hic object with all regions in chromosomes 1 and 3, plus all contacts within chromosome 1, all contacts within chromosome 3, and all contacts between chromosome 1 and 3. “chr1” will only contain regions and contactswithin chromosome 1.</p>
+<dd><p>Comma-separated list of regions that will be used in the output Hic object. All contacts between these regions will be in the output object. For example, “chr1,chr3” will result in a Hic object with all regions in chromosomes 1 and 3, plus all contacts within chromosome 1, all contacts within chromosome 3, and all contacts between chromosome 1 and 3. “chr1” will only contain regions and contacts within chromosome 1.</p>
 </dd>
 <dt><kbd>-i, --ice-correct</kbd></dt>
 <dd><p>DEPRECATED. Use ICE iterative correction on the binned Hic matrix</p>
@@ -644,15 +556,15 @@ overview of all parameters:</p>
 <dd><p>Work in temporary directory</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="binning">
-<h3>Binning<a class="headerlink" href="#binning" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="binning">
+<h3>Binning<a class="headerlink" href="#binning" title="Permalink to this heading"></a></h3>
 <p>You can use the <code class="docutils literal notranslate"><span class="pre">-b</span></code> parameter to bin the fragment-level Hi-C matrix. You can either use
 integers (1000000) or common abbreviations (1Mb). The filtering steps outlined below only
 apply to binned Hic matrices.</p>
-</div>
-<div class="section" id="filtering-and-balancing">
-<h3>Filtering and balancing<a class="headerlink" href="#filtering-and-balancing" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="filtering-and-balancing">
+<h3>Filtering and balancing<a class="headerlink" href="#filtering-and-balancing" title="Permalink to this heading"></a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">fanc</span> <span class="pre">hic</span></code> provides a few filtering options. Most likely you want to apply a coverage filter
 using <code class="docutils literal notranslate"><span class="pre">-l</span></code> to specify a coverage threshold in absolute number of pairs per bin, or <code class="docutils literal notranslate"><span class="pre">-r</span></code> to
 apply a coverage threshold based on a fraction of the median number of pairs pair bin. <code class="docutils literal notranslate"><span class="pre">-a</span></code> is
@@ -684,57 +596,39 @@ probabilities. You can use the <code class="docutils literal notranslate"><span 
 chromosome to sum up to the total number of reads before correction.</p>
 <p>Finally, you can output the filtering statistics to a file or plot using the <code class="docutils literal notranslate"><span class="pre">-s</span></code> and
 <code class="docutils literal notranslate"><span class="pre">--statistics-plot</span></code> parameters, respectively.</p>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="fanc_helpers.html" class="btn btn-neutral float-right" title="Helper tools in fanc" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="fanc_auto.html" class="btn btn-neutral float-left" title="Generating Hi-C matrices with fanc" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="fanc_auto.html" class="btn btn-neutral float-left" title="Generating Hi-C matrices with fanc" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="fanc_helpers.html" class="btn btn-neutral float-right" title="Helper tools in fanc" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
-
-    </p>
+    <p>&#169; Copyright 2020, Kai Kruse, Vaquerizas lab.</p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
-
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

@@ -1,71 +1,39 @@
-
-
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Regions module &mdash; FAN-C 0.9.14-beta documentation</title>
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Regions module &mdash; FAN-C 0.9.26b1-beta documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../../_static/jquery.js"></script>
-        <script type="text/javascript" src="../../_static/underscore.js"></script>
-        <script type="text/javascript" src="../../_static/doctools.js"></script>
-        <script type="text/javascript" src="../../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../../_static/js/theme.js"></script>
-
-    
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="Pairs module" href="pairs.html" />
     <link rel="prev" title="Map module" href="map.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../../index.html" class="icon icon-home"> FAN-C
-          
-
-          
           </a>
-
-          
-            
-            
               <div class="version">
-                0.9.14
+                0.9.26b1
               </div>
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -73,17 +41,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting started with FAN-C</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../fanc.html">fanc: command line tools</a></li>
@@ -98,7 +56,14 @@
 <li class="toctree-l2 current"><a class="reference internal" href="../modules.html">Reference</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="init.html">init</a></li>
 <li class="toctree-l3"><a class="reference internal" href="map.html">map</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">regions</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">regions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#fanc.regions.Chromosome"><code class="docutils literal notranslate"><span class="pre">Chromosome</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fanc.regions.Genome"><code class="docutils literal notranslate"><span class="pre">Genome</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fanc.regions.LazyGenomicRegion"><code class="docutils literal notranslate"><span class="pre">LazyGenomicRegion</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fanc.regions.RegionsTable"><code class="docutils literal notranslate"><span class="pre">RegionsTable</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fanc.regions.genome_regions"><code class="docutils literal notranslate"><span class="pre">genome_regions()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="pairs.html">pairs</a></li>
 <li class="toctree-l3"><a class="reference internal" href="matrix.html">matrix</a></li>
 <li class="toctree-l3"><a class="reference internal" href="hic.html">hic</a></li>
@@ -113,74 +78,34 @@
 </li>
 </ul>
 
-            
-          
         </div>
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../index.html">FAN-C</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
-        
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../api.html">fanc Python module</a> &raquo;</li>
-        
           <li><a href="../modules.html">FAN-C Python modules</a> &raquo;</li>
-        
       <li>Regions module</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-            
             <a href="../../_sources/api/modules/regions.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="module-fanc.regions">
-<span id="regions-module"></span><h1>Regions module<a class="headerlink" href="#module-fanc.regions" title="Permalink to this headline">¶</a></h1>
+             
+  <section id="module-fanc.regions">
+<span id="regions-module"></span><h1>Regions module<a class="headerlink" href="#module-fanc.regions" title="Permalink to this heading"></a></h1>
 <p>Module for handling genomic regions such as chromosomes, bins, and restriction fragments.</p>
 <p>The class <a class="reference internal" href="#fanc.regions.RegionsTable" title="fanc.regions.RegionsTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionsTable</span></code></a> is an implementation of the <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionBased</span></code>
 interface from the <code class="xref py py-mod docutils literal notranslate"><span class="pre">genomic_regions</span></code> package. More details on how to use the
@@ -234,32 +159,32 @@ in silico digestion and genome binning.</p>
 <span class="n">genome_from_file</span><span class="o">.</span><span class="n">chromosomes</span><span class="p">()</span> <span class="c1"># [&#39;chr18&#39;, &#39;chr19&#39;]</span>
 </pre></div>
 </div>
-<dl class="class">
-<dt id="fanc.regions.Chromosome">
-<em class="property">class </em><code class="sig-prename descclassname">fanc.regions.</code><code class="sig-name descname">Chromosome</code><span class="sig-paren">(</span><em class="sig-param">name=None</em>, <em class="sig-param">length=None</em>, <em class="sig-param">sequence=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Chromosome" title="Permalink to this definition">¶</a></dt>
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.regions.Chromosome">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fanc.regions.</span></span><span class="sig-name descname"><span class="pre">Chromosome</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sequence</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Chromosome" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Chromosome data type.</p>
-<dl class="attribute">
-<dt id="fanc.regions.Chromosome.name">
-<code class="sig-name descname">name</code><a class="headerlink" href="#fanc.regions.Chromosome.name" title="Permalink to this definition">¶</a></dt>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="fanc.regions.Chromosome.name">
+<span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#fanc.regions.Chromosome.name" title="Permalink to this definition"></a></dt>
 <dd><p>Name of the chromosome</p>
 </dd></dl>
 
-<dl class="attribute">
-<dt id="fanc.regions.Chromosome.length">
-<code class="sig-name descname">length</code><a class="headerlink" href="#fanc.regions.Chromosome.length" title="Permalink to this definition">¶</a></dt>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="fanc.regions.Chromosome.length">
+<span class="sig-name descname"><span class="pre">length</span></span><a class="headerlink" href="#fanc.regions.Chromosome.length" title="Permalink to this definition"></a></dt>
 <dd><p>Length of the chromosome in base-pairs</p>
 </dd></dl>
 
-<dl class="attribute">
-<dt id="fanc.regions.Chromosome.sequence">
-<code class="sig-name descname">sequence</code><a class="headerlink" href="#fanc.regions.Chromosome.sequence" title="Permalink to this definition">¶</a></dt>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="fanc.regions.Chromosome.sequence">
+<span class="sig-name descname"><span class="pre">sequence</span></span><a class="headerlink" href="#fanc.regions.Chromosome.sequence" title="Permalink to this definition"></a></dt>
 <dd><p>Base-pair sequence of DNA in the chromosome</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.Chromosome.from_fasta">
-<em class="property">classmethod </em><code class="sig-name descname">from_fasta</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">name=None</em>, <em class="sig-param">include_sequence=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Chromosome.from_fasta" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.Chromosome.from_fasta">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_fasta</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_sequence</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Chromosome.from_fasta" title="Permalink to this definition"></a></dt>
 <dd><p>Create a <a class="reference internal" href="#fanc.regions.Chromosome" title="fanc.regions.Chromosome"><code class="xref py py-class docutils literal notranslate"><span class="pre">Chromosome</span></code></a> from a FASTA file.</p>
 <p>This class method will load a FASTA file and convert it into
 a <a class="reference internal" href="#fanc.regions.Chromosome" title="fanc.regions.Chromosome"><code class="xref py py-class docutils literal notranslate"><span class="pre">Chromosome</span></code></a> object. If the FASTA file contains multiple
@@ -283,9 +208,9 @@ there are multiple sequences.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.Chromosome.get_restriction_sites">
-<code class="sig-name descname">get_restriction_sites</code><span class="sig-paren">(</span><em class="sig-param">restriction_enzyme</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Chromosome.get_restriction_sites" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.Chromosome.get_restriction_sites">
+<span class="sig-name descname"><span class="pre">get_restriction_sites</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">restriction_enzyme</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Chromosome.get_restriction_sites" title="Permalink to this definition"></a></dt>
 <dd><p>Find the restriction sites of a provided enzyme in this chromosome.</p>
 <p>Internally uses Biopython to find RE sites.</p>
 <dl class="field-list simple">
@@ -301,23 +226,23 @@ there are multiple sequences.</p>
 
 </dd></dl>
 
-<dl class="class">
-<dt id="fanc.regions.Genome">
-<em class="property">class </em><code class="sig-prename descclassname">fanc.regions.</code><code class="sig-name descname">Genome</code><span class="sig-paren">(</span><em class="sig-param">file_name=None</em>, <em class="sig-param">chromosomes=None</em>, <em class="sig-param">mode='a'</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">_table_name_chromosomes='chromosomes'</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.general.FileGroup</span></code></p>
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.regions.Genome">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fanc.regions.</span></span><span class="sig-name descname"><span class="pre">Genome</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chromosomes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'a'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_table_name_chromosomes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'chromosomes'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">FileGroup</span></code></p>
 <p>Class representing a collection of chromosomes.</p>
 <p>Provides some convenience batch
 methods that call <a class="reference internal" href="#fanc.regions.Chromosome" title="fanc.regions.Chromosome"><code class="xref py py-class docutils literal notranslate"><span class="pre">Chromosome</span></code></a> methods for every
 chromosome in this object.</p>
-<dl class="class">
-<dt id="fanc.regions.Genome.ChromosomeDefinition">
-<em class="property">class </em><code class="sig-name descname">ChromosomeDefinition</code><a class="headerlink" href="#fanc.regions.Genome.ChromosomeDefinition" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">tables.description.IsDescription</span></code></p>
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.regions.Genome.ChromosomeDefinition">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ChromosomeDefinition</span></span><a class="headerlink" href="#fanc.regions.Genome.ChromosomeDefinition" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">IsDescription</span></code></p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.Genome.add_chromosome">
-<code class="sig-name descname">add_chromosome</code><span class="sig-paren">(</span><em class="sig-param">chromosome</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.add_chromosome" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.Genome.add_chromosome">
+<span class="sig-name descname"><span class="pre">add_chromosome</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chromosome</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.add_chromosome" title="Permalink to this definition"></a></dt>
 <dd><p>Add a <a class="reference internal" href="#fanc.regions.Chromosome" title="fanc.regions.Chromosome"><code class="xref py py-class docutils literal notranslate"><span class="pre">Chromosome</span></code></a> to this object.</p>
 <p>Will choose suitable defaults for missing attributes.</p>
 <dl class="field-list simple">
@@ -328,15 +253,15 @@ object (e.g. dict) with the same fields</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.Genome.chromosomes">
-<code class="sig-name descname">chromosomes</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.chromosomes" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.Genome.chromosomes">
+<span class="sig-name descname"><span class="pre">chromosomes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.chromosomes" title="Permalink to this definition"></a></dt>
 <dd><p>Get list of chromosomes in this object</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.Genome.close">
-<code class="sig-name descname">close</code><span class="sig-paren">(</span><em class="sig-param">copy_tmp=True</em>, <em class="sig-param">remove_tmp=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.close" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.Genome.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">copy_tmp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_tmp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.close" title="Permalink to this definition"></a></dt>
 <dd><p>Close this HDF5 file and run exit operations.</p>
 <p>If file was opened with tmpdir in read-only mode:
 close file and delete temporary copy.</p>
@@ -352,9 +277,9 @@ Replace original file with copy and delete copy.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.Genome.from_folder">
-<em class="property">classmethod </em><code class="sig-name descname">from_folder</code><span class="sig-paren">(</span><em class="sig-param">folder_name</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">exclude=None</em>, <em class="sig-param">include_sequence=True</em>, <em class="sig-param">tmpdir=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.from_folder" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.Genome.from_folder">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_sequence</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.from_folder" title="Permalink to this definition"></a></dt>
 <dd><p>Load every FASTA file from a folder as a chromosome.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -371,9 +296,9 @@ Genome object</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.Genome.from_string">
-<em class="property">classmethod </em><code class="sig-name descname">from_string</code><span class="sig-paren">(</span><em class="sig-param">genome_string</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">mode='a'</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.from_string" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.Genome.from_string">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_string</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">genome_string</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'a'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.from_string" title="Permalink to this definition"></a></dt>
 <dd><p>Convenience function to load a <a class="reference internal" href="#fanc.regions.Genome" title="fanc.regions.Genome"><code class="xref py py-class docutils literal notranslate"><span class="pre">Genome</span></code></a> from a string.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -390,9 +315,9 @@ paths to FASTA files, path to HDF5 file</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.Genome.get_regions">
-<code class="sig-name descname">get_regions</code><span class="sig-paren">(</span><em class="sig-param">split</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">chromosomes=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.get_regions" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.Genome.get_regions">
+<span class="sig-name descname"><span class="pre">get_regions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">split</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chromosomes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.get_regions" title="Permalink to this definition"></a></dt>
 <dd><p>Extract genomic regions from genome.</p>
 <p>Provides two options:</p>
 <ul class="simple">
@@ -417,9 +342,9 @@ method should be saved to file</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.Genome.sub_sequence">
-<code class="sig-name descname">sub_sequence</code><span class="sig-paren">(</span><em class="sig-param">chromosome</em>, <em class="sig-param">start=None</em>, <em class="sig-param">end=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.sub_sequence" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.Genome.sub_sequence">
+<span class="sig-name descname"><span class="pre">sub_sequence</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chromosome</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.Genome.sub_sequence" title="Permalink to this definition"></a></dt>
 <dd><p>Extract the chromosome DNA sequence between start and end.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -437,414 +362,10 @@ method should be saved to file</p></li>
 
 </dd></dl>
 
-<dl class="class">
-<dt id="fanc.regions.RegionsTable">
-<em class="property">class </em><code class="sig-prename descclassname">fanc.regions.</code><code class="sig-name descname">RegionsTable</code><span class="sig-paren">(</span><em class="sig-param">file_name=None</em>, <em class="sig-param">mode='a'</em>, <em class="sig-param">tmpdir=None</em>, <em class="sig-param">additional_fields=None</em>, <em class="sig-param">_table_name_regions='regions'</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.regions.RegionBasedWithBins</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">fanc.general.FileGroup</span></code></p>
-<p>PyTables Table wrapper for storing genomic regions.</p>
-<p>This class is inherited by objects working with lists of genomic
-regions, such as equidistant bins along chromosomes in a genome
-(<a class="reference internal" href="hic.html#fanc.hic.Hic" title="fanc.hic.Hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code></a>) or restriction fragments of genomic DNA
-(<a class="reference internal" href="pairs.html#fanc.pairs.ReadPairs" title="fanc.pairs.ReadPairs"><code class="xref py py-class docutils literal notranslate"><span class="pre">ReadPairs</span></code></a>)</p>
-<p>Internally, each genomic region is encoded in a PyTables Table and
-the following region attributes are represented as table columns:
-ix, chromosome, start, end, and strand. To add additional region
-attributes, such as a score, use the “additional_fields” parameter
-of the __init__ method. This must be a dict where the keys are str
-and values are PyTables column descriptors, such as
-<code class="xref py py-class docutils literal notranslate"><span class="pre">StringCol</span></code>. Example for adding a score field:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
-<span class="kn">import</span> <span class="nn">tables</span>
-<span class="n">rt</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">RegionsTable</span><span class="p">(</span>
-        <span class="n">additional_fields</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;score&#39;</span><span class="p">:</span> <span class="n">tables</span><span class="o">.</span><span class="n">Float32Col</span><span class="p">()}</span>
-     <span class="p">)</span>
-</pre></div>
-</div>
-<dl class="class">
-<dt id="fanc.regions.RegionsTable.ChromosomeDescription">
-<em class="property">class </em><code class="sig-name descname">ChromosomeDescription</code><a class="headerlink" href="#fanc.regions.RegionsTable.ChromosomeDescription" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">tables.description.IsDescription</span></code></p>
-<p>Description of the chromosomes in this object.</p>
-</dd></dl>
-
-<dl class="class">
-<dt id="fanc.regions.RegionsTable.RegionDescription">
-<em class="property">class </em><code class="sig-name descname">RegionDescription</code><a class="headerlink" href="#fanc.regions.RegionsTable.RegionDescription" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">tables.description.IsDescription</span></code></p>
-<p>Description of a genomic region for PyTables Table</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.add_region">
-<code class="sig-name descname">add_region</code><span class="sig-paren">(</span><em class="sig-param">region</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.add_region" title="Permalink to this definition">¶</a></dt>
-<dd><p>Add a genomic region to this object.</p>
-<p>This method offers some flexibility in the types of objects
-that can be loaded. See parameters for details.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>region</strong> – Can be a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>, a str in the form
-‘&lt;chromosome&gt;:&lt;start&gt;-&lt;end&gt;[:&lt;strand&gt;], a dict with
-at least the fields ‘chromosome’, ‘start’, and
-‘end’, optionally ‘ix’, or a list of length 3
-(chromosome, start, end) or 4 (ix, chromosome,
-start, end).</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.add_regions">
-<code class="sig-name descname">add_regions</code><span class="sig-paren">(</span><em class="sig-param">regions</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.add_regions" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bulk insert multiple genomic regions.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>regions</strong> – List (or any iterator) with objects that
-describe a genomic region. See
-<a class="reference internal" href="#fanc.regions.RegionsTable.add_region" title="fanc.regions.RegionsTable.add_region"><code class="xref py py-class docutils literal notranslate"><span class="pre">add_region</span></code></a> for options.</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.bin_intervals">
-<em class="property">static </em><code class="sig-name descname">bin_intervals</code><span class="sig-paren">(</span><em class="sig-param">intervals</em>, <em class="sig-param">bins</em>, <em class="sig-param">interval_range=None</em>, <em class="sig-param">smoothing_window=None</em>, <em class="sig-param">nan_replacement=None</em>, <em class="sig-param">zero_to_nan=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.bin_intervals" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bin a given set of intervals into a fixed number of bins.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>intervals</strong> – iterator of tuples (start, end, score)</p></li>
-<li><p><strong>bins</strong> – Number of bins to divide the region into</p></li>
-<li><p><strong>interval_range</strong> – Optional. Tuple (start, end) in base pairs
-of range of interval to be binned. Useful if
-intervals argument does not cover to exact
-genomic range to be binned.</p></li>
-<li><p><strong>smoothing_window</strong> – Size of window (in bins) to smooth scores
-over</p></li>
-<li><p><strong>nan_replacement</strong> – NaN values in the scores will be replaced
-with this value</p></li>
-<li><p><strong>zero_to_nan</strong> – If True, will convert bins with score 0 to NaN</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>iterator of tuples: (start, end, score)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.bin_intervals_equidistant">
-<em class="property">static </em><code class="sig-name descname">bin_intervals_equidistant</code><span class="sig-paren">(</span><em class="sig-param">intervals</em>, <em class="sig-param">bin_size</em>, <em class="sig-param">interval_range=None</em>, <em class="sig-param">smoothing_window=None</em>, <em class="sig-param">nan_replacement=None</em>, <em class="sig-param">zero_to_nan=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.bin_intervals_equidistant" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bin a given set of intervals into bins with a fixed size.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>intervals</strong> – iterator of tuples (start, end, score)</p></li>
-<li><p><strong>bin_size</strong> – Size of each bin in base pairs</p></li>
-<li><p><strong>interval_range</strong> – Optional. Tuple (start, end) in base pairs
-of range of interval to be binned. Useful if
-intervals argument does not cover to exact
-genomic range to be binned.</p></li>
-<li><p><strong>smoothing_window</strong> – Size of window (in bins) to smooth scores
-over</p></li>
-<li><p><strong>nan_replacement</strong> – NaN values in the scores will be replaced
-with this value</p></li>
-<li><p><strong>zero_to_nan</strong> – If True, will convert bins with score 0 to NaN</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>iterator of tuples: (start, end, score)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.bin_size">
-<em class="property">property </em><code class="sig-name descname">bin_size</code><a class="headerlink" href="#fanc.regions.RegionsTable.bin_size" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return the length of the first region in the dataset.</p>
-<p>Assumes all bins have equal size.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>int</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.binned_regions">
-<code class="sig-name descname">binned_regions</code><span class="sig-paren">(</span><em class="sig-param">region=None</em>, <em class="sig-param">bins=None</em>, <em class="sig-param">bin_size=None</em>, <em class="sig-param">smoothing_window=None</em>, <em class="sig-param">nan_replacement=None</em>, <em class="sig-param">zero_to_nan=False</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.binned_regions" title="Permalink to this definition">¶</a></dt>
-<dd><p>Same as region_intervals, but returns <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>
-objects instead of tuples.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>region</strong> – String or class:<cite>~GenomicRegion</cite>
-object denoting the region to be binned</p></li>
-<li><p><strong>bins</strong> – Number of bins to divide the region into</p></li>
-<li><p><strong>bin_size</strong> – Size of each bin (alternative to bins argument)</p></li>
-<li><p><strong>smoothing_window</strong> – Size of window (in bins) to smooth scores
-over</p></li>
-<li><p><strong>nan_replacement</strong> – NaN values in the scores will be replaced
-with this value</p></li>
-<li><p><strong>zero_to_nan</strong> – If True, will convert bins with score 0 to NaN</p></li>
-<li><p><strong>args</strong> – Arguments passed to _region_intervals</p></li>
-<li><p><strong>kwargs</strong> – Keyword arguments passed to _region_intervals</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>iterator of <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> objects</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.bins_to_distance">
-<code class="sig-name descname">bins_to_distance</code><span class="sig-paren">(</span><em class="sig-param">bins</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.bins_to_distance" title="Permalink to this definition">¶</a></dt>
-<dd><p>Convert fraction of bins to base pairs</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>bins</strong> – float, fraction of bins</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>int, base pairs</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.chromosome_bins">
-<em class="property">property </em><code class="sig-name descname">chromosome_bins</code><a class="headerlink" href="#fanc.regions.RegionsTable.chromosome_bins" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a dictionary of chromosomes and the start
-and end index of the bins they cover.</p>
-<p>Returned list is range-compatible, i.e. chromosome
-bins [0,5] cover chromosomes 1, 2, 3, and 4, not 5.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.chromosome_lengths">
-<em class="property">property </em><code class="sig-name descname">chromosome_lengths</code><a class="headerlink" href="#fanc.regions.RegionsTable.chromosome_lengths" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a dictionary of chromosomes and their length
-in bp.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.chromosomes">
-<code class="sig-name descname">chromosomes</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.chromosomes" title="Permalink to this definition">¶</a></dt>
-<dd><p>List all chromosomes in this regions table.
-:return: list of chromosome names.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.close">
-<code class="sig-name descname">close</code><span class="sig-paren">(</span><em class="sig-param">copy_tmp=True</em>, <em class="sig-param">remove_tmp=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.close" title="Permalink to this definition">¶</a></dt>
-<dd><p>Close this HDF5 file and run exit operations.</p>
-<p>If file was opened with tmpdir in read-only mode:
-close file and delete temporary copy.</p>
-<p>If file was opened with tmpdir in write or append mode:
-Replace original file with copy and delete copy.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>copy_tmp</strong> – If False, does not overwrite original with modified file.</p></li>
-<li><p><strong>remove_tmp</strong> – If False, does not delete temporary copy of file.</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.distance_to_bins">
-<code class="sig-name descname">distance_to_bins</code><span class="sig-paren">(</span><em class="sig-param">distance</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.distance_to_bins" title="Permalink to this definition">¶</a></dt>
-<dd><p>Convert base pairs to fraction of bins.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>distance</strong> – distance in base pairs</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>float, distance as fraction of bin size</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.find_region">
-<code class="sig-name descname">find_region</code><span class="sig-paren">(</span><em class="sig-param">query_regions</em>, <em class="sig-param">_regions_dict=None</em>, <em class="sig-param">_region_ends=None</em>, <em class="sig-param">_chromosomes=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.find_region" title="Permalink to this definition">¶</a></dt>
-<dd><p>Find the region that is at the center of a region.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>query_regions</strong> – Region selector string, :class:~GenomicRegion, or
-list of the former</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>index (or list of indexes) of the region at the center of the
-query region</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.flush">
-<code class="sig-name descname">flush</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.flush" title="Permalink to this definition">¶</a></dt>
-<dd><p>Write buffered data to file.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.intervals">
-<code class="sig-name descname">intervals</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.intervals" title="Permalink to this definition">¶</a></dt>
-<dd><p>Alias for region_intervals.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.region_bins">
-<code class="sig-name descname">region_bins</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.region_bins" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return slice of start and end indices spanned by a region.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>args</strong> – provide a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> here to get
-the slice of start and end bins of onlythis region.
-To get the slice over all regions leave this blank.</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.region_data">
-<code class="sig-name descname">region_data</code><span class="sig-paren">(</span><em class="sig-param">key</em>, <em class="sig-param">value=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.region_data" title="Permalink to this definition">¶</a></dt>
-<dd><p>Retrieve or add vector-data to this object. If there is existing data in this
-object with the same name, it will be replaced</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>key</strong> – Name of the data column</p></li>
-<li><p><strong>value</strong> – vector with region-based data (one entry per region)</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.region_intervals">
-<code class="sig-name descname">region_intervals</code><span class="sig-paren">(</span><em class="sig-param">region</em>, <em class="sig-param">bins=None</em>, <em class="sig-param">bin_size=None</em>, <em class="sig-param">smoothing_window=None</em>, <em class="sig-param">nan_replacement=None</em>, <em class="sig-param">zero_to_nan=False</em>, <em class="sig-param">score_field='score'</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.region_intervals" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return equally-sized genomic intervals and associated scores.</p>
-<p>Use either bins or bin_size argument to control binning.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>region</strong> – String or class:<cite>~GenomicRegion</cite>
-object denoting the region to be binned</p></li>
-<li><p><strong>bins</strong> – Number of bins to divide the region into</p></li>
-<li><p><strong>bin_size</strong> – Size of each bin (alternative to bins argument)</p></li>
-<li><p><strong>smoothing_window</strong> – Size of window (in bins) to smooth scores
-over</p></li>
-<li><p><strong>nan_replacement</strong> – NaN values in the scores will be replaced
-with this value</p></li>
-<li><p><strong>zero_to_nan</strong> – If True, will convert bins with score 0 to NaN</p></li>
-<li><p><strong>args</strong> – Arguments passed to _region_intervals</p></li>
-<li><p><strong>kwargs</strong> – Keyword arguments passed to _region_intervals</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>iterator of tuples: (start, end, score)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.region_subset">
-<code class="sig-name descname">region_subset</code><span class="sig-paren">(</span><em class="sig-param">region</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.region_subset" title="Permalink to this definition">¶</a></dt>
-<dd><p>Takes a class:<cite>~GenomicRegion</cite> and returns all regions that
-overlap with the supplied region.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>region</strong> – String or class:<cite>~GenomicRegion</cite>
-object for which covered bins will
-be returned.</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.regions">
-<em class="property">property </em><code class="sig-name descname">regions</code><a class="headerlink" href="#fanc.regions.RegionsTable.regions" title="Permalink to this definition">¶</a></dt>
-<dd><p>Iterate over genomic regions in this object.</p>
-<p>Will return a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> object in every iteration.
-Can also be used to get the number of regions by calling
-len() on the object returned by this method.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>RegionIter</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.regions_dict">
-<em class="property">property </em><code class="sig-name descname">regions_dict</code><a class="headerlink" href="#fanc.regions.RegionsTable.regions_dict" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return a dictionary with region index as keys
-and regions as values.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>dict {region.ix: region, …}</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.to_bed">
-<code class="sig-name descname">to_bed</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">subset=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.to_bed" title="Permalink to this definition">¶</a></dt>
-<dd><p>Export regions as BED file</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>file_name</strong> – Path of file to write regions to</p></li>
-<li><p><strong>subset</strong> – optional <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> or str to
-write only regions overlapping this region</p></li>
-<li><p><strong>kwargs</strong> – Passed to <code class="xref py py-func docutils literal notranslate"><span class="pre">write_bed()</span></code></p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.to_bigwig">
-<code class="sig-name descname">to_bigwig</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">subset=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.to_bigwig" title="Permalink to this definition">¶</a></dt>
-<dd><p>Export regions as BigWig file.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>file_name</strong> – Path of file to write regions to</p></li>
-<li><p><strong>subset</strong> – optional <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> or str to
-write only regions overlapping this region</p></li>
-<li><p><strong>kwargs</strong> – Passed to <code class="xref py py-func docutils literal notranslate"><span class="pre">write_bigwig()</span></code></p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="fanc.regions.RegionsTable.to_gff">
-<code class="sig-name descname">to_gff</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">subset=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.to_gff" title="Permalink to this definition">¶</a></dt>
-<dd><p>Export regions as GFF file</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>file_name</strong> – Path of file to write regions to</p></li>
-<li><p><strong>subset</strong> – optional <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> or str to
-write only regions overlapping this region</p></li>
-<li><p><strong>kwargs</strong> – Passed to <code class="xref py py-func docutils literal notranslate"><span class="pre">write_gff()</span></code></p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="class">
-<dt id="fanc.regions.LazyGenomicRegion">
-<em class="property">class </em><code class="sig-prename descclassname">fanc.regions.</code><code class="sig-name descname">LazyGenomicRegion</code><span class="sig-paren">(</span><em class="sig-param">row</em>, <em class="sig-param">ix=None</em>, <em class="sig-param">auto_update=True</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">genomic_regions.regions.GenomicRegion</span></code></p>
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fanc.regions.</span></span><span class="sig-name descname"><span class="pre">LazyGenomicRegion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">row</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auto_update</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code></p>
 <p>A <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> object with lazy attribute loading.</p>
 <p>This class is central to an efficient retrieval of regions from
 objects subclassing <a class="reference internal" href="#fanc.regions.RegionsTable" title="fanc.regions.RegionsTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegionsTable</span></code></a>. Its handling should
@@ -853,9 +374,9 @@ will only be loaded on demand. Changes to attributes will change
 the underlying row in the HDF5 regions table if the auto_update
 parameter is set to True (default). Else you can manually call
 <code class="xref py py-func docutils literal notranslate"><span class="pre">update()</span></code>.</p>
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.as_bed_line">
-<code class="sig-name descname">as_bed_line</code><span class="sig-paren">(</span><em class="sig-param">score_field='score'</em>, <em class="sig-param">name_field='name'</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.as_bed_line" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.as_bed_line">
+<span class="sig-name descname"><span class="pre">as_bed_line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">score_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'score'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'name'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.as_bed_line" title="Permalink to this definition"></a></dt>
 <dd><p>Return a representation of this object as line in a BED file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -872,9 +393,9 @@ parameter is set to True (default). Else you can manually call
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.as_gff_line">
-<code class="sig-name descname">as_gff_line</code><span class="sig-paren">(</span><em class="sig-param">source_field='source'</em>, <em class="sig-param">feature_field='feature'</em>, <em class="sig-param">score_field='score'</em>, <em class="sig-param">frame_field='frame'</em>, <em class="sig-param">float_format='.2e'</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.as_gff_line" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.as_gff_line">
+<span class="sig-name descname"><span class="pre">as_gff_line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'source'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'feature'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">score_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'score'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'frame'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">float_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.2e'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.as_gff_line" title="Permalink to this definition"></a></dt>
 <dd><p>Return a representation of this object as line in a GFF file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -896,15 +417,15 @@ parameter is set to True (default). Else you can manually call
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.attributes">
-<em class="property">property </em><code class="sig-name descname">attributes</code><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.attributes" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.attributes">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">attributes</span></span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.attributes" title="Permalink to this definition"></a></dt>
 <dd><p>List of all attributes in this region.</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.center">
-<em class="property">property </em><code class="sig-name descname">center</code><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.center" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.center">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">center</span></span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.center" title="Permalink to this definition"></a></dt>
 <dd><p>Return the center coordinate of the <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -913,9 +434,9 @@ parameter is set to True (default). Else you can manually call
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.contains">
-<code class="sig-name descname">contains</code><span class="sig-paren">(</span><em class="sig-param">region</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.contains" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.contains">
+<span class="sig-name descname"><span class="pre">contains</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.contains" title="Permalink to this definition"></a></dt>
 <dd><p>Check if the specified region is completely contained in this region.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -924,9 +445,9 @@ parameter is set to True (default). Else you can manually call
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.copy">
-<code class="sig-name descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.copy" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.copy" title="Permalink to this definition"></a></dt>
 <dd><p>Return a (shallow) copy of this <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code></p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -935,9 +456,9 @@ parameter is set to True (default). Else you can manually call
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.expand">
-<code class="sig-name descname">expand</code><span class="sig-paren">(</span><em class="sig-param">absolute=None</em>, <em class="sig-param">relative=None</em>, <em class="sig-param">absolute_left=0</em>, <em class="sig-param">absolute_right=0</em>, <em class="sig-param">relative_left=0.0</em>, <em class="sig-param">relative_right=0.0</em>, <em class="sig-param">copy=True</em>, <em class="sig-param">from_center=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.expand" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.expand">
+<span class="sig-name descname"><span class="pre">expand</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">absolute</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">absolute_left</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">absolute_right</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_left</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_right</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">from_center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.expand" title="Permalink to this definition"></a></dt>
 <dd><p>Expand this region by a relative or an absolute amount.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -983,9 +504,9 @@ than start and end of the old region</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.five_prime">
-<em class="property">property </em><code class="sig-name descname">five_prime</code><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.five_prime" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.five_prime">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">five_prime</span></span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.five_prime" title="Permalink to this definition"></a></dt>
 <dd><p>Return the position of the 5’ end of this <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>
 on the reference.</p>
 <dl class="field-list simple">
@@ -995,9 +516,9 @@ on the reference.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.fix_chromosome">
-<code class="sig-name descname">fix_chromosome</code><span class="sig-paren">(</span><em class="sig-param">copy=False</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.fix_chromosome" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.fix_chromosome">
+<span class="sig-name descname"><span class="pre">fix_chromosome</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.fix_chromosome" title="Permalink to this definition"></a></dt>
 <dd><p>Change chromosome representation from chr&lt;NN&gt; to &lt;NN&gt; or vice versa.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1010,9 +531,9 @@ will modify existing region in place.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.from_string">
-<em class="property">classmethod </em><code class="sig-name descname">from_string</code><span class="sig-paren">(</span><em class="sig-param">region_string</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.from_string" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.from_string">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_string</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.from_string" title="Permalink to this definition"></a></dt>
 <dd><p>Convert a string into a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>.</p>
 <p>This is a very useful convenience function to quickly
 define a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> object from a descriptor
@@ -1032,9 +553,9 @@ defaults will be chosen.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.is_forward">
-<code class="sig-name descname">is_forward</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.is_forward" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.is_forward">
+<span class="sig-name descname"><span class="pre">is_forward</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.is_forward" title="Permalink to this definition"></a></dt>
 <dd><p>Return True if this region is on the forward strand
 of the reference genome.</p>
 <dl class="field-list simple">
@@ -1044,28 +565,28 @@ of the reference genome.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.is_reverse">
-<code class="sig-name descname">is_reverse</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.is_reverse" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.is_reverse">
+<span class="sig-name descname"><span class="pre">is_reverse</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.is_reverse" title="Permalink to this definition"></a></dt>
 <dd><p>Return True if this region is on the reverse strand
 of the reference genome.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>True if on ‘-‘ strand, False otherwise.</p>
+<dd class="field-odd"><p>True if on ‘-’ strand, False otherwise.</p>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.ix">
-<em class="property">property </em><code class="sig-name descname">ix</code><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.ix" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.ix">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ix</span></span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.ix" title="Permalink to this definition"></a></dt>
 <dd><p>Region index.</p>
 <p>Location in underlying list of regions.</p>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.overlap">
-<code class="sig-name descname">overlap</code><span class="sig-paren">(</span><em class="sig-param">region</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.overlap" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.overlap">
+<span class="sig-name descname"><span class="pre">overlap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.overlap" title="Permalink to this definition"></a></dt>
 <dd><p>Return the overlap in base pairs between this
 region and another region.</p>
 <dl class="field-list simple">
@@ -1078,9 +599,9 @@ region and another region.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.overlaps">
-<code class="sig-name descname">overlaps</code><span class="sig-paren">(</span><em class="sig-param">region</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.overlaps" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.overlaps">
+<span class="sig-name descname"><span class="pre">overlaps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.overlaps" title="Permalink to this definition"></a></dt>
 <dd><p>Check if this region overlaps with the specified region.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1089,9 +610,9 @@ region and another region.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.set_attribute">
-<code class="sig-name descname">set_attribute</code><span class="sig-paren">(</span><em class="sig-param">attribute</em>, <em class="sig-param">value</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.set_attribute" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.set_attribute">
+<span class="sig-name descname"><span class="pre">set_attribute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">attribute</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.set_attribute" title="Permalink to this definition"></a></dt>
 <dd><p>Safely set an attribute on the <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> object.</p>
 <p>This automatically decodes bytes objects into UTF-8 strings.
 If you do not care about this, you can also use
@@ -1106,9 +627,9 @@ region.&lt;attribute&gt; = &lt;value&gt; directly.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.strand">
-<em class="property">property </em><code class="sig-name descname">strand</code><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.strand" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.strand">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">strand</span></span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.strand" title="Permalink to this definition"></a></dt>
 <dd><p>Strand this region is located on as int.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -1118,20 +639,20 @@ None: unknown.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.strand_string">
-<em class="property">property </em><code class="sig-name descname">strand_string</code><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.strand_string" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.strand_string">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">strand_string</span></span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.strand_string" title="Permalink to this definition"></a></dt>
 <dd><p>Return the ‘strand’ attribute as string.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>strand as str (‘+’, ‘-‘, or ‘.’)</p>
+<dd class="field-odd"><p>strand as str (‘+’, ‘-’, or ‘.’)</p>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.three_prime">
-<em class="property">property </em><code class="sig-name descname">three_prime</code><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.three_prime" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.three_prime">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">three_prime</span></span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.three_prime" title="Permalink to this definition"></a></dt>
 <dd><p>Return the position of the 3’ end of this <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>
 on the reference.</p>
 <dl class="field-list simple">
@@ -1141,9 +662,9 @@ on the reference.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
-<dt id="fanc.regions.LazyGenomicRegion.to_string">
-<code class="sig-name descname">to_string</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.to_string" title="Permalink to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.LazyGenomicRegion.to_string">
+<span class="sig-name descname"><span class="pre">to_string</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.LazyGenomicRegion.to_string" title="Permalink to this definition"></a></dt>
 <dd><p>Convert this <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> to its string representation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -1154,9 +675,413 @@ on the reference.</p>
 
 </dd></dl>
 
-<dl class="function">
-<dt id="fanc.regions.genome_regions">
-<code class="sig-prename descclassname">fanc.regions.</code><code class="sig-name descname">genome_regions</code><span class="sig-paren">(</span><em class="sig-param">re_or_file</em>, <em class="sig-param">restriction_enzyme=None</em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.genome_regions" title="Permalink to this definition">¶</a></dt>
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fanc.regions.</span></span><span class="sig-name descname"><span class="pre">RegionsTable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'a'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_fields</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_table_name_regions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'regions'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">RegionBasedWithBins</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">FileGroup</span></code></p>
+<p>PyTables Table wrapper for storing genomic regions.</p>
+<p>This class is inherited by objects working with lists of genomic
+regions, such as equidistant bins along chromosomes in a genome
+(<a class="reference internal" href="hic.html#fanc.hic.Hic" title="fanc.hic.Hic"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hic</span></code></a>) or restriction fragments of genomic DNA
+(<a class="reference internal" href="pairs.html#fanc.pairs.ReadPairs" title="fanc.pairs.ReadPairs"><code class="xref py py-class docutils literal notranslate"><span class="pre">ReadPairs</span></code></a>)</p>
+<p>Internally, each genomic region is encoded in a PyTables Table and
+the following region attributes are represented as table columns:
+ix, chromosome, start, end, and strand. To add additional region
+attributes, such as a score, use the “additional_fields” parameter
+of the __init__ method. This must be a dict where the keys are str
+and values are PyTables column descriptors, such as
+<code class="xref py py-class docutils literal notranslate"><span class="pre">StringCol</span></code>. Example for adding a score field:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">fanc</span>
+<span class="kn">import</span> <span class="nn">tables</span>
+<span class="n">rt</span> <span class="o">=</span> <span class="n">fanc</span><span class="o">.</span><span class="n">RegionsTable</span><span class="p">(</span>
+        <span class="n">additional_fields</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;score&#39;</span><span class="p">:</span> <span class="n">tables</span><span class="o">.</span><span class="n">Float32Col</span><span class="p">()}</span>
+     <span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.ChromosomeDescription">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ChromosomeDescription</span></span><a class="headerlink" href="#fanc.regions.RegionsTable.ChromosomeDescription" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">IsDescription</span></code></p>
+<p>Description of the chromosomes in this object.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.RegionDescription">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">RegionDescription</span></span><a class="headerlink" href="#fanc.regions.RegionsTable.RegionDescription" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">IsDescription</span></code></p>
+<p>Description of a genomic region for PyTables Table</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.add_region">
+<span class="sig-name descname"><span class="pre">add_region</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.add_region" title="Permalink to this definition"></a></dt>
+<dd><p>Add a genomic region to this object.</p>
+<p>This method offers some flexibility in the types of objects
+that can be loaded. See parameters for details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>region</strong> – Can be a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>, a str in the form
+‘&lt;chromosome&gt;:&lt;start&gt;-&lt;end&gt;[:&lt;strand&gt;], a dict with
+at least the fields ‘chromosome’, ‘start’, and
+‘end’, optionally ‘ix’, or a list of length 3
+(chromosome, start, end) or 4 (ix, chromosome,
+start, end).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.add_regions">
+<span class="sig-name descname"><span class="pre">add_regions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regions</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.add_regions" title="Permalink to this definition"></a></dt>
+<dd><p>Bulk insert multiple genomic regions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>regions</strong> – List (or any iterator) with objects that
+describe a genomic region. See
+<a class="reference internal" href="#fanc.regions.RegionsTable.add_region" title="fanc.regions.RegionsTable.add_region"><code class="xref py py-class docutils literal notranslate"><span class="pre">add_region</span></code></a> for options.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.bin_intervals">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bin_intervals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intervals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bins</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interval_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_replacement</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_to_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.bin_intervals" title="Permalink to this definition"></a></dt>
+<dd><p>Bin a given set of intervals into a fixed number of bins.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>intervals</strong> – iterator of tuples (start, end, score)</p></li>
+<li><p><strong>bins</strong> – Number of bins to divide the region into</p></li>
+<li><p><strong>interval_range</strong> – Optional. Tuple (start, end) in base pairs
+of range of interval to be binned. Useful if
+intervals argument does not cover to exact
+genomic range to be binned.</p></li>
+<li><p><strong>smoothing_window</strong> – Size of window (in bins) to smooth scores
+over</p></li>
+<li><p><strong>nan_replacement</strong> – NaN values in the scores will be replaced
+with this value</p></li>
+<li><p><strong>zero_to_nan</strong> – If True, will convert bins with score 0 to NaN</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>iterator of tuples: (start, end, score)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.bin_intervals_equidistant">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bin_intervals_equidistant</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intervals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bin_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interval_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_replacement</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_to_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.bin_intervals_equidistant" title="Permalink to this definition"></a></dt>
+<dd><p>Bin a given set of intervals into bins with a fixed size.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>intervals</strong> – iterator of tuples (start, end, score)</p></li>
+<li><p><strong>bin_size</strong> – Size of each bin in base pairs</p></li>
+<li><p><strong>interval_range</strong> – Optional. Tuple (start, end) in base pairs
+of range of interval to be binned. Useful if
+intervals argument does not cover to exact
+genomic range to be binned.</p></li>
+<li><p><strong>smoothing_window</strong> – Size of window (in bins) to smooth scores
+over</p></li>
+<li><p><strong>nan_replacement</strong> – NaN values in the scores will be replaced
+with this value</p></li>
+<li><p><strong>zero_to_nan</strong> – If True, will convert bins with score 0 to NaN</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>iterator of tuples: (start, end, score)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.bin_size">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bin_size</span></span><a class="headerlink" href="#fanc.regions.RegionsTable.bin_size" title="Permalink to this definition"></a></dt>
+<dd><p>Return the length of the first region in the dataset.</p>
+<p>Assumes all bins have equal size.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.binned_regions">
+<span class="sig-name descname"><span class="pre">binned_regions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bin_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_replacement</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_to_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.binned_regions" title="Permalink to this definition"></a></dt>
+<dd><p>Same as region_intervals, but returns <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code>
+objects instead of tuples.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>region</strong> – String or class:<cite>~GenomicRegion</cite>
+object denoting the region to be binned</p></li>
+<li><p><strong>bins</strong> – Number of bins to divide the region into</p></li>
+<li><p><strong>bin_size</strong> – Size of each bin (alternative to bins argument)</p></li>
+<li><p><strong>smoothing_window</strong> – Size of window (in bins) to smooth scores
+over</p></li>
+<li><p><strong>nan_replacement</strong> – NaN values in the scores will be replaced
+with this value</p></li>
+<li><p><strong>zero_to_nan</strong> – If True, will convert bins with score 0 to NaN</p></li>
+<li><p><strong>args</strong> – Arguments passed to _region_intervals</p></li>
+<li><p><strong>kwargs</strong> – Keyword arguments passed to _region_intervals</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>iterator of <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> objects</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.bins_to_distance">
+<span class="sig-name descname"><span class="pre">bins_to_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bins</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.bins_to_distance" title="Permalink to this definition"></a></dt>
+<dd><p>Convert fraction of bins to base pairs</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>bins</strong> – float, fraction of bins</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>int, base pairs</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.chromosome_bins">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">chromosome_bins</span></span><a class="headerlink" href="#fanc.regions.RegionsTable.chromosome_bins" title="Permalink to this definition"></a></dt>
+<dd><p>Returns a dictionary of chromosomes and the start
+and end index of the bins they cover.</p>
+<p>Returned list is range-compatible, i.e. chromosome
+bins [0,5] cover chromosomes 1, 2, 3, and 4, not 5.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.chromosome_lengths">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">chromosome_lengths</span></span><a class="headerlink" href="#fanc.regions.RegionsTable.chromosome_lengths" title="Permalink to this definition"></a></dt>
+<dd><p>Returns a dictionary of chromosomes and their length
+in bp.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.chromosomes">
+<span class="sig-name descname"><span class="pre">chromosomes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.chromosomes" title="Permalink to this definition"></a></dt>
+<dd><p>List all chromosomes in this regions table.
+:return: list of chromosome names.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">copy_tmp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_tmp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.close" title="Permalink to this definition"></a></dt>
+<dd><p>Close this HDF5 file and run exit operations.</p>
+<p>If file was opened with tmpdir in read-only mode:
+close file and delete temporary copy.</p>
+<p>If file was opened with tmpdir in write or append mode:
+Replace original file with copy and delete copy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>copy_tmp</strong> – If False, does not overwrite original with modified file.</p></li>
+<li><p><strong>remove_tmp</strong> – If False, does not delete temporary copy of file.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.distance_to_bins">
+<span class="sig-name descname"><span class="pre">distance_to_bins</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">distance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.distance_to_bins" title="Permalink to this definition"></a></dt>
+<dd><p>Convert base pairs to fraction of bins.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>distance</strong> – distance in base pairs</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>float, distance as fraction of bin size</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.find_region">
+<span class="sig-name descname"><span class="pre">find_region</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query_regions</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_regions_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_region_ends</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_chromosomes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.find_region" title="Permalink to this definition"></a></dt>
+<dd><p>Find the region that is at the center of a region.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>query_regions</strong> – Region selector string, :class:~GenomicRegion, or
+list of the former</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>index (or list of indexes) of the region at the center of the
+query region</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.flush">
+<span class="sig-name descname"><span class="pre">flush</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.flush" title="Permalink to this definition"></a></dt>
+<dd><p>Write buffered data to file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.intervals">
+<span class="sig-name descname"><span class="pre">intervals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.intervals" title="Permalink to this definition"></a></dt>
+<dd><p>Alias for region_intervals.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.region_bins">
+<span class="sig-name descname"><span class="pre">region_bins</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.region_bins" title="Permalink to this definition"></a></dt>
+<dd><p>Return slice of start and end indices spanned by a region.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>args</strong> – provide a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> here to get
+the slice of start and end bins of onlythis region.
+To get the slice over all regions leave this blank.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.region_data">
+<span class="sig-name descname"><span class="pre">region_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.region_data" title="Permalink to this definition"></a></dt>
+<dd><p>Retrieve or add vector-data to this object. If there is existing data in this
+object with the same name, it will be replaced</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> – Name of the data column</p></li>
+<li><p><strong>value</strong> – vector with region-based data (one entry per region)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.region_intervals">
+<span class="sig-name descname"><span class="pre">region_intervals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bin_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothing_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_replacement</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_to_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">score_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'score'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.region_intervals" title="Permalink to this definition"></a></dt>
+<dd><p>Return equally-sized genomic intervals and associated scores.</p>
+<p>Use either bins or bin_size argument to control binning.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>region</strong> – String or class:<cite>~GenomicRegion</cite>
+object denoting the region to be binned</p></li>
+<li><p><strong>bins</strong> – Number of bins to divide the region into</p></li>
+<li><p><strong>bin_size</strong> – Size of each bin (alternative to bins argument)</p></li>
+<li><p><strong>smoothing_window</strong> – Size of window (in bins) to smooth scores
+over</p></li>
+<li><p><strong>nan_replacement</strong> – NaN values in the scores will be replaced
+with this value</p></li>
+<li><p><strong>zero_to_nan</strong> – If True, will convert bins with score 0 to NaN</p></li>
+<li><p><strong>args</strong> – Arguments passed to _region_intervals</p></li>
+<li><p><strong>kwargs</strong> – Keyword arguments passed to _region_intervals</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>iterator of tuples: (start, end, score)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.region_subset">
+<span class="sig-name descname"><span class="pre">region_subset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.region_subset" title="Permalink to this definition"></a></dt>
+<dd><p>Takes a class:<cite>~GenomicRegion</cite> and returns all regions that
+overlap with the supplied region.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>region</strong> – String or class:<cite>~GenomicRegion</cite>
+object for which covered bins will
+be returned.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.regions">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">regions</span></span><a class="headerlink" href="#fanc.regions.RegionsTable.regions" title="Permalink to this definition"></a></dt>
+<dd><p>Iterate over genomic regions in this object.</p>
+<p>Will return a <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> object in every iteration.
+Can also be used to get the number of regions by calling
+len() on the object returned by this method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>RegionIter</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.regions_dict">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">regions_dict</span></span><a class="headerlink" href="#fanc.regions.RegionsTable.regions_dict" title="Permalink to this definition"></a></dt>
+<dd><p>Return a dictionary with region index as keys
+and regions as values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>dict {region.ix: region, …}</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.to_bed">
+<span class="sig-name descname"><span class="pre">to_bed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.to_bed" title="Permalink to this definition"></a></dt>
+<dd><p>Export regions as BED file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_name</strong> – Path of file to write regions to</p></li>
+<li><p><strong>subset</strong> – optional <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> or str to
+write only regions overlapping this region</p></li>
+<li><p><strong>kwargs</strong> – Passed to <code class="xref py py-func docutils literal notranslate"><span class="pre">write_bed()</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.to_bigwig">
+<span class="sig-name descname"><span class="pre">to_bigwig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.to_bigwig" title="Permalink to this definition"></a></dt>
+<dd><p>Export regions as BigWig file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_name</strong> – Path of file to write regions to</p></li>
+<li><p><strong>subset</strong> – optional <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> or str to
+write only regions overlapping this region</p></li>
+<li><p><strong>kwargs</strong> – Passed to <code class="xref py py-func docutils literal notranslate"><span class="pre">write_bigwig()</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fanc.regions.RegionsTable.to_gff">
+<span class="sig-name descname"><span class="pre">to_gff</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.RegionsTable.to_gff" title="Permalink to this definition"></a></dt>
+<dd><p>Export regions as GFF file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_name</strong> – Path of file to write regions to</p></li>
+<li><p><strong>subset</strong> – optional <code class="xref py py-class docutils literal notranslate"><span class="pre">GenomicRegion</span></code> or str to
+write only regions overlapping this region</p></li>
+<li><p><strong>kwargs</strong> – Passed to <code class="xref py py-func docutils literal notranslate"><span class="pre">write_gff()</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fanc.regions.genome_regions">
+<span class="sig-prename descclassname"><span class="pre">fanc.regions.</span></span><span class="sig-name descname"><span class="pre">genome_regions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">re_or_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">restriction_enzyme</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fanc.regions.genome_regions" title="Permalink to this definition"></a></dt>
 <dd><p>Obtain RE fragments or bins of equal size from a reference genome.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1176,55 +1101,37 @@ regions of this size in bp.</p></li>
 </dl>
 </dd></dl>
 
-</div>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="pairs.html" class="btn btn-neutral float-right" title="Pairs module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="map.html" class="btn btn-neutral float-left" title="Map module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="map.html" class="btn btn-neutral float-left" title="Map module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="pairs.html" class="btn btn-neutral float-right" title="Pairs module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &copy; Copyright 2020, Kai Kruse, Vaquerizas lab
-
-    </p>
+    <p>&#169; Copyright 2020, Kai Kruse, Vaquerizas lab.</p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
-
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>
