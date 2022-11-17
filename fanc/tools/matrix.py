@@ -1,6 +1,9 @@
 import numpy as np
 from scipy.stats.mstats import gmean
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def remove_sparse_rows(m, cutoff=None):
     s = np.sum(m, 0)
@@ -103,7 +106,8 @@ def trim_stats(a, proportiontocut=0.0, axis=0, stat=np.nanmean):
     sl[axis] = slice(ix, len(s)-ix, 1)
     s_sub = s[tuple(sl)]
 
-    return stat(s_sub)
+    res = stat(s_sub)
+    return res
 
 
 def nangmean(a, axis=0, dtype=None):
