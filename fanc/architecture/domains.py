@@ -381,8 +381,12 @@ class InsulationScores(RegionScoreParameterTable):
                     warnings.simplefilter("ignore", category=RuntimeWarning)
 
                     ii_by_chromosome = np.array(ii_by_chromosome)
+                    if geometric_mean:
+                        ii_by_chromosome[ii_by_chromosome == 0] = np.nan
+                    
                     if normalise:
                         logger.debug("Normalising insulation score")
+                        
                         if normalisation_window is not None:
                             logger.debug("Sliding window average")
                             mean_ins = apply_sliding_func(ii_by_chromosome, normalisation_window,
@@ -393,7 +397,7 @@ class InsulationScores(RegionScoreParameterTable):
                             logger.debug("Whole chromosome mean")
                             mean_ins = trim_stats(ii_by_chromosome[np.isfinite(ii_by_chromosome)],
                                                   trim_mean_proportion, stat=avg_stat)
-
+                        
                         if not subtract_mean:
                             logger.debug("Dividing by mean {}".format(mean_ins))
                             ii_by_chromosome = ii_by_chromosome / mean_ins
@@ -401,7 +405,7 @@ class InsulationScores(RegionScoreParameterTable):
                             logger.debug("Subtracting mean {}".format(mean_ins))
                             ii_by_chromosome = ii_by_chromosome - mean_ins
                     ii_list[w_ix].append(ii_by_chromosome)
-
+        
         for w_ix, window_size in enumerate(window_sizes):
             ins_matrix = np.array(list(itertools.chain.from_iterable(ii_list[w_ix])))
 
