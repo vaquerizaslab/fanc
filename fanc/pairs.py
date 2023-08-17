@@ -669,13 +669,16 @@ class FourDNucleomePairGenerator(TxtReadPairGenerator):
 
         chromosome1_field_id = 'chr1' if 'chr1' in columns else 'chrom1'
         chromosome2_field_id = 'chr2' if 'chr2' in columns else 'chrom2'
+        
+        position1_field_id = 'pos1' if 'pos1' in columns else 'position1'
+        position2_field_id = 'pos2' if 'pos2' in columns else 'position2'
 
         TxtReadPairGenerator.__init__(self, pairs_file, sep=None,
                                       chr1_field=columns[chromosome1_field_id],
-                                      pos1_field=columns['pos1'],
+                                      pos1_field=columns[position1_field_id],
                                       strand1_field=columns['strand1'] if 'strand1' in columns else None,
                                       chr2_field=columns[chromosome2_field_id],
-                                      pos2_field=columns['pos2'],
+                                      pos2_field=columns[position2_field_id],
                                       strand2_field=columns['strand2'] if 'strand2' in columns else None,
                                       )
 
