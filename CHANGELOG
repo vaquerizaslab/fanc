@@ -1,7 +1,9 @@
 0.9.26
 
 - Fixed issue #135 where insulation scores were NaN when using geometric mean
-
+- Fixed issue #136 that prevented the use of -r parameter in fanc insulation
+- Added option to ignore sambamba when using sam_sort or auto
+- Fixed an issue with Juicer fieles when normalisation info is missing
 
 0.9.25
 
