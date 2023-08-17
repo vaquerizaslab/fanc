@@ -688,6 +688,15 @@ def auto_parser():
         help="Force overwriting of existing files. Otherwise you will " 
              "be prompted before files are overwritten."
     )
+    
+    parser.add_argument(
+        '--no-sambamba', dest='use_sambamba',
+        default=True,
+        type=bool,
+        help='Do not use sambamba for sorting SAM file, '
+             'even when it is available. '
+             'Use pysam instead.'
+    )
 
     return parser
 
@@ -777,6 +786,7 @@ def auto(argv, **kwargs):
     grid_cleanup_commands = os.path.expanduser(args.grid_cleanup_commands) \
         if args.grid_cleanup_commands is not None else None
     force_overwrite = args.force_overwrite
+    use_sambamba = args.use_sambamba
     output_folder = os.path.expanduser(args.output_folder)
 
     file_names = [os.path.expanduser(file_name) for file_name in args.input]
@@ -1003,8 +1013,13 @@ def auto(argv, **kwargs):
         if len(sam_files) > 0:
             sorted_sam_files = []
             for i, ix in enumerate(sam_files):
-                sort_command = fanc_base_command + ['sort_sam', '-t', str(sort_threads),
-                                                    file_names[ix]]
+                sort_command = fanc_base_command + ['sort_sam', '-t', str(sort_threads)]
+                if use_sambamba:
+                    sort_command.append('--no-sambamba')
+                if tmp:
+                    sort_command.append('-tmp')
+                sort_command.append(file_names[ix])
+                
                 if in_place[i]:
                     sorted_sam_files.append(file_names[ix])
                 else:
@@ -1016,9 +1031,6 @@ def auto(argv, **kwargs):
 
                     sorted_sam_files.append(sorted_sam_file)
                     sort_command.append(sorted_sam_file)
-
-                if tmp:
-                    sort_command.append('-tmp')
 
                 sam_sort_task = CommandTask(sort_command)
                 runner.add_task(sam_sort_task, wait_for=mapping_tasks, threads=1)

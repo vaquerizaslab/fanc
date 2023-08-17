@@ -596,6 +596,14 @@ def sort_sam_parser():
         help='Number of sorting threads (only when sambamba is available). '
              'Default: %(default)d'
     )
+    
+    parser.add_argument(
+        '-S', '--no-sambamba', dest='use_sambamba',
+        default=True,
+        action='store_false',
+        help='Do not use sambamba, even when it is available. '
+             'Use pysam instead.'
+    )
 
     parser.add_argument(
         '-tmp', '--work-in-tmp', dest='tmp',
@@ -614,6 +622,7 @@ def sort_sam(argv, **kwargs):
     sam_file = os.path.expanduser(args.sam)
     output_file = None if args.output is None else os.path.expanduser(args.output)
     threads = args.threads
+    use_sambamba = args.use_sambamba
     tmp = args.tmp
 
     from genomic_regions.files import create_temporary_copy
@@ -635,7 +644,7 @@ def sort_sam(argv, **kwargs):
             tmp = True
             logger.info("Working in tmp: {}, ".format(sam_file, output_file))
 
-        output_file = sort_natural_sam(sam_file, output_file, threads=threads)
+        output_file = sort_natural_sam(sam_file, output_file, threads=threads, sambamba=use_sambamba)
         success = True
     finally:
         if tmp:
@@ -3806,7 +3815,7 @@ def _domain_scores(parser, input_file, output_file, output_format, default_outpu
     from fanc.tools.general import str_to_int, human_format
     output_format = output_format.lower()
     window_sizes = kwargs.get('window_sizes', None)
-
+    
     if not output_format == default_output_format:
         if output_file is None:
             output_prefix = input_file
@@ -3828,7 +3837,7 @@ def _domain_scores(parser, input_file, output_file, output_format, default_outpu
         matrix = fanc.load(input_file, mode='r')
 
         if not isinstance(matrix, score_class):
-            if output_file is None and output_format == default_output_format:
+            if output_file is None and sub_output_file is None and output_format == default_output_format:
                 parser.error("Output file cannot be empty when "
                              "choosing default output format!")
 
@@ -3866,10 +3875,16 @@ def _domain_scores(parser, input_file, output_file, output_format, default_outpu
                 elif output_format in ['gff']:
                     scores.to_gff(output_file, window_size, subset=sub_region)
         elif sub_region is not None:
-            if output_file is None:
+            if sub_output_file is None:
                 parser.error("Output file cannot be empty when "
                              "choosing default output format!")
-            sub_scores = score_class(sub_output_file, mode='w', tmpdir=tmp)
+            sub_scores = score_class(
+                parameter_prefix='insulation_',
+                parameter_values=window_sizes,
+                file_name=sub_output_file, 
+                mode='w',
+                tmpdir=tmp
+            )
             sub_scores.add_regions(scores.regions(sub_region), preserve_attributes=True)
             sub_scores.close()
         elif output_file is None:
