@@ -578,7 +578,8 @@ class JuicerHic(RegionMatrixContainer):
         version = JuicerHic._version(req)
         JuicerHic._skip_to_normalised_expected_values(req)
 
-        n_vectors = struct.unpack('<i', req.read(4))[0]
+        n_vectors_packed = req.read(4)
+        n_vectors = struct.unpack('<i', n_vectors_packed)[0] if len(n_vectors_packed) != 0 else 0
         for _ in range(n_vectors):
             while req.read(1).decode("utf-8", "backslashreplace") != '\0':
                 pass
@@ -756,7 +757,8 @@ class JuicerHic(RegionMatrixContainer):
             version = JuicerHic._version(req)
             JuicerHic._skip_to_normalisation_vectors(req)
 
-            n_entries = struct.unpack('<i', req.read(4))[0]
+            n_entries_packed = req.read(4)
+            n_entries = struct.unpack('<i', n_entries_packed)[0] if len(n_entries_packed) != 0 else 0
             for _ in range(n_entries):
                 entry_normalisation = _read_cstr(req)
                 entry_chromosome_index = struct.unpack('<i', req.read(4))[0]
