@@ -565,12 +565,14 @@ def sort_natural_sam(sam_file, output_file=None, sambamba=True, threads=1, _samb
         replace_input = True
 
     if sambamba:
+        logger.debug("Using sambamba to sort")
         sambamba_command = [_sambamba_path, 'sort', '-N', '-t', str(threads), '-o', output_file, sam_file]
         ret = subprocess.call(sambamba_command)
         if ret != 0:
             sambamba = False
             logger.warning("{} failed, falling back to pysam/samtools".format(_sambamba_path))
-    if not sambamba:
+    else:
+        logger.debug("Using pysam to sort")
         pysam.sort('-n', '-o', output_file, sam_file)
 
     if replace_input:
