@@ -4,6 +4,7 @@
 - Fixed issue #136 that prevented the use of -r parameter in fanc insulation
 - Added option to ignore sambamba when using sam_sort or auto
 - Fixed an issue with Juicer fieles when normalisation info is missing
+- Fix issue #163 where boundaries might be reported multiple times in rare cases
 
 0.9.25
 

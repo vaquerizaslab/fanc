@@ -609,7 +609,6 @@ class Boundaries(RegionScoreTable):
             minima, scores = peaks.get_maxima()
         else:
             minima, scores = peaks.get_minima()
-        #regions = list(insulation_score.regions)
 
         boundaries = []
         for i, ix in enumerate(minima):

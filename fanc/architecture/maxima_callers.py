@@ -14,7 +14,9 @@ def find_zero_crossing(x, sub_bin_precision=False):
     frac = left/(left - right)
     if sub_bin_precision:
         return idx + frac
-    return np.rint(idx + frac).astype(np.int_)
+    zero_crossings = np.rint(idx + frac).astype(np.int_)
+    
+    return np.unique(zero_crossings)
 
 
 def getitem_interpolated(array, idx):
