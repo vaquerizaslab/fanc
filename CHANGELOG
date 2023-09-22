@@ -1,3 +1,7 @@
+0.9.27
+
+- Fixed an issue with Colorbar.draw_all in recent versions of Matplotlib
+
 0.9.26
 
 - Fixed issue #135 where insulation scores were NaN when using geometric mean
