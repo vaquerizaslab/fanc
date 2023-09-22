@@ -666,7 +666,7 @@ class BasePlotterMatrix(with_metaclass(PlotMeta, object)):
 
             max_diff = max(abs(baseline - vmax), abs(baseline - vmin))
             self.colorbar.mappable.set_clim(vmin=baseline-max_diff, vmax=baseline+max_diff)
-        self.colorbar.draw_all()
+        self.cax.figure.draw_without_rendering()
 
     @property
     def vmin(self):
