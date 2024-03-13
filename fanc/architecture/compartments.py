@@ -8,7 +8,10 @@ from ..tools.general import RareUpdateProgressBar
 from ..config import config
 from ..regions import Genome
 from future.utils import string_types
-from Bio.SeqUtils import GC as calculate_gc_content
+try:
+    from Bio.SeqUtils import GC as calculate_gc_content
+except ImportError:
+    from Bio.SeqUtils import gc_fraction as calculate_gc_content
 import warnings
 import logging
 
