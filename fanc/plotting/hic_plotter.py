@@ -352,8 +352,14 @@ class SquareMatrixPlot(BasePlotterHic, BasePlotter2D):
                       self.current_matrix.col_regions[-1].end, self.current_matrix.col_regions[0].start]
 
         color_matrix = self.get_color_matrix(m)
-        self.im = self.ax.imshow(color_matrix, interpolation='none', aspect='auto',
-                                 cmap=self.colormap, norm=self._map_norm, extent=extent)
+        self.im = self.ax.imshow(
+            color_matrix, 
+            interpolation='none', 
+            aspect='auto',
+            cmap=self.colormap, 
+            norm=self._map_norm, 
+            extent=extent,
+        )
 
         self.ax.set_xlim(extent[0], extent[1])
         self.ax.set_ylim(extent[2], extent[3])
