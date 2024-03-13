@@ -1,3 +1,7 @@
+0.9.28
+
+- Fix Biopython import (#182), thanks @rlowe-altoslabs!
+
 0.9.27
 
 - Fixed an issue with Colorbar.draw_all in recent versions of Matplotlib
